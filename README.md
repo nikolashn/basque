@@ -21,25 +21,32 @@ comment
 ```
 ### Statements
 `write <expression>;`
+
 Outputs an expression to standard output (converting numeric expressions 64 bit unsigned integers and then to decimal strings of numbers)
 ```
 write "Hello world!\n"; # Hello world!
 write -1; # 18446744073709551615
 ```
+
 `<expression>;`
+
 Does nothing generally, unless the expression is made up of string literals, in which case it is like a write statement.
 ```
 5+2; # Does nothing
 "yo\n"; # yo
 ```
+
 `<type> <identifier>` [` = <expression>`] `;`
+
 Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Currently only stores the initalized value (0 for uninitialized variables) in a symbol table, I haven't added a way of using identifiers in expressions yet.
 ```
 u64 col = 0xfcf4d0u;
 i64 _1234567;
 u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
+
 `;`
+
 Does nothing.
 
 ### Expressions
