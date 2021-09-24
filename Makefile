@@ -5,6 +5,9 @@ include config.mk
 all:
 	${CC} basque.c -o basque ${CFLAGS}
 
+clean:
+	rm -f basque
+
 install: all
 	mkdir -p ${DESTDIR}${PPATH}/bin
 	cp -f basque ${DESTDIR}${PPATH}/bin
@@ -14,5 +17,5 @@ uninstall:
 	rm -f ${DESTDIR}${PPATH}/bin/basque
 
 
-.PHONY: all install uninstall
+.PHONY: all clean install uninstall
 
