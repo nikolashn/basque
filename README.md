@@ -57,7 +57,7 @@ Operators are the following (each line is ordered from high to low precedence.
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
-- bitwise xor '^'
+- bitwise xor `^`
 - bitwise or `|`
 - add `+`, subtract `-`
 - logical and `&&`
