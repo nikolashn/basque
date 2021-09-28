@@ -4,15 +4,17 @@
 #define BA__TYPES_H
 
 enum {
-	BA_TYPE_NONE = 0x1000,
+	BA_TYPE_NONE = 0,
 
-	BA_TYPE_U64 = 0x1001,
-	BA_TYPE_I64 = 0x1002,
-	BA_TYPE_U8 = 0x1003,
-	BA_TYPE_I8 = 0x1004,
+	BA_TYPE_U64 = 0x1,
+	BA_TYPE_I64 = 0x2,
+	BA_TYPE_U8 = 0x3,
+	BA_TYPE_I8 = 0x4,
 
-	BA_TYPE_F64 = 0x1005,
-	BA_TYPE_F32 = 0x1006,
+	BA_TYPE_F64 = 0x5,
+	BA_TYPE_F32 = 0x6,
+	
+	BA_TYPE_TYPE = 0x1000, // ooo meta
 };
 
 u8 ba_IsTypeUnsigned(u64 type) {
@@ -21,6 +23,10 @@ u8 ba_IsTypeUnsigned(u64 type) {
 
 u8 ba_IsTypeSigned(u64 type) {
 	return (type == BA_TYPE_I64) || (type == BA_TYPE_I8);
+}
+
+u8 ba_IsTypeIntegral(u64 type) {
+	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
 u8 ba_IsTypeNumeric(u64 type) {
@@ -44,11 +50,8 @@ u64 ba_GetSizeOfType(u64 type) {
 	return 0;
 }
 
-char* ba_GetTypeStr(u64 tk) {
-	if (tk == BA_TK_LITSTR) {
-		return "'u8*' (string literal)";
-	}
-	switch (tk) {
+char* ba_GetTypeStr(u64 type) {
+	switch (type) {
 		case BA_TYPE_NONE:
 			return 0;
 		case BA_TYPE_U64:

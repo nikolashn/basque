@@ -13,6 +13,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u64 dataSgmtAddr;
 	u64 dataSgmtCap = 0x1000;
 	u8* dataSgmt = malloc(dataSgmtCap);
+	if (!dataSgmt) {
+		return ba_ErrorMallocNoMem();
+	}
 	u64 dataSgmtSize = 0;
 
 	for (u64 i = 0; i < ctr->globalST->capacity; i++) {
@@ -39,6 +42,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// Generate binary code
 	u64 codeCap = 0x1000;
 	u8* code = malloc(codeCap);
+	if (!code) {
+		return ba_ErrorMallocNoMem();
+	}
 	u64 codeSize = 0;
 
 	struct ba_IM* im = ctr->startIM;

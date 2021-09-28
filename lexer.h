@@ -23,10 +23,10 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 	}
 	state = ST_NONE;
 
-	char fileBuf[BA_FILE_BUF_SIZE];
-	char litBuf[BA_LITERAL_SIZE+1];
-	char idBuf[BA_IDENTIFIER_SIZE+1];
-	u64 fileIter, litIter = 0, idIter = 0, line = 1, col = 1, colStart = 1;
+	char fileBuf[BA_FILE_BUF_SIZE] = {0};
+	char litBuf[BA_LITERAL_SIZE+1] = {0};
+	char idBuf[BA_IDENTIFIER_SIZE+1] = {0};
+	u64 fileIter = 0, litIter = 0, idIter = 0, line = 1, col = 1, colStart = 1;
 	struct ba_Lexeme* nextLex = ctr->startLex;
 	
 	while (fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile)) {
@@ -109,6 +109,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						nextLex->line = line;
 						nextLex->colStart = colStart;
 						nextLex->val = malloc(BA_LITERAL_SIZE+1);
+						if (!nextLex->val) {
+							return ba_ErrorMallocNoMem();
+						}
 						nextLex->valLen = litIter;
 						strcpy(nextLex->val, litBuf);
 						nextLex->type = BA_TK_LITINT;
@@ -280,8 +283,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						
 					}
 					else {
-						return ba_ExitMsg(
-							0, "encountered invalid character at", line, col);
+						return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid character at", 
+							line, col);
 					}
 
 					nextLex->line = line;
@@ -368,6 +371,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					}
 					else {
 						nextLex->val = malloc(BA_LITERAL_SIZE+1);
+						if (!nextLex->val) {
+							return ba_ErrorMallocNoMem();
+						}
 						strcpy(nextLex->val, idBuf);
 						nextLex->valLen = idIter;
 						nextLex->type = BA_TK_IDENTIFIER;
@@ -395,6 +401,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex->colStart = colStart;
 					
 					nextLex->val = malloc(BA_LITERAL_SIZE+1);
+					if (!nextLex->val) {
+						return ba_ErrorMallocNoMem();
+					}
 					strcpy(nextLex->val, litBuf);
 					nextLex->valLen = litIter;
 					nextLex->type = BA_TK_LITSTR;
@@ -485,7 +494,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					val += c - '0';
 				}
 				else {
-					return ba_ExitMsg(0, "invalid escape sequence at", line, col);
+					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
+						line, col);
 				}
 
 				val <<= 4;
@@ -508,7 +518,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					val += c - 'A' + 10;
 				}
 				else {
-					return ba_ExitMsg(0, "invalid escape sequence at", line, col);
+					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
+						line, col);
 				}
 
 				litBuf[litIter++] = val;
@@ -534,6 +545,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex->line = line;
 					nextLex->colStart = colStart;
 					nextLex->val = malloc(litIter+1);
+					if (!nextLex->val) {
+						return ba_ErrorMallocNoMem();
+					}
 					nextLex->valLen = litIter;
 					strcpy(nextLex->val, litBuf);
 					nextLex->type = BA_TK_LITINT;
@@ -571,6 +585,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex->line = line;
 					nextLex->colStart = colStart;
 					nextLex->val = malloc(litIter+1);
+					if (!nextLex->val) {
+						return ba_ErrorMallocNoMem();
+					}
 					nextLex->valLen = litIter;
 					strcpy(nextLex->val, litBuf);
 					nextLex->type = BA_TK_LITINT;
@@ -608,6 +625,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex->line = line;
 					nextLex->colStart = colStart;
 					nextLex->val = malloc(litIter+1);
+					if (!nextLex->val) {
+						return ba_ErrorMallocNoMem();
+					}
 					nextLex->valLen = litIter;
 					strcpy(nextLex->val, litBuf);
 					nextLex->type = BA_TK_LITINT;
@@ -645,6 +665,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex->line = line;
 					nextLex->colStart = colStart;
 					nextLex->val = malloc(litIter+1);
+					if (!nextLex->val) {
+						return ba_ErrorMallocNoMem();
+					}
 					nextLex->valLen = litIter;
 					strcpy(nextLex->val, litBuf);
 					nextLex->type = BA_TK_LITINT;
@@ -671,7 +694,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 		printf("Error: unexpected end of input\n");
 		return 0;
 	}
-
+	
 	return 1;
 }
 

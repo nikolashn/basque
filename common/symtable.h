@@ -126,7 +126,7 @@ char* ba_STSet(struct ba_SymTable* st, char* key, struct ba_STVal* val) {
 
 	if (st->count >= (st->capacity >> 1)) {
 		if (!ba_STExpand(st)) {
-			return NULL;
+			return 0;
 		}
 	}
 	

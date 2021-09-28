@@ -7,10 +7,11 @@ char usageStr[] =
 	"Usage: basque [options] file\n"
 	"Options:\n"
 	"  -h,--help               Displays this text.\n"
+	"  -v,--version            Display the current version of Basque.\n"
 	"  -o <FILE>               Output compiled code into <FILE>.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
-	"  -v,--version            Display the current version of Basque.\n"
-	"  -w,--warnings-as-errors Treat warnings as errors.\n"
+	"  -w,--extra-warnings     Show extra warnings.\n"
+	"  -W,--warnings-as-errors Treat warnings as errors.\n"
 ;
 
 int main(int argc, char* argv[]) {
@@ -21,46 +22,92 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-	FILE* srcFile = NULL;
-	char* outFileName = NULL;
+	FILE* srcFile = 0;
+	char* outFileName = 0;
 
 	for (u64 i = 1; i < argc; i++) {
-		if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
-			printf("%s", usageStr);
-			return 0;
-		}
-		else if (!strcmp(argv[i], "--version") || !strcmp(argv[i], "-v")) {
-			printf("Basque " BA_VERSION "\n");
-			return 0;
-		}
-		else if (!strcmp(argv[i], "-o")) {
+		u8 isHandledCLO = 0;
+		u8 isCLOHelp = 0;
+		u8 isCLOVersion = 0;
+		
+		u64 len = strlen(argv[i]);
+		
+		if (!strcmp(argv[i], "-o")) {
 			if (++i == argc) {
 				printf("Error: no file name provided after -o\n");
 				return -1;
 			}
-			outFileName = malloc(strlen(argv[i]) * sizeof(char));
+			outFileName = malloc(len * sizeof(char));
+			if (!outFileName) {
+				return ba_ErrorMallocNoMem();
+			}
 			strcpy(outFileName, argv[i]);
-		}
-		else if (!strcmp(argv[i], "--silence-warnings") || !strcmp(argv[i], "-s")) {
-			ba_IsSilenceWarnings = 1;
-		}
-		else if (!strcmp(argv[i], "--warnings-as-errors") || !strcmp(argv[i], "-w")) {
-			ba_IsWarningsAsErrors = 1;
+			continue;
 		}
 		else if (argv[i][0] == '-') {
-			printf("Option %s not found\n", argv[i]);
+			if (len > 1 && argv[i][1] != '-') {
+				isHandledCLO = 1;
+				for (u64 j = 1; j < len; j++) {
+					switch (argv[i][j]) {
+						case 'h':
+							isCLOHelp = 1;
+							break;
+						case 'v':
+							isCLOVersion = 1;
+							break;
+						case 's':
+							ba_IsSilenceWarnings = 1;
+							break;
+						case 'w':
+							ba_IsExtraWarnings = 1;
+							break;
+						case 'W':
+							ba_IsWarningsAsErrors = 1;
+							break;
+						default:
+							printf("Command line option %s not found\n", argv[i]);
+							return -1;
+					}
+				}
+			}
+		}
+		
+		if (isCLOHelp || !strcmp(argv[i], "--help")) {
+			printf("%s", usageStr);
+			return 0;
+		}
+		else if (isCLOVersion || !strcmp(argv[i], "--version")) {
+			printf("Basque " BA_VERSION "\n");
+			return 0;
+		}
+		else if (isHandledCLO) {
+			continue;
+		}
+		else if (!strcmp(argv[i], "--silence-warnings")) {
+			ba_IsSilenceWarnings = 1;
+		}
+		else if (!strcmp(argv[i], "--extra-warnings")) {
+			ba_IsExtraWarnings = 1;
+		}
+		else if (!strcmp(argv[i], "--warnings-as-errors")) {
+			ba_IsWarningsAsErrors = 1;
+		}
+		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
+			printf("Command line option %s not found\n", argv[i]);
 			return -1;
 		}
-		else if (srcFile == NULL) {
+		else if (!srcFile) {
 			srcFile = fopen(argv[i], "r");
-			if (srcFile == NULL) {
+			if (!srcFile) {
 				printf("Cannot find %s: no such file or directory\n", argv[i]);
 				return -1;
 			}
-			if (outFileName == NULL) {
-				u64 len = strlen(argv[i]);
+			if (!outFileName) {
 				if ((len > 3) && !strcmp(argv[i]+len-3, ".ba")) {
-					outFileName = malloc((len-3) * sizeof(char));
+					outFileName = malloc(len-3);
+					if (!outFileName) {
+						return ba_ErrorMallocNoMem();
+					}
 					strcpy(outFileName, argv[i]);
 					*(outFileName+len-3) = '\0';
 				}
@@ -78,7 +125,7 @@ int main(int argc, char* argv[]) {
 		printf("Error: cannot both silence warnings and have warnings as errors\n");
 		return -1;
 	}
-	if (srcFile == NULL) {
+	if (!srcFile) {
 		printf("%s", usageStr);
 		return 0;
 	}
@@ -110,7 +157,7 @@ int main(int argc, char* argv[]) {
 	for (u64 i = 0; i < ctr->globalST->capacity; i++) {
 		struct ba_STEntry e = ctr->globalST->entries[i];
 		if (e.val) {
-			printf("entry %lld: %s %llx\n", i, e.key, e.val->type);//dodo
+			printf("entry %lld: %s %llx\n", i, e.key, e.val->type);
 		}
 	}
 	*/

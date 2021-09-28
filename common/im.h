@@ -45,9 +45,12 @@ struct ba_IM {
 
 struct ba_IM* ba_NewIM() {
 	struct ba_IM* im = malloc(sizeof(struct ba_IM));
-	im->vals = NULL;
+	if (!im) {
+		ba_ErrorMallocNoMem();
+	}
+	im->vals = 0;
 	im->count = 0;
-	im->next = NULL;
+	im->next = 0;
 	return im;
 }
 
@@ -60,6 +63,9 @@ struct ba_IM* ba_DelIM(struct ba_IM* im) {
 
 char* ba_IMToStr(struct ba_IM* im) {
 	char* str = malloc(255);
+	if (!str) {
+		ba_ErrorMallocNoMem();
+	}
 	*str = 0;
 
 	u8 isImm = 0;

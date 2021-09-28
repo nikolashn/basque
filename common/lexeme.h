@@ -20,6 +20,10 @@ enum {
 	BA_TK_LITSTR = 0x200,
 	BA_TK_LITINT = 0x201,
 	BA_TK_IDENTIFIER = 0x202,
+	
+	// BA_TK_REGISTER is not an actual lexeme but instead is
+	// used by the parser for intermediate values
+	BA_TK_REGISTER = 0x2ff,
 
 	BA_TK_KW_WRITE = 0x300,
 	BA_TK_KW_U64 = 0x301,
@@ -38,12 +42,15 @@ struct ba_Lexeme {
 
 struct ba_Lexeme* ba_NewLexeme() {
 	struct ba_Lexeme* lex = malloc(sizeof(struct ba_Lexeme));
+	if (!lex) {
+		ba_ErrorMallocNoMem();
+	}
 	lex->type = BA_TK_EOF;
 	lex->line = 0;
 	lex->colStart = 0;
-	lex->val = NULL;
+	lex->val = 0;
 	lex->valLen = 0;
-	lex->next = NULL;
+	lex->next = 0;
 	return lex;
 }
 
@@ -60,6 +67,9 @@ char* ba_GetLexemeStr(u64 lex) {
 	}
 	else if (lex <= 0xff) {
 		char* str = malloc(4);
+		if (!str) {
+			ba_ErrorMallocNoMem();
+		}
 		str[0] = '\'';
 		str[1] = lex;
 		str[2] = '\'';

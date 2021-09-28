@@ -23,7 +23,7 @@
 #define BA_IDENTIFIER_SIZE 255
 #define BA_LITERAL_SIZE 4095
 
-// ----- Typedefs/enums -----
+// ----- Typedefs/structs -----
 
 typedef unsigned long long u64;
 typedef signed long long i64;
@@ -31,6 +31,11 @@ typedef unsigned char u8;
 typedef signed char i8;
 typedef double f64;
 typedef float f32;
+
+struct ba_Str {
+	char* str;
+	u64 len;
+};
 
 // ----- Basque includes -----
 
@@ -176,6 +181,9 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 char* ba_U64ToStr(u64 num) {
 	u8 digits[20];
 	char* str = malloc(20);
+	if (!str) {
+		ba_ErrorMallocNoMem();
+	}
 	u64 len = 0;
 
 	if (!num) {

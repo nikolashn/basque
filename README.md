@@ -1,7 +1,8 @@
 # Basque
-Basque is a programming language that aims to be similar to C, with some improvements. The Basque compiler currently only statically compiles for Linux x86\_64 ELF and takes ASCII input.
+Basque is a programming language that aims to be similar to C, with some improvements. The Basque compiler currently only statically compiles for Linux x86\_64 ELF, ahead of time, and takes ASCII input.
 
 ## Installation
+Run the following command in the basque directory (might need to be run as root):
 ```
 make install
 ```
@@ -50,7 +51,7 @@ u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 Does nothing.
 
 ### Expressions
-An expression consists of atoms and operators.
+An expression consists of atoms and operators (or just an atom on its own).
 Operators are the following (each line is ordered from high to low precedence.
 - unary prefixes `+ - ! ~` and grouping `()`
 - bit shift operators `<< >>`
