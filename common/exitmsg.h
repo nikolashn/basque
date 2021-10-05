@@ -82,6 +82,13 @@ u8 ba_ErrorAssignTypes(char* expType, char* var, char* varType,
 	return 0;
 }
 
+u8 ba_ErrorIdUndef(char* var, u64 line, u64 col) {
+	printf("Error: identifier '%s' not defined on line %llu:%llu\n", var, 
+		line, col);
+	exit(-1);
+	return 0;
+}
+
 u8 ba_ErrorVarRedef(char* var, u64 line, u64 col) {
 	printf("Error: redefinition of variable '%s' on line %llu:%llu\n", var, 
 		line, col);

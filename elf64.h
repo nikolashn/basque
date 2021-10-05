@@ -10,29 +10,20 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u64 tmp;
 	
 	// Generate data segment
-	u64 dataSgmtAddr;
-	u64 dataSgmtCap = 0x1000;
-	u8* dataSgmt = malloc(dataSgmtCap);
+	u64 dataSgmtAddr = 0;
+	u64 dataSgmtSize = ctr->dataSgmtSize;
+	u8* dataSgmt = malloc(dataSgmtSize);
 	if (!dataSgmt) {
 		return ba_ErrorMallocNoMem();
 	}
-	u64 dataSgmtSize = 0;
 
 	for (u64 i = 0; i < ctr->globalST->capacity; i++) {
 		struct ba_STEntry e = ctr->globalST->entries[i];
 		if (e.key) {
-			u64 start = dataSgmtSize;
-
 			u64 sz = ba_GetSizeOfType(e.val->type);
-			dataSgmtSize += sz;
-			if (dataSgmtSize > dataSgmtCap) {
-				dataSgmtCap <<= 1;
-				dataSgmt = realloc(dataSgmt, dataSgmtCap);
-			}
-
 			tmp = (u64)e.val->initVal;
-			for (u64 j = 0; j < sz; j++) {
-				dataSgmt[start+j] = tmp & 0xff;
+			for (u64 j = e.val->address; j < sz; j++) {
+				dataSgmt[j] = tmp & 0xff;
 				tmp >>= 8;
 			}
 
@@ -249,7 +240,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							code[codeSize-1] = offset & 0xff;
 						}
 						else {
-							printf("Error: Effective address cannot have a more than 32 bit offset\n");
+							printf("Error: Effective address cannot have a more "
+								"than 32 bit offset\n");
 							exit(-1);
 						}
 					}

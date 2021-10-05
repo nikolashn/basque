@@ -3,9 +3,15 @@
 #ifndef BA__SYMTABLE_H
 #define BA__SYMTABLE_H
 
+struct ba_SymTable;
+
 struct ba_STVal {
+	struct ba_SymTable* parent;
+	
+	// If global, relative to global memory start address
+	u64 address;
+
 	u64 type;
-	u64 address; // relative to global memory start address
 	void* initVal;
 	u8 isInited;
 };
@@ -27,11 +33,18 @@ struct ba_SymTable {
 
 struct ba_SymTable* ba_NewSymTable() {
 	struct ba_SymTable* st = malloc(sizeof(struct ba_SymTable));
+	if (!st) {
+		ba_ErrorMallocNoMem();
+	}
 	st->parent = 0;
 	st->children = 0;
 	st->childCount = 0;
-
+	
 	st->entries = calloc(BA_SYMTABLE_CAPACITY, sizeof(struct ba_STEntry));
+	if (!st->entries) {
+		ba_ErrorMallocNoMem();
+	}
+
 	st->capacity = BA_SYMTABLE_CAPACITY;
 	st->count = 0;
 	return st;
@@ -66,6 +79,21 @@ struct ba_STVal* ba_STGet(struct ba_SymTable* st, char* key) {
 		}
 	}
 
+	return 0;
+}
+
+// stFoundIn must be a real pointer otherwise null pointer dereferencing
+struct ba_STVal* ba_STParentFind(struct ba_SymTable* st, 
+	struct ba_SymTable** stFoundIn, char* key)
+{
+	while (st) {
+		struct ba_STVal* get = ba_STGet(st, key);
+		if (get) {
+			*stFoundIn = st;
+			return get;
+		}
+		st = st->parent;
+	}
 	return 0;
 }
 
@@ -106,7 +134,7 @@ int ba_STExpand(struct ba_SymTable* st) {
 	
 	struct ba_STEntry* newEntries = calloc(newCapacity, sizeof(struct ba_STEntry));
 	if (!newEntries) {
-		return 0;
+		return ba_ErrorMallocNoMem();
 	}
 	
 	for (u64 i = 0; i < st->capacity; i++) {

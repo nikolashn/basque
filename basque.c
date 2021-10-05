@@ -162,6 +162,7 @@ int main(int argc, char* argv[]) {
 	}
 	*/
 
+	// ----- Optimization -----
 	// TODO: optimization
 	
 	// ----- Binary generation -----

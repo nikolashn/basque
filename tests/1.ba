@@ -1,0 +1,11 @@
+write 2 + 5 * 3; "\n";
+write (2 + 5) * 3; "\n";
+write 2 + (5 * 3); "\n";
+
+i64 x = 0x123456789abcdef;
+i64 y = -21;
+write x; "\n";
+write y; "\n";
+u64 z = 5 + 10 * 15 // 20;
+write z; "\n";
+write z+21; "\n";

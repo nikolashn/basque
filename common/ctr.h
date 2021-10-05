@@ -13,6 +13,9 @@ struct ba_Controller {
 	struct ba_IM* startIM;
 	struct ba_IM* im;
 	struct ba_SymTable* globalST;
+	struct ba_SymTable* currScope;
+	
+	u64 dataSgmtSize;
 };
 
 void ba_PTkStkPush(struct ba_Controller* ctr, void* val, 
@@ -54,6 +57,8 @@ struct ba_Controller* ba_NewController() {
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
+	ctr->currScope = ctr->globalST;
+	ctr->dataSgmtSize = 0;
 	return ctr;
 }
 

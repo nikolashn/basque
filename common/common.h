@@ -137,13 +137,13 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 		u64 shift = 0;
 		for (u64 i = len; i-- > 0; ) {
 			if ((str[i] >= '0') && (str[i] <= '9')) {
-				finalInt += (str[i] - '0') << shift;
+				finalInt += (u64)(str[i] - '0') << shift;
 			}
 			else if ((str[i] >= 'a') && (str[i] <= 'f')) {
-				finalInt += (str[i] - 'a' + 10) << shift;
+				finalInt += (u64)(str[i] - 'a' + 10) << shift;
 			}
 			else if ((str[i] >= 'A') && (str[i] <= 'F')) {
-				finalInt += (str[i] - 'A' + 10) << shift;
+				finalInt += (u64)(str[i] - 'A' + 10) << shift;
 			}
 			else {
 				return ba_ErrorIntLitChar(line, col);

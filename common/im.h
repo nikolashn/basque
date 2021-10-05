@@ -6,19 +6,23 @@
 enum {
 	BA_IM_NOP          = 0x0,
 	
+	// My special syntax
 	BA_IM_IMM          = 0x1,
 	BA_IM_ADR          = 0x2,
 	BA_IM_ADRADD       = 0x3,
 	BA_IM_ADRSUB       = 0x4,
 	BA_IM_ADRMADD      = 0x5,
 	BA_IM_ADRMSUB      = 0x6,
+	BA_IM_DATASGMT     = 0x7,
 	
+	// Normal assembly instructions
 	BA_IM_MOV          = 0x10,
 	BA_IM_ADD          = 0x11,
 	BA_IM_SUB          = 0x12,
 	BA_IM_SYSCALL      = 0x13,
 	
 	// Registers must remain in order, otherwise binary generation messes up
+	// i.e. the last nibble of each value must stay the same
 	BA_IM_RAX          = 0xc0,
 	BA_IM_RCX          = 0xc1,
 	BA_IM_RDX          = 0xc2,
@@ -100,6 +104,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_IMM:
 				strcat(str, "IMM ");
+				isImm = 1;
+				break;
+			case BA_IM_DATASGMT:
+				strcat(str, "DATASGMT ");
 				isImm = 1;
 				break;
 			case BA_IM_ADR:
