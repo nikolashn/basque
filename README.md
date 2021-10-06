@@ -10,8 +10,6 @@ make install
 ## Current features of the programming language
 ### Comments
 Single-line comments use a `#` symbol; multi-line comments begin and end with `##`, and do not nest.
-### Types
-Currently only string (string literal), i64 (64-bit signed integer) and u64 (64-bit unsigned integer) exist.
 ```
 # Single line comment
 write "b a s q u e\n"; # Another single line comment
@@ -20,6 +18,8 @@ Multiline
 comment
 ##
 ```
+### Types
+Currently only string (string literal), i64 (64-bit signed integer) and u64 (64-bit unsigned integer) exist.
 ### Statements
 `write <expression>;`
 
