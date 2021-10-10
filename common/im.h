@@ -11,9 +11,7 @@ enum {
 	BA_IM_ADR          = 0x2,
 	BA_IM_ADRADD       = 0x3,
 	BA_IM_ADRSUB       = 0x4,
-	BA_IM_ADRMADD      = 0x5,
-	BA_IM_ADRMSUB      = 0x6,
-	BA_IM_DATASGMT     = 0x7,
+	BA_IM_DATASGMT     = 0xf,
 	
 	// Normal assembly instructions
 	BA_IM_MOV          = 0x10,
@@ -21,8 +19,9 @@ enum {
 	BA_IM_SUB          = 0x12,
 	BA_IM_SYSCALL      = 0x13,
 	
-	// Registers must remain in order, otherwise binary generation messes up
-	// i.e. the last nibble of each value must stay the same
+	// GPRs must remain in order, otherwise binary generation messes up
+	// i.e. the last nibble of each value must stay the same as originally, 
+	// while the bits before those must be the same for each register
 	BA_IM_RAX          = 0xc0,
 	BA_IM_RCX          = 0xc1,
 	BA_IM_RDX          = 0xc2,
@@ -74,7 +73,6 @@ char* ba_IMToStr(struct ba_IM* im) {
 
 	u8 isImm = 0;
 	u8 adrP1 = 0;
-	u8 adrP2 = 0;
 
 	for (u64 i = 0; i < im->count; i++) {
 		u64 val = im->vals[i];
@@ -82,18 +80,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 		if (isImm) {
 			sprintf(str+strlen(str), "%#llx ", val);
 			isImm = 0;
-			if (adrP2 == 1) {
-				isImm = adrP2--;
-			}
 			continue;
 		}
 		else if (adrP1) {
 			if (!--adrP1) {
-				isImm = 1;
-			}
-		}
-		else if (adrP2) {
-			if (--adrP1 <= 1) {
 				isImm = 1;
 			}
 		}
@@ -120,14 +110,6 @@ char* ba_IMToStr(struct ba_IM* im) {
 			case BA_IM_ADRSUB:
 				strcat(str, "ADRSUB ");
 				adrP1 = 1;
-				break;
-			case BA_IM_ADRMADD:
-				strcat(str, "ADRMADD ");
-				adrP2 = 2;
-				break;
-			case BA_IM_ADRMSUB:
-				strcat(str, "ADRMSUB ");
-				adrP2 = 2;
 				break;
 			case BA_IM_MOV:
 				strcat(str, "MOV ");

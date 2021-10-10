@@ -165,6 +165,55 @@ int main(int argc, char* argv[]) {
 	// ----- Optimization -----
 	// TODO: optimization
 	
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 0);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 8);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 16);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT, 0);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT, 8);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBX, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBX, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBX, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSP, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSP, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSP, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSI, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSI, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSI, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R8 , BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R8 , BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R8 , BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R9 , BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R9 , BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R9 , BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R10, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R10, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R10, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R11, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R11, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R11, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R12, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R12, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R12, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R13, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R13, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R13, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R14, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R14, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R14, BA_IM_DATASGMT, 16);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R15, BA_IM_DATASGMT, 0);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R15, BA_IM_DATASGMT, 8);
+//	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R15, BA_IM_DATASGMT, 16);
+
 	// ----- Binary generation -----
 	
 	if (!ba_WriteBinary(outFileName, ctr)) {

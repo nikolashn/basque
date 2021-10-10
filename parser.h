@@ -83,6 +83,9 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			}
 
 			str = realloc(str, len);
+			if (!str) {
+				ba_ErrorMallocNoMem();
+			}
 			strcpy(str+oldLen, ctr->lex->val); // TODO: zero termination??
 		} while (ba_PAccept(BA_TK_LITSTR, ctr));
 		

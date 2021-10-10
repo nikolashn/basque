@@ -38,6 +38,9 @@ void* ba_StkPush(void* item, struct ba_Stk* stk) {
 			return 0;
 		}
 		stk->items = realloc(stk->items, stk->cap * 2);
+		if (!stk->items) {
+			ba_ErrorMallocNoMem();
+		}
 	}
 	else {
 		stk->items[stk->count] = item;

@@ -7,6 +7,9 @@
 #include "common/common.h"
 
 u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
+	// Note: start memory location is fixed at 0x400000, 
+	// entry point fixed at 0x401000
+
 	u64 tmp;
 	
 	// Generate data segment
@@ -26,9 +29,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				dataSgmt[j] = tmp & 0xff;
 				tmp >>= 8;
 			}
-
 		}
 	}
+
+	// Array of addresses in code that need to be turned into data addresses
+	// (using RIP relative addressing)
+	u64 ripAddrsCap = 0x1000;
+	// Addresses of where the offset is stored in code
+	u64* ripAddrData = malloc(ripAddrsCap);
+	if (!ripAddrData) {
+		return ba_ErrorMallocNoMem();
+	}
+	// Addresses of the next instruction pointer
+	u64* ripAddrPtrs = malloc(ripAddrsCap);
+	if (!ripAddrPtrs) {
+		return ba_ErrorMallocNoMem();
+	}
+	u64 ripAddrsSize = 0;
 	
 	// Generate binary code
 	u64 codeCap = 0x1000;
@@ -58,7 +75,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						
 						b0 |= (r1 >= 8) << 2;
 						b0 |= (r0 >= 8);
-
+						
 						b2 |= (r1 & 7) << 3;
 						b2 |= (r0 & 7);
 						
@@ -71,6 +88,51 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code[codeSize-3] = b0;
 						code[codeSize-2] = 0x89;
 						code[codeSize-1] = b2;
+					}
+
+					// GPR, DATASGMT
+					else if (im->vals[2] == BA_IM_DATASGMT) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgs("MOV", 2);
+						}
+
+						// Addr. rel. to start of data segment
+						u64 imm = im->vals[3];
+
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 b0 = 0x48, b2 = 0x5;
+
+						b0 |= (r0 >= 8) << 2;
+						b2 |= (r0 & 7) << 3;
+
+						// Where imm (data location) is stored
+						ripAddrData[ripAddrsSize] = codeSize+3;
+						// RIP
+						ripAddrPtrs[ripAddrsSize] = codeSize+7;
+
+						++ripAddrsSize;
+						if (ripAddrsSize > ripAddrsCap) {
+							ripAddrsCap <<= 1;
+							ripAddrData = realloc(ripAddrData, ripAddrsCap);
+							ripAddrPtrs = realloc(ripAddrPtrs, ripAddrsCap);
+						}
+
+						codeSize += 7;
+						if (codeSize > codeCap) {
+							codeCap <<= 1;
+							code = realloc(code, codeCap);
+						}
+
+						code[codeSize-7] = b0;
+						code[codeSize-6] = 0x8b;
+						code[codeSize-5] = b2;
+						code[codeSize-4] = imm & 0xff;
+						imm >>= 8;
+						code[codeSize-3] = imm & 0xff;
+						imm >>= 8;
+						code[codeSize-2] = imm & 0xff;
+						imm >>= 8;
+						code[codeSize-1] = imm & 0xff;
 					}
 
 					// GPR, IMM
@@ -247,8 +309,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 				}
 				
-				// TODO: Into ADRMADD/ADRMSUB GPR effective address
-
 				else {
 					printf("Error: invalid set of arguments to MOV instruction\n");
 					exit(-1);
@@ -436,21 +496,29 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		im = ba_DelIM(im);
 	}
 
-	dataSgmtAddr = codeSize;
-	tmp = codeSize & 0xfff;
+	// Data segment
+	dataSgmtAddr = 0x1000 + codeSize;
+	tmp = dataSgmtAddr & 0xfff;
 	// Round up to nearest 0x1000
 	if (tmp) {
 		dataSgmtAddr ^= tmp;
 		dataSgmtAddr += 0x1000;
 	}
 
-	/*
-	// DEBUG
-	for (u64 i = 0; i < codeSize; i++) {
-		printf("%llx ", code[i]);
+	// Fix RIP relative addresses
+	for (u64 i = 0; i < ripAddrsSize; i++) {
+		u64 codeLoc = ripAddrData[i];
+		tmp = dataSgmtAddr - ripAddrPtrs[i] + 
+			code[codeLoc] + (code[codeLoc+1] << 8) +
+			(code[codeLoc+2] << 16) + (code[codeLoc+3] << 24);
+		code[codeLoc] = tmp & 0xff;
+		tmp >>= 8;
+		code[codeLoc+1] = tmp & 0xff;
+		tmp >>= 8;
+		code[codeLoc+2] = tmp & 0xff;
+		tmp >>= 8;
+		code[codeLoc+3] = tmp & 0xff;
 	}
-	printf("\n");
-	*/
 
 	// Generate file header
 	u8 fileHeader[64] = {
@@ -471,7 +539,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u8 programHeader[phSz] = {
 		1,    0,    0,    0,    4,    0,    0,    0,    // LOAD, Read
 		0,    0,    0,    0,    0,    0,    0,    0,    // 0x0000 in file
-		0,    0,    0x40, 0,    0,    0,    0,    0,    // 0x40000 in mem
+		0,    0,    0x40, 0,    0,    0,    0,    0,    // 0x400000 in mem
 		0,    0,    0x40, 0,    0,    0,    0,    0,    // "
 		0xe8, 0,    0,    0,    0,    0,    0,    0,    // f.h.sz (0x40) + p.h.sz (3 * 0x56)
 		0xe8, 0,    0,    0,    0,    0,    0,    0,    // "
@@ -487,8 +555,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 		1,    0,    0,    0,    6,    0,    0,    0,    // LOAD, Read+Write
 		0,    0,    0,    0,    0,    0,    0,    0,    // {dataSgmtAddr}
-		0,    0,    0x40, 0,    0,    0,    0,    0,    // {0x40000+dataSgmtAddr} in mem
-		0,    0,    0x40, 0,    0,    0,    0,    0,    // "
+		0,    0,    0,    0,    0,    0,    0,    0,    // {0x400000+dataSgmtAddr} in mem
+		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0,    0,    0,    0,    0,    0,    0,    // {dataSgmtSize}
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
@@ -510,9 +578,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		tmp >>= 8;
 	}
 
-	// {0x40000+dataSgmtAddr} in third header (data)
+	// {0x400000+dataSgmtAddr} in third header (data)
 	for (u64 i = 0; i < 16; i += 8) {
-		tmp = 0x40000 + dataSgmtAddr;
+		tmp = 0x400000 + dataSgmtAddr;
 		for (u64 j = 0; j < 8; j++) {
 			programHeader[0x80+i+j] = tmp & 0xff;
 			tmp >>= 8;
