@@ -83,6 +83,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						if (codeSize > codeCap) {
 							codeCap <<= 1;
 							code = realloc(code, codeCap);
+							if (!code) {
+								return ba_ErrorMallocNoMem();
+							}
 						}
 
 						code[codeSize-3] = b0;
@@ -114,13 +117,22 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						if (ripAddrsSize > ripAddrsCap) {
 							ripAddrsCap <<= 1;
 							ripAddrData = realloc(ripAddrData, ripAddrsCap);
+							if (!ripAddrData) {
+								return ba_ErrorMallocNoMem();
+							}
 							ripAddrPtrs = realloc(ripAddrPtrs, ripAddrsCap);
+							if (!ripAddrPtrs) {
+								return ba_ErrorMallocNoMem();
+							}
 						}
 
 						codeSize += 7;
 						if (codeSize > codeCap) {
 							codeCap <<= 1;
 							code = realloc(code, codeCap);
+							if (!code) {
+								return ba_ErrorMallocNoMem();
+							}
 						}
 
 						code[codeSize-7] = b0;
@@ -153,6 +165,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							if (codeSize > codeCap) {
 								codeCap <<= 1;
 								code = realloc(code, codeCap);
+								if (!code) {
+									return ba_ErrorMallocNoMem();
+								}
 							}
 
 							if (r0 >= 8) {
@@ -180,6 +195,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							if (codeSize > codeCap) {
 								codeCap <<= 1;
 								code = realloc(code, codeCap);
+								if (!code) {
+									return ba_ErrorMallocNoMem();
+								}
 							}
 
 							code[codeSize-10] = b0;
@@ -245,6 +263,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								if (codeSize > codeCap) {
 									codeCap <<= 1;
 									code = realloc(code, codeCap);
+									if (!code) {
+										return ba_ErrorMallocNoMem();
+									}
 								}
 								code[codeSize-5] = b0;
 								code[codeSize-4] = 0x89;
@@ -256,6 +277,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								if (codeSize > codeCap) {
 									codeCap <<= 1;
 									code = realloc(code, codeCap);
+									if (!code) {
+										return ba_ErrorMallocNoMem();
+									}
 								}
 								code[codeSize-4] = b0;
 								code[codeSize-3] = 0x89;
@@ -276,6 +300,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								if (codeSize > codeCap) {
 									codeCap <<= 1;
 									code = realloc(code, codeCap);
+									if (!code) {
+										return ba_ErrorMallocNoMem();
+									}
 								}
 								code[codeSize-8] = b0;
 								code[codeSize-7] = 0x89;
@@ -287,6 +314,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								if (codeSize > codeCap) {
 									codeCap <<= 1;
 									code = realloc(code, codeCap);
+									if (!code) {
+										return ba_ErrorMallocNoMem();
+									}
 								}
 								code[codeSize-7] = b0;
 								code[codeSize-6] = 0x89;
