@@ -9,7 +9,7 @@
 u8 ba_ConditionalCodeResize(u8** code, u64* codeCap, u64 codeSize) {
 	if (codeSize > *codeCap) {
 		*codeCap <<= 1;
-		*code = realloc(code, *codeCap);
+		*code = realloc(*code, *codeCap);
 		if (!*code) {
 			return ba_ErrorMallocNoMem();
 		}
@@ -91,12 +91,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
-							if (!code) {
-								return ba_ErrorMallocNoMem();
-							}
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						code[codeSize-3] = b0;
@@ -138,12 +134,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 
 						codeSize += 7;
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
-							if (!code) {
-								return ba_ErrorMallocNoMem();
-							}
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						code[codeSize-7] = b0;
@@ -173,12 +165,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b1 |= (r0 & 7);
 
 							codeSize += 5 + (r0 >= 8);
-							if (codeSize > codeCap) {
-								codeCap <<= 1;
-								code = realloc(code, codeCap);
-								if (!code) {
-									return ba_ErrorMallocNoMem();
-								}
+							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								return 0;
 							}
 
 							if (r0 >= 8) {
@@ -203,12 +191,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b1 |= (r0 & 7);
 
 							codeSize += 10;
-							if (codeSize > codeCap) {
-								codeCap <<= 1;
-								code = realloc(code, codeCap);
-								if (!code) {
-									return ba_ErrorMallocNoMem();
-								}
+							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								return 0;
 							}
 
 							code[codeSize-10] = b0;
@@ -271,12 +255,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 							if (r1 == 4) {
 								codeSize += 5;
-								if (codeSize > codeCap) {
-									codeCap <<= 1;
-									code = realloc(code, codeCap);
-									if (!code) {
-										return ba_ErrorMallocNoMem();
-									}
+								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+									return 0;
 								}
 								code[codeSize-5] = b0;
 								code[codeSize-4] = 0x89;
@@ -285,12 +265,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 							else {
 								codeSize += 4;
-								if (codeSize > codeCap) {
-									codeCap <<= 1;
-									code = realloc(code, codeCap);
-									if (!code) {
-										return ba_ErrorMallocNoMem();
-									}
+								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+									return 0;
 								}
 								code[codeSize-4] = b0;
 								code[codeSize-3] = 0x89;
@@ -308,12 +284,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 							if (r1 == 4) {
 								codeSize += 8;
-								if (codeSize > codeCap) {
-									codeCap <<= 1;
-									code = realloc(code, codeCap);
-									if (!code) {
-										return ba_ErrorMallocNoMem();
-									}
+								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+									return 0;
 								}
 								code[codeSize-8] = b0;
 								code[codeSize-7] = 0x89;
@@ -322,12 +294,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 							else {
 								codeSize += 7;
-								if (codeSize > codeCap) {
-									codeCap <<= 1;
-									code = realloc(code, codeCap);
-									if (!code) {
-										return ba_ErrorMallocNoMem();
-									}
+								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+									return 0;
 								}
 								code[codeSize-7] = b0;
 								code[codeSize-6] = 0x89;
@@ -382,9 +350,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 4;
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						code[codeSize-4] = b0;
@@ -409,9 +376,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							codeSize++;
 						}
 
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						if (im->vals[1] == BA_IM_RAX) {
@@ -464,9 +430,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 4;
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						code[codeSize-4] = b0;
@@ -492,9 +457,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							codeSize++;
 						}
 
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						if (im->vals[1] == BA_IM_RAX) {
@@ -538,12 +502,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (codeSize > codeCap) {
-						codeCap <<= 1;
-						code = realloc(code, codeCap);
-						if (!code) {
-							return ba_ErrorMallocNoMem();
-						}
+					if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						return 0;
 					}
 
 					code[codeSize-3] = b0;
@@ -572,12 +532,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (codeSize > codeCap) {
-						codeCap <<= 1;
-						code = realloc(code, codeCap);
-						if (!code) {
-							return ba_ErrorMallocNoMem();
-						}
+					if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						return 0;
 					}
 
 					code[codeSize-3] = b0;
@@ -612,12 +568,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
-							if (!code) {
-								return ba_ErrorMallocNoMem();
-							}
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 
 						code[codeSize-3] = b0;
@@ -642,12 +594,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							(BA_IM_SPL <= im->vals[2]));
 						codeSize += 2 + tmp;
 						
-						if (codeSize > codeCap) {
-							codeCap <<= 1;
-							code = realloc(code, codeCap);
-							if (!code) {
-								return ba_ErrorMallocNoMem();
-							}
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
 						}
 						
 						if (tmp) {
@@ -671,12 +619,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_SYSCALL:
 				codeSize += 2;
-				if (codeSize > codeCap) {
-					codeCap <<= 1;
-					code = realloc(code, codeCap);
-					if (!code) {
-						return ba_ErrorMallocNoMem();
-					}
+				if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+					return 0;
 				}
 
 				code[codeSize-2] = 0xf;
