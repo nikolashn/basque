@@ -577,6 +577,47 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 
+			case BA_IM_TEST:
+				if (im->count < 3) {
+					return ba_ErrorIMArgs("TEST", 2);
+				}
+
+				// First arg GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, GPR
+					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+						// Bytes to be written
+						u8 b0 = 0x48, b2 = 0xc0;
+						// Register values
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[2] - BA_IM_RAX;
+						
+						b0 |= (r1 >= 8) << 2;
+						b0 |= (r0 >= 8);
+						
+						b2 |= (r1 & 7) << 3;
+						b2 |= (r0 & 7);
+						
+						codeSize += 3;
+						if (codeSize > codeCap) {
+							codeCap <<= 1;
+							code = realloc(code, codeCap);
+							if (!code) {
+								return ba_ErrorMallocNoMem();
+							}
+						}
+
+						code[codeSize-3] = b0;
+						code[codeSize-2] = 0x85;
+						code[codeSize-1] = b2;
+					}
+
+					// GPRb, GPRb
+					// TODO
+				}
+
+				break;
+
 			case BA_IM_SYSCALL:
 				codeSize += 2;
 				if (codeSize > codeCap) {

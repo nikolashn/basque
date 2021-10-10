@@ -19,28 +19,49 @@ enum {
 	BA_IM_SUB          = 0x12,
 	BA_IM_INC          = 0x13,
 	BA_IM_NOT          = 0x14,
+	BA_IM_TEST         = 0x15,
 	
 	BA_IM_SYSCALL      = 0x40,
 
-	// GPRs must remain in order, otherwise binary generation messes up
+	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
 	// while the bits before those must be the same for each register
-	BA_IM_RAX          = 0x1c0,
-	BA_IM_RCX          = 0x1c1,
-	BA_IM_RDX          = 0x1c2,
-	BA_IM_RBX          = 0x1c3,
-	BA_IM_RSP          = 0x1c4,
-	BA_IM_RBP          = 0x1c5,
-	BA_IM_RSI          = 0x1c6,
-	BA_IM_RDI          = 0x1c7,
-	BA_IM_R8           = 0x1c8,
-	BA_IM_R9           = 0x1c9,
-	BA_IM_R10          = 0x1ca,
-	BA_IM_R11          = 0x1cb,
-	BA_IM_R12          = 0x1cc,
-	BA_IM_R13          = 0x1cd,
-	BA_IM_R14          = 0x1ce,
-	BA_IM_R15          = 0x1cf,
+	
+	// General-purpose registers (GPR)
+	BA_IM_RAX          = 0x100,
+	BA_IM_RCX          = 0x101,
+	BA_IM_RDX          = 0x102,
+	BA_IM_RBX          = 0x103,
+	BA_IM_RSP          = 0x104,
+	BA_IM_RBP          = 0x105,
+	BA_IM_RSI          = 0x106,
+	BA_IM_RDI          = 0x107,
+	BA_IM_R8           = 0x108,
+	BA_IM_R9           = 0x109,
+	BA_IM_R10          = 0x10a,
+	BA_IM_R11          = 0x10b,
+	BA_IM_R12          = 0x10c,
+	BA_IM_R13          = 0x10d,
+	BA_IM_R14          = 0x10e,
+	BA_IM_R15          = 0x10f,
+	
+	// Lowest byte of GPR (GPRb)
+	BA_IM_AL           = 0x110,
+	BA_IM_CL           = 0x111,
+	BA_IM_DL           = 0x112,
+	BA_IM_BL           = 0x113,
+	BA_IM_SPL          = 0x114,
+	BA_IM_BPL          = 0x115,
+	BA_IM_SIL          = 0x116,
+	BA_IM_DIL          = 0x117,
+	BA_IM_R8B          = 0x118,
+	BA_IM_R9B          = 0x119,
+	BA_IM_R10B         = 0x11a,
+	BA_IM_R11B         = 0x11b,
+	BA_IM_R12B         = 0x11c,
+	BA_IM_R13B         = 0x11d,
+	BA_IM_R14B         = 0x11e,
+	BA_IM_R15B         = 0x11f,
 };
 
 struct ba_IM {
@@ -131,6 +152,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_NOT:
 				strcat(str, "NOT ");
+				break;
+			case BA_IM_TEST:
+				strcat(str, "TEST ");
 				break;
 			case BA_IM_RAX:
 				strcat(str, "RAX ");
