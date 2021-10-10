@@ -616,6 +616,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// TODO
 				}
 
+				else {
+					printf("Error: invalid set of arguments to TEST instruction\n");
+					exit(-1);
+				}
+
 				break;
 
 			case BA_IM_SYSCALL:
