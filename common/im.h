@@ -17,27 +17,29 @@ enum {
 	BA_IM_MOV          = 0x10,
 	BA_IM_ADD          = 0x11,
 	BA_IM_SUB          = 0x12,
-	BA_IM_SYSCALL      = 0x13,
+	BA_IM_INC          = 0x13,
 	
+	BA_IM_SYSCALL      = 0x40,
+
 	// GPRs must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
 	// while the bits before those must be the same for each register
-	BA_IM_RAX          = 0xc0,
-	BA_IM_RCX          = 0xc1,
-	BA_IM_RDX          = 0xc2,
-	BA_IM_RBX          = 0xc3,
-	BA_IM_RSP          = 0xc4,
-	BA_IM_RBP          = 0xc5,
-	BA_IM_RSI          = 0xc6,
-	BA_IM_RDI          = 0xc7,
-	BA_IM_R8           = 0xc8,
-	BA_IM_R9           = 0xc9,
-	BA_IM_R10          = 0xca,
-	BA_IM_R11          = 0xcb,
-	BA_IM_R12          = 0xcc,
-	BA_IM_R13          = 0xcd,
-	BA_IM_R14          = 0xce,
-	BA_IM_R15          = 0xcf,
+	BA_IM_RAX          = 0x1c0,
+	BA_IM_RCX          = 0x1c1,
+	BA_IM_RDX          = 0x1c2,
+	BA_IM_RBX          = 0x1c3,
+	BA_IM_RSP          = 0x1c4,
+	BA_IM_RBP          = 0x1c5,
+	BA_IM_RSI          = 0x1c6,
+	BA_IM_RDI          = 0x1c7,
+	BA_IM_R8           = 0x1c8,
+	BA_IM_R9           = 0x1c9,
+	BA_IM_R10          = 0x1ca,
+	BA_IM_R11          = 0x1cb,
+	BA_IM_R12          = 0x1cc,
+	BA_IM_R13          = 0x1cd,
+	BA_IM_R14          = 0x1ce,
+	BA_IM_R15          = 0x1cf,
 };
 
 struct ba_IM {
@@ -122,6 +124,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SYSCALL:
 				strcat(str, "SYSCALL ");
+				break;
+			case BA_IM_INC:
+				strcat(str, "INC ");
 				break;
 			case BA_IM_RAX:
 				strcat(str, "RAX ");

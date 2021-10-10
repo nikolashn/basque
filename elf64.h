@@ -221,8 +221,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 				}
 				
-				// TODO: Into ADR GPR effective address
-
 				// Into ADRADD/ADRSUB GPR effective address
 				else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
 					if (im->count < 5) {
@@ -421,8 +419,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 				}
 
-				// TODO: Other ADDs
-				
+				else {
+					printf("Error: invalid set of arguments to ADD instruction\n");
+					exit(-1);
+				}
+
 				break;
 			
 			case BA_IM_SUB:
@@ -500,9 +501,46 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code[codeSize-1] = imm & 0xff;
 					}
 				}
-
-				// TODO: Other SUBs
 				
+				else {
+					printf("Error: invalid set of arguments to SUB instruction\n");
+					exit(-1);
+				}
+
+				break;
+
+			case BA_IM_INC:
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("INC", 1);
+				}
+
+				// GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 b0 = 0x48, b2 = 0xc0;
+					u8 r0 = im->vals[1] - BA_IM_RAX;
+
+					b0 |= (r0 >= 8);
+					b2 |= (r0 & 7);
+
+					codeSize += 3;
+					if (codeSize > codeCap) {
+						codeCap <<= 1;
+						code = realloc(code, codeCap);
+						if (!code) {
+							return ba_ErrorMallocNoMem();
+						}
+					}
+
+					code[codeSize-3] = b0;
+					code[codeSize-2] = 0xff;
+					code[codeSize-1] = b2;
+				}
+
+				else {
+					printf("Error: invalid set of arguments to INC instruction\n");
+					exit(-1);
+				}
+
 				break;
 
 			case BA_IM_SYSCALL:
