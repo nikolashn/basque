@@ -543,6 +543,40 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 
+			case BA_IM_NOT:
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("NOT", 1);
+				}
+
+				// GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 b0 = 0x48, b2 = 0xd0;
+					u8 r0 = im->vals[1] - BA_IM_RAX;
+
+					b0 |= (r0 >= 8);
+					b2 |= (r0 & 7);
+
+					codeSize += 3;
+					if (codeSize > codeCap) {
+						codeCap <<= 1;
+						code = realloc(code, codeCap);
+						if (!code) {
+							return ba_ErrorMallocNoMem();
+						}
+					}
+
+					code[codeSize-3] = b0;
+					code[codeSize-2] = 0xf7;
+					code[codeSize-1] = b2;
+				}
+
+				else {
+					printf("Error: invalid set of arguments to INC instruction\n");
+					exit(-1);
+				}
+
+				break;
+
 			case BA_IM_SYSCALL:
 				codeSize += 2;
 				if (codeSize > codeCap) {
