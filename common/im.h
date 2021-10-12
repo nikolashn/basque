@@ -26,6 +26,7 @@ enum {
 	BA_IM_SHR          = 0x19,
 	BA_IM_ROL          = 0x1a,
 	BA_IM_ROR          = 0x1b,
+	BA_IM_MUL          = 0x1c,
 	
 	BA_IM_SYSCALL      = 0x40,
 
