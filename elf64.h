@@ -6,7 +6,7 @@
 #include "sys/stat.h"
 #include "common/common.h"
 
-u8 ba_ConditionalCodeResize(u8** code, u64* codeCap, u64 codeSize) {
+inline u8 ba_ConditionalCodeResize(u8** code, u64* codeCap, u64 codeSize) {
 	if (codeSize > *codeCap) {
 		*codeCap <<= 1;
 		*code = realloc(*code, *codeCap);
@@ -617,6 +617,44 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 
+			case BA_IM_AND:
+				if (im->count < 3) {
+					return ba_ErrorIMArgs("AND", 2);
+				}
+
+				// First arg GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, GPR
+					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+						u8 b0 = 0x48, b2 = 0xc0;
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[2] - BA_IM_RAX;
+						
+						b0 |= (r1 >= 8) << 2;
+						b0 |= (r0 >= 8);
+						
+						b2 |= (r1 & 7) << 3;
+						b2 |= (r0 & 7);
+						
+						codeSize += 3;
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+
+						code[codeSize-3] = b0;
+						code[codeSize-2] = 0x21;
+						code[codeSize-1] = b2;
+					}
+
+					// TODO: else
+				}
+
+				else {
+					printf("Error: invalid set of arguments to TEST instruction\n");
+					exit(-1);
+				}
+
+				break;
 			case BA_IM_SYSCALL:
 				codeSize += 2;
 				if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
