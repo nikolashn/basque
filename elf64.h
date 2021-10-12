@@ -761,6 +761,41 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 
+			case BA_IM_ROR:
+				if (im->count < 3) {
+					return ba_ErrorIMArgs("ROR", 2);
+				}
+
+				// First arg GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, CL
+					if (im->vals[2] == BA_IM_CL) {
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 b0 = 0x48, b2 = 0xc8;
+
+						b0 |= (r0 >= 8);
+						b2 |= (r0 & 7);
+
+						codeSize += 3;
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+
+						code[codeSize-3] = b0;
+						code[codeSize-2] = 0xd3;
+						code[codeSize-1] = b2;
+					}
+
+					// TODO: else
+				}
+
+				else {
+					printf("Error: invalid set of arguments to XOR instruction\n");
+					exit(-1);
+				}
+
+				break;
+
 			case BA_IM_SHL:
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("SHL", 2);

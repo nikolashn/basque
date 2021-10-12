@@ -24,6 +24,8 @@ enum {
 	BA_IM_XOR          = 0x17,
 	BA_IM_SHL          = 0x18,
 	BA_IM_SHR          = 0x19,
+	BA_IM_ROL          = 0x1a,
+	BA_IM_ROR          = 0x1b,
 	
 	BA_IM_SYSCALL      = 0x40,
 
@@ -171,6 +173,12 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SHR:
 				strcat(str, "SHR ");
+				break;
+			case BA_IM_ROL:
+				strcat(str, "ROL ");
+				break;
+			case BA_IM_ROR:
+				strcat(str, "ROR ");
 				break;
 			case BA_IM_RAX:
 				strcat(str, "RAX ");
