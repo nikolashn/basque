@@ -655,6 +655,112 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+
+			case BA_IM_XOR:
+				if (im->count < 3) {
+					return ba_ErrorIMArgs("XOR", 2);
+				}
+
+				// First arg GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, GPR
+					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+						u8 b0 = 0x48, b2 = 0xc0;
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[2] - BA_IM_RAX;
+						
+						b0 |= (r1 >= 8) << 2;
+						b0 |= (r0 >= 8);
+						
+						b2 |= (r1 & 7) << 3;
+						b2 |= (r0 & 7);
+						
+						codeSize += 3;
+						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+
+						code[codeSize-3] = b0;
+						code[codeSize-2] = 0x31;
+						code[codeSize-1] = b2;
+					}
+
+					// GPR, IMM
+					else if (im->vals[2] == BA_IM_IMM) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgs("XOR", 2);
+						}
+						u64 imm = im->vals[3];
+
+						// 7 bits
+						if (imm < 0x80) {
+							u8 b0 = 0x48, b2 = 0xf0, b3 = imm & 0xff;
+							u8 r0 = im->vals[1] - BA_IM_RAX;
+
+							b0 |= (r0 >= 8);
+							b2 |= (r0 & 7);
+
+							codeSize += 4;
+							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								return 0;
+							}
+
+							code[codeSize-4] = b0;
+							code[codeSize-3] = 0x83;
+							code[codeSize-2] = b2;
+							code[codeSize-1] = b3;
+						}
+						else {
+							// Do not allow >31 bits
+							if (imm >= (1llu << 31)) {
+								printf("Error: Cannot XOR more than 31 bits to a register");
+								exit(-1);
+							}
+
+							u8 b0 = 0x48, b2 = 0xf0;
+							u8 r0 = im->vals[1] - BA_IM_RAX;
+							b0 |= (r0 >= 8);
+							b2 |= (r0 & 7);
+
+							codeSize += 6;
+							if (im->vals[1] != BA_IM_RAX) {
+								codeSize++;
+							}
+
+							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								return 0;
+							}
+
+							if (im->vals[1] == BA_IM_RAX) {
+								code[codeSize-6] = 0x48;
+								code[codeSize-5] = 0x35;
+							}
+							else {
+								code[codeSize-7] = b0;
+								code[codeSize-6] = 0x81;
+								code[codeSize-5] = b2;
+							}
+
+							code[codeSize-4] = imm & 0xff;
+							imm >>= 8;
+							code[codeSize-3] = imm & 0xff;
+							imm >>= 8;
+							code[codeSize-2] = imm & 0xff;
+							imm >>= 8;
+							code[codeSize-1] = imm & 0xff;
+						}
+					}
+
+					// TODO: else
+				}
+
+				else {
+					printf("Error: invalid set of arguments to XOR instruction\n");
+					exit(-1);
+				}
+
+				break;
+
 			case BA_IM_SYSCALL:
 				codeSize += 2;
 				if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {

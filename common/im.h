@@ -21,6 +21,7 @@ enum {
 	BA_IM_NOT          = 0x14,
 	BA_IM_TEST         = 0x15,
 	BA_IM_AND          = 0x16,
+	BA_IM_XOR          = 0x17,
 	
 	BA_IM_SYSCALL      = 0x40,
 
@@ -159,6 +160,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_AND:
 				strcat(str, "AND ");
+				break;
+			case BA_IM_XOR:
+				strcat(str, "XOR ");
 				break;
 			case BA_IM_RAX:
 				strcat(str, "RAX ");
