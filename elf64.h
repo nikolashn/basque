@@ -650,7 +650,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				else {
-					printf("Error: invalid set of arguments to TEST instruction\n");
+					printf("Error: invalid set of arguments to AND instruction\n");
 					exit(-1);
 				}
 
