@@ -4,7 +4,7 @@ Basque is a programming language that aims to be similar to C, with some improve
 ## Installation
 You will need a C compiler and GNU make. Edit config.mk to set compiler and other compilation options.
 
-Run the following command in the basque directory (might need to be run as root):
+Run the following command in the root directory (might need to be run as root user):
 ```
 make install
 ```
