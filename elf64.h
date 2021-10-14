@@ -45,7 +45,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 	// Array of addresses in code that need to be turned into data addresses
 	// (using RIP relative addressing)
-	u64 ripAddrsCap = 0x1000;
+	u64 ripAddrsCap = 0x100;
 	// Addresses of where the offset is stored in code
 	u64* ripAddrData = malloc(ripAddrsCap);
 	if (!ripAddrData) {
@@ -57,7 +57,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		return ba_ErrorMallocNoMem();
 	}
 	u64 ripAddrsSize = 0;
-	
+
 	// Generate binary code
 	u64 codeCap = 0x1000;
 	u8* code = malloc(codeCap);
@@ -997,7 +997,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// Fix RIP relative addresses
 	for (u64 i = 0; i < ripAddrsSize; i++) {
 		u64 codeLoc = ripAddrData[i];
-		tmp = dataSgmtAddr - ripAddrPtrs[i] + 
+		// Subtract 0x1000 because code starts at file byte 0x1000
+		tmp = dataSgmtAddr - ripAddrPtrs[i] - 0x1000 + 
 			code[codeLoc] + (code[codeLoc+1] << 8) +
 			(code[codeLoc+2] << 16) + (code[codeLoc+3] << 24);
 		code[codeLoc] = tmp & 0xff;
