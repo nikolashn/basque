@@ -6,16 +6,8 @@
 #include "sys/stat.h"
 #include "common/common.h"
 
-inline u8 ba_ConditionalCodeResize(u8** code, u64* codeCap, u64 codeSize) {
-	if (codeSize > *codeCap) {
-		*codeCap <<= 1;
-		*code = realloc(*code, *codeCap);
-		if (!*code) {
-			return ba_ErrorMallocNoMem();
-		}
-	}
-	return 1;
-}
+inline u8 ba_DynArrayResize(u8** arr, u64* cap, u64 size);
+u8 ba_PessimalInstrSize(struct ba_IM* im);
 
 u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// Note: start memory location is fixed at 0x400000, 
@@ -58,6 +50,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	}
 	u64 ripAddrsSize = 0;
 
+	// Initialize label address storage
+	// Addresses are relative to the start of the code segment
+	u64* labels = calloc(ctr->nextLabel, sizeof(u64));
+	if (!labels) {
+		return ba_ErrorMallocNoMem();
+	}
+	
 	// Generate binary code
 	u64 codeCap = 0x1000;
 	u8* code = malloc(codeCap);
@@ -69,6 +68,24 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	struct ba_IM* im = ctr->startIM;
 	while (im && im->count) {
 		switch (im->vals[0]) {
+			case BA_IM_LABEL:
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("LABEL", 1);
+				}
+				
+				// Label ID
+				tmp = im->vals[1];
+				
+				if (tmp >= ctr->nextLabel || labels[tmp]) {
+					printf("Error: cannot generate intermediate label %lld\n", 
+						tmp);
+					exit(-1);
+				}
+
+				labels[tmp] = codeSize;
+
+				break;
+
 			case BA_IM_MOV:
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("MOV", 2);
@@ -91,7 +108,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -134,7 +151,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 
 						codeSize += 7;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -165,7 +182,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b1 |= (r0 & 7);
 
 							codeSize += 5 + (r0 >= 8);
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -191,7 +208,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b1 |= (r0 & 7);
 
 							codeSize += 10;
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -255,7 +272,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 							if (r1 == 4) {
 								codeSize += 5;
-								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-5] = b0;
@@ -265,7 +282,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 							else {
 								codeSize += 4;
-								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-4] = b0;
@@ -284,7 +301,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 							if (r1 == 4) {
 								codeSize += 8;
-								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-8] = b0;
@@ -294,7 +311,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 							else {
 								codeSize += 7;
-								if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-7] = b0;
@@ -350,7 +367,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 4;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -376,7 +393,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							codeSize++;
 						}
 
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -430,7 +447,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 4;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -457,7 +474,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							codeSize++;
 						}
 
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -502,7 +519,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+					if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 						return 0;
 					}
 
@@ -532,7 +549,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+					if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 						return 0;
 					}
 
@@ -568,7 +585,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -594,7 +611,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							(BA_IM_SPL <= im->vals[2]));
 						codeSize += 2 + tmp;
 						
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 						
@@ -637,7 +654,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -676,7 +693,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -701,7 +718,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b2 |= (r0 & 7);
 
 							codeSize += 4;
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -727,7 +744,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								codeSize++;
 							}
 
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -777,7 +794,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 3;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -818,7 +835,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// Shift of 1
 						if (imm == 1) {
 							codeSize += 3;
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -829,7 +846,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// 8 bits
 						else if (imm < 0x100) {
 							codeSize += 4;
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -872,7 +889,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 3;
-						if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -895,7 +912,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// Shift of 1
 						if (imm == 1) {
 							codeSize += 3;
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -906,7 +923,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// 8 bits
 						else if (imm < 0x100) {
 							codeSize += 4;
-							if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -947,15 +964,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+					if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 						return 0;
 					}
 
 					code[codeSize-3] = b0;
 					code[codeSize-2] = 0xf7;
 					code[codeSize-1] = b2;
-
-					// TODO: else
 				}
 
 				else {
@@ -967,12 +982,63 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_SYSCALL:
 				codeSize += 2;
-				if (!ba_ConditionalCodeResize(&code, &codeCap, codeSize)) {
+				if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
 					return 0;
 				}
 
 				code[codeSize-2] = 0xf;
 				code[codeSize-1] = 0x5;
+
+				break;
+
+			case BA_IM_LABELJMP:
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("LABELJMP", 1);
+				}
+
+				u64 labelID = im->vals[1];
+
+				if (labelID >= ctr->nextLabel) {
+					printf("Error: cannot find intermediate label %lld\n", 
+						labelID);
+					exit(-1);
+				}
+
+				if (labels[labelID]) {
+					// Assumes this instruction will be 2 bytes initially
+					i64 relAddr = labels[labelID] - (codeSize + 2);
+
+					// 2 byte jmp
+					if ((relAddr >= 0ll && relAddr < 0x80ll) || 
+						(relAddr < 0ll && relAddr >= -0x80ll))
+					{
+						codeSize += 2;
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+						code[codeSize-2] = 0xeb;
+						code[codeSize-1] = (u8)(relAddr & 0xff);
+					}
+					// 5 byte jmp
+					else {
+						codeSize += 5;
+						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+						relAddr -= 3; // Accounts for the instr. being 5 bytes
+						code[codeSize-5] = 0xe9;
+						code[codeSize-4] = relAddr & 0xff;
+						relAddr >>= 8;
+						code[codeSize-3] = relAddr & 0xff;
+						relAddr >>= 8;
+						code[codeSize-2] = relAddr & 0xff;
+						relAddr >>= 8;
+						code[codeSize-1] = relAddr & 0xff;
+					}
+				}
+				else {
+					// TODO
+				}
 
 				break;
 
@@ -1141,6 +1207,245 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	
 	chmod(fileName, 0755);
 
+	return 1;
+}
+
+/* Pessimistically estimates instruction size, for working out size of jmp
+ * instructions.
+ */
+u8 ba_PessimalInstrSize(struct ba_IM* im) {
+	switch (im->vals[0]) {
+		case BA_IM_LABEL:
+			return 0;
+
+		case BA_IM_MOV:
+			// Into GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, GPR
+				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+					return 3;
+				}
+				// GPR, DATASGMT
+				else if (im->vals[2] == BA_IM_DATASGMT) {
+					return 7;
+				}
+				// GPR, IMM
+				else if (im->vals[2] == BA_IM_IMM) {
+					u64 imm = im->vals[3];
+					// 32 bits
+					if (imm < (1llu << 32)) {
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						return 5 + (r0 >= 8);
+					}
+					// 64 bits
+					else {
+						return 10;
+					}
+				}
+				
+				// TODO: else
+			}
+			// Into ADRADD/ADRSUB GPR effective address
+			else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
+				// From GPR
+				if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
+					u8 r1 = im->vals[4] - BA_IM_RAX;
+					if (im->vals[3] < 0x80) {
+						return 4 + (r1 == 4);
+					}
+					else if (im->vals[3] < (1llu << 31)) {
+						return 7 + (r1 == 4);
+					}
+				}
+				
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_ADD:
+		case BA_IM_SUB:
+			// GPR, IMM
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1]) &&
+				(im->vals[2] == BA_IM_IMM))
+			{
+				return 4 + (im->vals[3] >= 0x80) * 2;
+			}
+
+			break;
+/*		
+		case BA_IM_SUB:
+			// GPR, IMM
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1]) &&
+				(im->vals[2] == BA_IM_IMM))
+			{
+				return 4 + (im->vals[3] >= 0x80) * 2;
+			}
+
+			break;
+*/
+		case BA_IM_INC:
+			// GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				return 3;
+			}
+
+			break;
+
+		case BA_IM_NOT:
+			// GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				return 3;
+			}
+
+			break;
+
+		case BA_IM_TEST:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, GPR
+				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+					return 3;
+				}
+
+				// TODO: else
+			}
+			// First arg GPRb
+			else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
+				// GPRb, GPRb
+				if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
+					u8 tmp = ((BA_IM_SPL <= im->vals[1]) | 
+						(BA_IM_SPL <= im->vals[2]));
+
+					return 2 + tmp;
+				}
+
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_AND:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, GPR
+				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+					return 3;
+				}
+
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_XOR:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, GPR
+				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+					return 3;
+				}
+
+				// GPR, IMM
+				else if (im->vals[2] == BA_IM_IMM) {
+					return 4 + (im->vals[3] >= 0x80) * 2;
+				}
+
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_ROR:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, CL
+				if (im->vals[2] == BA_IM_CL) {
+					return 3;
+				}
+
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_SHL:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, IMM
+				if (im->vals[2] == BA_IM_IMM) {
+					// Shift of 1
+					if (im->vals[3] == 1) {
+						return 3;
+					}
+					// 8 bits
+					else if (im->vals[3] < 0x100) {
+						return 4;
+					}
+				}
+
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_SHR:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, CL
+				if (im->vals[2] == BA_IM_CL) {
+					return 3;
+				}
+				// GPR, IMM
+				else if (im->vals[2] == BA_IM_IMM) {
+					// Shift of 1
+					if (im->vals[3] == 1) {
+						return 3;
+					}
+					// 8 bits
+					else if (im->vals[3] < 0x100) {
+						return 4;
+					}
+				}
+
+				// TODO: else
+			}
+
+			break;
+
+		case BA_IM_MUL:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				return 3;
+			}
+
+			break;
+
+		case BA_IM_SYSCALL:
+			return 2;
+
+		case BA_IM_LABELJMP:
+			// Pessimal
+			return 5;
+
+		default:
+			printf("Error: unrecognized intermediate instruction: %#llx\n",
+				im->vals[0]);
+			exit(-1);
+	}
+
+	// Maximum x86_64 instruction size
+	return 15;
+}
+
+inline u8 ba_DynArrayResize(u8** arr, u64* cap, u64 size) {
+	if (size > *cap) {
+		*cap <<= 1;
+		*arr = realloc(*arr, *cap);
+		if (!*arr) {
+			return ba_ErrorMallocNoMem();
+		}
+	}
 	return 1;
 }
 

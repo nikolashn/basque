@@ -11,6 +11,7 @@ enum {
 	BA_IM_ADR          = 0x2,
 	BA_IM_ADRADD       = 0x3,
 	BA_IM_ADRSUB       = 0x4,
+	BA_IM_LABEL        = 0x5,
 	BA_IM_DATASGMT     = 0xf,
 	
 	// Normal assembly instructions
@@ -29,6 +30,8 @@ enum {
 	BA_IM_MUL          = 0x1c,
 	
 	BA_IM_SYSCALL      = 0x40,
+
+	BA_IM_LABELJMP     = 0x50,
 
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
@@ -131,6 +134,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 				strcat(str, "DATASGMT ");
 				isImm = 1;
 				break;
+			case BA_IM_LABEL:
+				strcat(str, "LABEL ");
+				isImm = 1;
+				break;
 			case BA_IM_ADR:
 				strcat(str, "ADR ");
 				break;
@@ -153,6 +160,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SYSCALL:
 				strcat(str, "SYSCALL ");
+				break;
+			case BA_IM_LABELJMP:
+				strcat(str, "LABELJMP ");
+				isImm = 1;
 				break;
 			case BA_IM_INC:
 				strcat(str, "INC ");

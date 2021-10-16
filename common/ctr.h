@@ -6,15 +6,20 @@
 #include "stack.h"
 
 struct ba_Controller {
+	// Lexer
 	struct ba_Lexeme* startLex;
 	struct ba_Lexeme* lex;
+
+	// Parser
 	struct ba_Stk* pTkStk; // Takes ba_PTkStkItem as items
 	struct ba_Stk* pOpStk; // Takes ba_POpStkItem as items
-	struct ba_IM* startIM;
-	struct ba_IM* im;
 	struct ba_SymTable* globalST;
 	struct ba_SymTable* currScope;
-	
+
+	// Code generation
+	struct ba_IM* startIM;
+	struct ba_IM* im;
+	u64 nextLabel;
 	u64 dataSgmtSize;
 };
 
@@ -58,6 +63,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->im = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
 	ctr->currScope = ctr->globalST;
+	ctr->nextLabel = 0;
 	ctr->dataSgmtSize = 0;
 	return ctr;
 }
