@@ -278,6 +278,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			break;
 
 		case BA_OP_INFIX:
+		{
 			struct ba_PTkStkItem* lhs = ba_StkPop(ctr->pTkStk);
 			if (!lhs) {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, op->col);
@@ -647,6 +648,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			}
 
 			break;
+		}
 
 		case BA_OP_POSTFIX:
 			// This should never occur
