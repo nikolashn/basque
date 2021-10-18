@@ -24,7 +24,7 @@ struct ba_STEntry {
 struct ba_SymTable {
 	struct ba_SymTable* parent;
 	struct ba_SymTable** children;
-	u64 childCount;
+	u64 childCnt;
 
 	struct ba_STEntry* entries;
 	u64 capacity;
@@ -38,7 +38,7 @@ struct ba_SymTable* ba_NewSymTable() {
 	}
 	st->parent = 0;
 	st->children = 0;
-	st->childCount = 0;
+	st->childCnt = 0;
 	
 	st->entries = calloc(BA_SYMTABLE_CAPACITY, sizeof(struct ba_STEntry));
 	if (!st->entries) {

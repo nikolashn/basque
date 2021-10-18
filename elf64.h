@@ -49,11 +49,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	if (!ripAddrPtrs) {
 		return ba_ErrorMallocNoMem();
 	}
-	u64 ripAddrsCount = 0;
+	u64 ripAddrsCnt = 0;
 
 	// Initialize label address storage
 	// Addresses are relative to the start of the code segment
-	struct ba_IMLabel* labels = calloc(ctr->nextLabel, sizeof(*labels));
+	struct ba_IMLabel* labels = calloc(ctr->labelCnt, sizeof(*labels));
 	if (!labels) {
 		return ba_ErrorMallocNoMem();
 	}
@@ -78,7 +78,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				// Label ID
 				u64 labelID = im->vals[1];
 				
-				if (labelID >= ctr->nextLabel || labels[labelID].addr) {
+				if (labelID >= ctr->labelCnt || labels[labelID].addr) {
 					printf("Error: cannot generate intermediate label %lld\n", 
 						labelID);
 					exit(-1);
@@ -86,9 +86,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				labels[labelID].addr = codeSize;
 				
-				u64 jmpAddrsCount = labels[labelID].jmpAddrsCount;
-				if (jmpAddrsCount) {
-					for (u64 i = 0; i < jmpAddrsCount; i++) {
+				u64 jmpAddrsCnt = labels[labelID].jmpAddrsCnt;
+				if (jmpAddrsCnt) {
+					for (u64 i = 0; i < jmpAddrsCnt; i++) {
 						u64 addr = labels[labelID].jmpAddrs[i];
 						u8 ros = labels[labelID].ripOffsetSizes[i];
 
@@ -150,18 +150,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7) << 3;
 
 						// Where imm (data location) is stored
-						ripAddrData[ripAddrsCount] = codeSize+3;
+						ripAddrData[ripAddrsCnt] = codeSize+3;
 						// RIP
-						ripAddrPtrs[ripAddrsCount] = codeSize+7;
+						ripAddrPtrs[ripAddrsCnt] = codeSize+7;
 
-						++ripAddrsCount;
+						++ripAddrsCnt;
 						if (!ba_DynArrayResize64(&ripAddrData, &ripAddrsCap, 
-							ripAddrsCount))
+							ripAddrsCnt))
 						{
 							return 0;
 						}
 						if (!ba_DynArrayResize64(&ripAddrPtrs, &ripAddrsCap, 
-							ripAddrsCount))
+							ripAddrsCnt))
 						{
 							return 0;
 						}
@@ -1015,7 +1015,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				u64 labelID = im->vals[1];
 
-				if (labelID >= ctr->nextLabel) {
+				if (labelID >= ctr->labelCnt) {
 					printf("Error: cannot find intermediate label %lld\n", 
 						labelID);
 					exit(-1);
@@ -1084,16 +1084,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						);
 					}
 
-					u64 jmpIndex = labels[labelID].jmpAddrsCount++;
+					u64 jmpIndex = labels[labelID].jmpAddrsCnt++;
 					if (!ba_DynArrayResize64(&labels[labelID].jmpAddrs, 
 						&labels[labelID].jmpAddrsCap, 
-						labels[labelID].jmpAddrsCount))
+						labels[labelID].jmpAddrsCnt))
 					{
 						return 0;
 					}
 					if (!ba_DynArrayResize8(&labels[labelID].ripOffsetSizes, 
 						&labels[labelID].jmpAddrsCap, 
-						labels[labelID].jmpAddrsCount))
+						labels[labelID].jmpAddrsCnt))
 					{
 						return 0;
 					}
@@ -1140,7 +1140,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	}
 
 	// Fix RIP relative addresses
-	for (u64 i = 0; i < ripAddrsCount; i++) {
+	for (u64 i = 0; i < ripAddrsCnt; i++) {
 		u64 codeLoc = ripAddrData[i];
 		// Subtract 0x1000 because code starts at file byte 0x1000
 		tmp = dataSgmtAddr - ripAddrPtrs[i] - 0x1000 + 
@@ -1290,7 +1290,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	free(ripAddrData);
 	free(ripAddrPtrs);
 	free(code);
-	for (u64 i = 0; i < ctr->nextLabel; i++) {
+	for (u64 i = 0; i < ctr->labelCnt; i++) {
 		free(labels[i].jmpAddrs);
 		free(labels[i].ripOffsetSizes);
 	}

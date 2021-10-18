@@ -19,7 +19,7 @@ struct ba_Controller {
 	// Code generation
 	struct ba_IM* startIM;
 	struct ba_IM* im;
-	u64 nextLabel;
+	u64 labelCnt;
 	u64 dataSgmtSize;
 };
 
@@ -63,7 +63,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->im = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
 	ctr->currScope = ctr->globalST;
-	ctr->nextLabel = 0;
+	ctr->labelCnt = 0;
 	ctr->dataSgmtSize = 0;
 	return ctr;
 }
