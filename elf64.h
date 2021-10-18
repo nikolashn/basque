@@ -6,8 +6,9 @@
 #include "sys/stat.h"
 #include "common/common.h"
 
-inline u8 ba_DynArrayResize(u8** arr, u64* cap, u64 size);
 u8 ba_PessimalInstrSize(struct ba_IM* im);
+u8 ba_DynArrayResize8(u8** arr, u64* cap, u64 size);
+u8 ba_DynArrayResize64(u64** arr, u64* cap, u64 size);
 
 u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// Note: start memory location is fixed at 0x400000, 
@@ -37,22 +38,22 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 	// Array of addresses in code that need to be turned into data addresses
 	// (using RIP relative addressing)
-	u64 ripAddrsCap = 0x100;
+	u64 ripAddrsCap = 0x1000;
 	// Addresses of where the offset is stored in code
-	u64* ripAddrData = malloc(ripAddrsCap);
+	u64* ripAddrData = malloc(ripAddrsCap * sizeof(u64));
 	if (!ripAddrData) {
 		return ba_ErrorMallocNoMem();
 	}
 	// Addresses of the next instruction pointer
-	u64* ripAddrPtrs = malloc(ripAddrsCap);
+	u64* ripAddrPtrs = malloc(ripAddrsCap * sizeof(u64));
 	if (!ripAddrPtrs) {
 		return ba_ErrorMallocNoMem();
 	}
-	u64 ripAddrsSize = 0;
+	u64 ripAddrsCount = 0;
 
 	// Initialize label address storage
 	// Addresses are relative to the start of the code segment
-	u64* labels = calloc(ctr->nextLabel, sizeof(u64));
+	struct ba_IMLabel* labels = calloc(ctr->nextLabel, sizeof(*labels));
 	if (!labels) {
 		return ba_ErrorMallocNoMem();
 	}
@@ -69,22 +70,38 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	while (im && im->count) {
 		switch (im->vals[0]) {
 			case BA_IM_LABEL:
+			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgs("LABEL", 1);
 				}
 				
 				// Label ID
-				tmp = im->vals[1];
+				u64 labelID = im->vals[1];
 				
-				if (tmp >= ctr->nextLabel || labels[tmp]) {
+				if (labelID >= ctr->nextLabel || labels[labelID].addr) {
 					printf("Error: cannot generate intermediate label %lld\n", 
-						tmp);
+						labelID);
 					exit(-1);
 				}
 
-				labels[tmp] = codeSize;
+				labels[labelID].addr = codeSize;
+				
+				u64 jmpAddrsCount = labels[labelID].jmpAddrsCount;
+				if (jmpAddrsCount) {
+					for (u64 i = 0; i < jmpAddrsCount; i++) {
+						u64 addr = labels[labelID].jmpAddrs[i];
+						u8 ros = labels[labelID].ripOffsetSizes[i];
+
+						tmp = labels[labelID].addr - (addr + ros);
+						for (u64 j = 0; j < ros; j++) {
+							code[addr+j] = tmp & 0xff;
+							tmp >>= 8;
+						}
+					}
+				}
 
 				break;
+			}
 
 			case BA_IM_MOV:
 				if (im->count < 3) {
@@ -108,7 +125,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -133,25 +150,24 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7) << 3;
 
 						// Where imm (data location) is stored
-						ripAddrData[ripAddrsSize] = codeSize+3;
+						ripAddrData[ripAddrsCount] = codeSize+3;
 						// RIP
-						ripAddrPtrs[ripAddrsSize] = codeSize+7;
+						ripAddrPtrs[ripAddrsCount] = codeSize+7;
 
-						++ripAddrsSize;
-						if (ripAddrsSize > ripAddrsCap) {
-							ripAddrsCap <<= 1;
-							ripAddrData = realloc(ripAddrData, ripAddrsCap);
-							if (!ripAddrData) {
-								return ba_ErrorMallocNoMem();
-							}
-							ripAddrPtrs = realloc(ripAddrPtrs, ripAddrsCap);
-							if (!ripAddrPtrs) {
-								return ba_ErrorMallocNoMem();
-							}
+						++ripAddrsCount;
+						if (!ba_DynArrayResize64(&ripAddrData, &ripAddrsCap, 
+							ripAddrsCount))
+						{
+							return 0;
+						}
+						if (!ba_DynArrayResize64(&ripAddrPtrs, &ripAddrsCap, 
+							ripAddrsCount))
+						{
+							return 0;
 						}
 
 						codeSize += 7;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -182,7 +198,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b1 |= (r0 & 7);
 
 							codeSize += 5 + (r0 >= 8);
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -208,7 +224,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b1 |= (r0 & 7);
 
 							codeSize += 10;
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -272,7 +288,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 							if (r1 == 4) {
 								codeSize += 5;
-								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-5] = b0;
@@ -282,7 +298,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 							else {
 								codeSize += 4;
-								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-4] = b0;
@@ -301,7 +317,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 							if (r1 == 4) {
 								codeSize += 8;
-								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-8] = b0;
@@ -311,7 +327,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 							else {
 								codeSize += 7;
-								if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+								if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 									return 0;
 								}
 								code[codeSize-7] = b0;
@@ -367,7 +383,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 4;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -393,7 +409,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							codeSize++;
 						}
 
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -447,7 +463,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 4;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -474,7 +490,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							codeSize++;
 						}
 
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -519,7 +535,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+					if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 						return 0;
 					}
 
@@ -549,7 +565,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+					if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 						return 0;
 					}
 
@@ -585,7 +601,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -611,7 +627,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							(BA_IM_SPL <= im->vals[2]));
 						codeSize += 2 + tmp;
 						
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 						
@@ -654,7 +670,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -693,7 +709,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 						
 						codeSize += 3;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -718,7 +734,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							b2 |= (r0 & 7);
 
 							codeSize += 4;
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -744,7 +760,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								codeSize++;
 							}
 
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -794,7 +810,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 3;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -835,7 +851,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// Shift of 1
 						if (imm == 1) {
 							codeSize += 3;
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -846,7 +862,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// 8 bits
 						else if (imm < 0x100) {
 							codeSize += 4;
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -889,7 +905,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						b2 |= (r0 & 7);
 
 						codeSize += 3;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 
@@ -912,7 +928,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// Shift of 1
 						if (imm == 1) {
 							codeSize += 3;
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -923,7 +939,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// 8 bits
 						else if (imm < 0x100) {
 							codeSize += 4;
-							if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+							if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 								return 0;
 							}
 
@@ -964,7 +980,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					b2 |= (r0 & 7);
 
 					codeSize += 3;
-					if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+					if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 						return 0;
 					}
 
@@ -982,7 +998,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_SYSCALL:
 				codeSize += 2;
-				if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+				if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 					return 0;
 				}
 
@@ -992,6 +1008,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 
 			case BA_IM_LABELJMP:
+			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgs("LABELJMP", 1);
 				}
@@ -1004,16 +1021,17 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					exit(-1);
 				}
 
-				if (labels[labelID]) {
+				// Label appears before jmp
+				if (labels[labelID].addr) {
 					// Assumes this instruction will be 2 bytes initially
-					i64 relAddr = labels[labelID] - (codeSize + 2);
+					i64 relAddr = labels[labelID].addr - (codeSize + 2);
 
 					// 2 byte jmp
 					if ((relAddr >= 0ll && relAddr < 0x80ll) || 
 						(relAddr < 0ll && relAddr >= -0x80ll))
 					{
 						codeSize += 2;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 						code[codeSize-2] = 0xeb;
@@ -1022,7 +1040,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// 5 byte jmp
 					else {
 						codeSize += 5;
-						if (!ba_DynArrayResize(&code, &codeCap, codeSize)) {
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
 							return 0;
 						}
 						relAddr -= 3; // Accounts for the instr. being 5 bytes
@@ -1036,11 +1054,72 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code[codeSize-1] = relAddr & 0xff;
 					}
 				}
+				// Label appears after jmp
 				else {
-					// TODO
+					struct ba_IM* tmpIM = im;
+					u64 labelDistance = 0;
+					while (tmpIM && tmpIM->count) {
+						labelDistance += ba_PessimalInstrSize(tmpIM);
+						tmpIM = tmpIM->next;
+
+						// 5 byte jmp
+						if (labelDistance >= 0x80) {
+							break;
+						}
+						// 2 byte jmp
+						else if (tmpIM->vals[0] == BA_IM_LABEL && 
+							tmpIM->vals[1] == labelID)
+						{
+							break;
+						}
+					}
+
+					if (!labels[labelID].jmpAddrsCap) {
+						labels[labelID].jmpAddrsCap = 0x100;
+						labels[labelID].jmpAddrs = malloc(
+							labels[labelID].jmpAddrsCap * sizeof(u64)
+						);
+						labels[labelID].ripOffsetSizes = malloc(
+							labels[labelID].jmpAddrsCap
+						);
+					}
+
+					u64 jmpIndex = labels[labelID].jmpAddrsCount++;
+					if (!ba_DynArrayResize64(&labels[labelID].jmpAddrs, 
+						&labels[labelID].jmpAddrsCap, 
+						labels[labelID].jmpAddrsCount))
+					{
+						return 0;
+					}
+					if (!ba_DynArrayResize8(&labels[labelID].ripOffsetSizes, 
+						&labels[labelID].jmpAddrsCap, 
+						labels[labelID].jmpAddrsCount))
+					{
+						return 0;
+					}
+
+					labels[labelID].jmpAddrs[jmpIndex] = codeSize+1;
+					
+					if (labelDistance >= 0x80) {
+						codeSize += 5;
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+						labels[labelID].ripOffsetSizes[jmpIndex] = 4;
+						code[codeSize-5] = 0xe9;
+					}
+					else {
+						codeSize += 2;
+						if (!ba_DynArrayResize8(&code, &codeCap, codeSize)) {
+							return 0;
+						}
+						labels[labelID].ripOffsetSizes[jmpIndex] = 1;
+						code[codeSize-2] = 0xeb;
+					}
 				}
 
 				break;
+			}
 
 			default:
 				printf("Error: unrecognized intermediate instruction: %#llx\n",
@@ -1061,7 +1140,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	}
 
 	// Fix RIP relative addresses
-	for (u64 i = 0; i < ripAddrsSize; i++) {
+	for (u64 i = 0; i < ripAddrsCount; i++) {
 		u64 codeLoc = ripAddrData[i];
 		// Subtract 0x1000 because code starts at file byte 0x1000
 		tmp = dataSgmtAddr - ripAddrPtrs[i] - 0x1000 + 
@@ -1206,6 +1285,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	fclose(file);
 	
 	chmod(fileName, 0755);
+
+	free(dataSgmt);
+	free(ripAddrData);
+	free(ripAddrPtrs);
+	free(code);
+	for (u64 i = 0; i < ctr->nextLabel; i++) {
+		free(labels[i].jmpAddrs);
+		free(labels[i].ripOffsetSizes);
+	}
+	free(labels);
 
 	return 1;
 }
@@ -1438,8 +1527,19 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 	return 15;
 }
 
-inline u8 ba_DynArrayResize(u8** arr, u64* cap, u64 size) {
+inline u8 ba_DynArrayResize8(u8** arr, u64* cap, u64 size) {
 	if (size > *cap) {
+		*cap <<= 1;
+		*arr = realloc(*arr, *cap);
+		if (!*arr) {
+			return ba_ErrorMallocNoMem();
+		}
+	}
+	return 1;
+}
+
+inline u8 ba_DynArrayResize64(u64** arr, u64* cap, u64 count) {
+	if (count * sizeof(u64) > *cap) {
 		*cap <<= 1;
 		*arr = realloc(*arr, *cap);
 		if (!*arr) {

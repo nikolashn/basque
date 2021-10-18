@@ -5,6 +5,9 @@ include config.mk
 all:
 	${CC} basque.c -o basque ${CFLAGS}
 
+debug:
+	${CC} basque.c -o basque -g -std=gnu99 ${CFLAGSDEBUG}
+
 clean:
 	rm -f basque
 

@@ -81,13 +81,10 @@ struct ba_IM {
 };
 
 struct ba_IM* ba_NewIM() {
-	struct ba_IM* im = malloc(sizeof(struct ba_IM));
+	struct ba_IM* im = calloc(1, sizeof(*im));
 	if (!im) {
 		ba_ErrorMallocNoMem();
 	}
-	im->vals = 0;
-	im->count = 0;
-	im->next = 0;
 	return im;
 }
 
@@ -97,6 +94,14 @@ struct ba_IM* ba_DelIM(struct ba_IM* im) {
 	free(im);
 	return next;
 }
+
+struct ba_IMLabel {
+	u64 addr;
+	u64 jmpAddrsCap;
+	u64 jmpAddrsCount;
+	u64* jmpAddrs; // Addresses of jmps to the label in code
+	u8* ripOffsetSizes;
+};
 
 char* ba_IMToStr(struct ba_IM* im) {
 	char* str = malloc(255);
