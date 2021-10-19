@@ -114,6 +114,62 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = b2;
 					}
 
+					// GPR, ADR GPR
+					else if (im->vals[2] == BA_IM_ADR) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgs("MOV", 2);
+						}
+
+						if (!(BA_IM_RAX <= im->vals[3]) || !(BA_IM_R15 >= im->vals[2])) {
+							printf("Error: first argument for ADR must be a general"
+								"purpose register\n");
+							exit(-1);
+						}
+					
+						u8 b0 = 0x48, b2 = 0;
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[3] - BA_IM_RAX;
+						
+						b0 |= (r1 >= 8) << 2;
+						b0 |= (r0 >= 8);
+						
+						b2 |= (r1 & 7) << 3;
+						b2 |= (r0 & 7);
+						
+						if ((r0 & 7) == 4) {
+							code->cnt += 4;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							code->arr[code->cnt-4] = b0;
+							code->arr[code->cnt-3] = 0x8b;
+							code->arr[code->cnt-2] = b2;
+							code->arr[code->cnt-1] = 0x24;
+						}
+						else if ((r0 & 7) == 5) {
+							code->cnt += 4;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							code->arr[code->cnt-4] = b0;
+							code->arr[code->cnt-3] = 0x8b;
+							code->arr[code->cnt-2] = 0x40 + b2;
+							code->arr[code->cnt-1] = 0;
+						}
+						else {
+							code->cnt += 3;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							code->arr[code->cnt-3] = b0;
+							code->arr[code->cnt-2] = 0x8b;
+							code->arr[code->cnt-1] = b2;
+						}
+					}
+
 					// GPR, DATASGMT
 					else if (im->vals[2] == BA_IM_DATASGMT) {
 						if (im->count < 4) {
@@ -1528,6 +1584,11 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
 				}
+				// GPR, ADR GPR
+				else if (im->vals[2] == BA_IM_ADR) {
+					u8 r0 = im->vals[1] - BA_IM_RAX;
+					return 3 + ((r0 & 7) == 4 || (r0 & 7) == 5);
+				}
 				// GPR, DATASGMT
 				else if (im->vals[2] == BA_IM_DATASGMT) {
 					return 7;
@@ -1620,10 +1681,8 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
 				// GPRb, GPRb
 				if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
-					u8 tmp = ((BA_IM_SPL <= im->vals[1]) | 
+					return 2 + ((BA_IM_SPL <= im->vals[1]) | 
 						(BA_IM_SPL <= im->vals[2]));
-
-					return 2 + tmp;
 				}
 
 				// TODO: else
