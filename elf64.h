@@ -343,71 +343,93 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					return ba_ErrorIMArgs("ADD", 2);
 				}
 
-				// GPR, IMM
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1]) &&
-					(im->vals[2] == BA_IM_IMM))
-				{
-					if (im->count < 4) {
-						return ba_ErrorIMArgs("ADD", 2);
-					}
-					u64 imm = im->vals[3];
-
-					// 7 bits
-					if (imm < 0x80) {
-						u8 b0 = 0x48, b2 = 0xc0, b3 = imm & 0xff;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-
-						b0 |= (r0 >= 8);
-						b2 |= (r0 & 7);
-
-						code->cnt += 4;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-
-						code->arr[code->cnt-4] = b0;
-						code->arr[code->cnt-3] = 0x83;
-						code->arr[code->cnt-2] = b2;
-						code->arr[code->cnt-1] = b3;
-					}
-					else {
-						// Do not allow >31 bits
-						if (imm >= (1llu << 31)) {
-							printf("Error: Cannot ADD more than 31 bits to a register");
-							exit(-1);
-						}
-
+				// First argument GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, GPR
+					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 						u8 b0 = 0x48, b2 = 0xc0;
 						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[2] - BA_IM_RAX;
+						
+						b0 |= (r1 >= 8) << 2;
 						b0 |= (r0 >= 8);
+						
+						b2 |= (r1 & 7) << 3;
 						b2 |= (r0 & 7);
-
-						code->cnt += 6;
-						if (im->vals[1] != BA_IM_RAX) {
-							++code->cnt;
-						}
-
+						
+						code->cnt += 3;
 						if (code->cnt > code->cap) {
 							ba_ResizeDynArr8(code);
 						}
 
-						if (im->vals[1] == BA_IM_RAX) {
-							code->arr[code->cnt-6] = 0x48;
-							code->arr[code->cnt-5] = 0x05;
+						code->arr[code->cnt-3] = b0;
+						code->arr[code->cnt-2] = 0x1;
+						code->arr[code->cnt-1] = b2;
+					}
+					// GPR, IMM
+					else if (im->vals[2] == BA_IM_IMM) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgs("ADD", 2);
+						}
+						u64 imm = im->vals[3];
+
+						// 7 bits
+						if (imm < 0x80) {
+							u8 b0 = 0x48, b2 = 0xc0, b3 = imm & 0xff;
+							u8 r0 = im->vals[1] - BA_IM_RAX;
+
+							b0 |= (r0 >= 8);
+							b2 |= (r0 & 7);
+
+							code->cnt += 4;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							code->arr[code->cnt-4] = b0;
+							code->arr[code->cnt-3] = 0x83;
+							code->arr[code->cnt-2] = b2;
+							code->arr[code->cnt-1] = b3;
 						}
 						else {
-							code->arr[code->cnt-7] = b0;
-							code->arr[code->cnt-6] = 0x81;
-							code->arr[code->cnt-5] = b2;
-						}
+							// Do not allow >31 bits
+							if (imm >= (1llu << 31)) {
+								printf("Error: Cannot ADD more than 31 bits to a register");
+								exit(-1);
+							}
 
-						code->arr[code->cnt-4] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-3] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-2] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-1] = imm & 0xff;
+							u8 b0 = 0x48, b2 = 0xc0;
+							u8 r0 = im->vals[1] - BA_IM_RAX;
+							b0 |= (r0 >= 8);
+							b2 |= (r0 & 7);
+
+							code->cnt += 6;
+							if (im->vals[1] != BA_IM_RAX) {
+								++code->cnt;
+							}
+
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							if (im->vals[1] == BA_IM_RAX) {
+								code->arr[code->cnt-6] = 0x48;
+								code->arr[code->cnt-5] = 0x05;
+							}
+							else {
+								code->arr[code->cnt-7] = b0;
+								code->arr[code->cnt-6] = 0x81;
+								code->arr[code->cnt-5] = b2;
+							}
+
+							code->arr[code->cnt-4] = imm & 0xff;
+							imm >>= 8;
+							code->arr[code->cnt-3] = imm & 0xff;
+							imm >>= 8;
+							code->arr[code->cnt-2] = imm & 0xff;
+							imm >>= 8;
+							code->arr[code->cnt-1] = imm & 0xff;
+						}
 					}
 				}
 
@@ -423,72 +445,94 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					return ba_ErrorIMArgs("SUB", 2);
 				}
 
-				// GPR, IMM
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1]) &&
-					(im->vals[2] == BA_IM_IMM))
-				{
-					if (im->count < 4) {
-						return ba_ErrorIMArgs("SUB", 2);
-					}
-					u64 imm = im->vals[3];
-
-					// 7 bits
-					if (imm < 0x80) {
-						u8 b0 = 0x48, b2 = 0xe8, b3 = imm & 0xff;
+				// First argument GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, GPR
+					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+						u8 b0 = 0x48, b2 = 0xc0;
 						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[2] - BA_IM_RAX;
 						
+						b0 |= (r1 >= 8) << 2;
 						b0 |= (r0 >= 8);
+						
+						b2 |= (r1 & 7) << 3;
 						b2 |= (r0 & 7);
-
-						code->cnt += 4;
+						
+						code->cnt += 3;
 						if (code->cnt > code->cap) {
 							ba_ResizeDynArr8(code);
 						}
 
-						code->arr[code->cnt-4] = b0;
-						code->arr[code->cnt-3] = 0x83;
-						code->arr[code->cnt-2] = b2;
-						code->arr[code->cnt-1] = b3;
+						code->arr[code->cnt-3] = b0;
+						code->arr[code->cnt-2] = 0x29;
+						code->arr[code->cnt-1] = b2;
 					}
-					// More bits
-					else {
-						// Do not allow >32 bits
-						if (imm >= (1llu << 31)) {
-							printf("Error: Cannot SUB more than 31 bits from a register");
-							exit(-1);
+					// GPR, IMM
+					else if (im->vals[2] == BA_IM_IMM) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgs("SUB", 2);
 						}
-						
-						u8 b0 = 0x48, b2 = 0xe8;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						b0 |= (r0 >= 8);
-						b2 |= (r0 & 7);
+						u64 imm = im->vals[3];
 
-						code->cnt += 6;
-						if (im->vals[1] != BA_IM_RAX) {
-							code->cnt++;
-						}
+						// 7 bits
+						if (imm < 0x80) {
+							u8 b0 = 0x48, b2 = 0xe8, b3 = imm & 0xff;
+							u8 r0 = im->vals[1] - BA_IM_RAX;
+							
+							b0 |= (r0 >= 8);
+							b2 |= (r0 & 7);
 
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+							code->cnt += 4;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
 
-						if (im->vals[1] == BA_IM_RAX) {
-							code->arr[code->cnt-6] = 0x48;
-							code->arr[code->cnt-5] = 0x2d;
+							code->arr[code->cnt-4] = b0;
+							code->arr[code->cnt-3] = 0x83;
+							code->arr[code->cnt-2] = b2;
+							code->arr[code->cnt-1] = b3;
 						}
+						// More bits
 						else {
-							code->arr[code->cnt-7] = b0;
-							code->arr[code->cnt-6] = 0x81;
-							code->arr[code->cnt-5] = b2;
-						}
+							// Do not allow >32 bits
+							if (imm >= (1llu << 31)) {
+								printf("Error: Cannot SUB more than 31 bits from a register");
+								exit(-1);
+							}
+							
+							u8 b0 = 0x48, b2 = 0xe8;
+							u8 r0 = im->vals[1] - BA_IM_RAX;
+							b0 |= (r0 >= 8);
+							b2 |= (r0 & 7);
 
-						code->arr[code->cnt-4] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-3] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-2] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-1] = imm & 0xff;
+							code->cnt += 6;
+							if (im->vals[1] != BA_IM_RAX) {
+								code->cnt++;
+							}
+
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							if (im->vals[1] == BA_IM_RAX) {
+								code->arr[code->cnt-6] = 0x48;
+								code->arr[code->cnt-5] = 0x2d;
+							}
+							else {
+								code->arr[code->cnt-7] = b0;
+								code->arr[code->cnt-6] = 0x81;
+								code->arr[code->cnt-5] = b2;
+							}
+
+							code->arr[code->cnt-4] = imm & 0xff;
+							imm >>= 8;
+							code->arr[code->cnt-3] = imm & 0xff;
+							imm >>= 8;
+							code->arr[code->cnt-2] = imm & 0xff;
+							imm >>= 8;
+							code->arr[code->cnt-1] = imm & 0xff;
+						}
 					}
 				}
 				
@@ -1322,33 +1366,21 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 		case BA_IM_ADD:
 		case BA_IM_SUB:
-			// GPR, IMM
-			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1]) &&
-				(im->vals[2] == BA_IM_IMM))
-			{
-				return 4 + (im->vals[3] >= 0x80) * 2;
-			}
-
-			break;
-/*		
-		case BA_IM_SUB:
-			// GPR, IMM
-			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1]) &&
-				(im->vals[2] == BA_IM_IMM))
-			{
-				return 4 + (im->vals[3] >= 0x80) * 2;
-			}
-
-			break;
-*/
-		case BA_IM_INC:
-			// GPR
+			// First arg GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				return 3;
+				// GPR, GPR
+				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+					return 3;
+				}
+				// GPR, IMM
+				else if (im->vals[2] == BA_IM_IMM) {
+					return 4 + (im->vals[3] >= 0x80) * 2;
+				}
 			}
 
 			break;
 
+		case BA_IM_INC:
 		case BA_IM_NOT:
 			// GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
