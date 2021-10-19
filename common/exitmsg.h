@@ -60,7 +60,7 @@ u8 ba_ErrorIntLitTooLong(u64 line, u64 col) {
 // ----- Independent errors ------
 
 u8 ba_ErrorMallocNoMem() {
-	printf("Error: insufficient memory");
+	printf("Error: insufficient memory\n");
 	exit(-1);
 	return 0;
 }

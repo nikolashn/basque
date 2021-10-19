@@ -40,6 +40,7 @@ struct ba_Str {
 // ----- Basque includes -----
 
 #include "exitmsg.h"
+#include "dynarr.h"
 #include "symtable.h"
 #include "lexeme.h"
 #include "im.h"

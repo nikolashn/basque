@@ -97,10 +97,8 @@ struct ba_IM* ba_DelIM(struct ba_IM* im) {
 
 struct ba_IMLabel {
 	u64 addr;
-	u64 jmpAddrsCap;
-	u64 jmpAddrsCnt;
-	u64* jmpAddrs; // Addresses of jmps to the label in code
-	u8* ripOffsetSizes;
+	struct ba_DynArr64* jmpOfsts;
+	struct ba_DynArr8* jmpOfstSizes;
 };
 
 char* ba_IMToStr(struct ba_IM* im) {
