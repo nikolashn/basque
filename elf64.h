@@ -285,6 +285,126 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// TODO: else
 				}
 				
+				
+				// Into ADR GPR effective address
+				else if (im->vals[1] == BA_IM_ADR) {
+					if (im->count < 4) {
+						return ba_ErrorIMArgs("MOV", 2);
+					}
+					
+					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
+						printf("Error: first argument for ADR must be a "
+							"general purpose register\n");
+						exit(-1);
+					}
+					
+					u8 r0 = im->vals[2] - BA_IM_RAX;
+					
+					// From GPRb
+					if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
+						u8 r1 = im->vals[3] - BA_IM_AL;
+						
+						u8 b0 = 0x40 | (r0 >= 8) | ((r1 >= 8) << 2);
+						u8 b2 = (r0 & 7) | ((r1 & 7) << 3);
+						
+						// AL, CL, DL, BL can miss an initial byte
+						if (r1 < BA_IM_SPL - BA_IM_AL) {
+							switch (im->vals[2]) {
+								case BA_IM_RAX: case BA_IM_RCX: case BA_IM_RDX: 
+								case BA_IM_RBX: case BA_IM_RSI: case BA_IM_RDI:
+									code->cnt += 2;
+									if (code->cnt > code->cap) {
+										ba_ResizeDynArr8(code);
+									}
+									code->arr[code->cnt-2] = 0x88;
+									code->arr[code->cnt-1] = b2;
+									break;
+								case BA_IM_RSP:
+									code->cnt += 3;
+									if (code->cnt > code->cap) {
+										ba_ResizeDynArr8(code);
+									}
+									code->arr[code->cnt-3] = 0x88;
+									code->arr[code->cnt-2] = b2;
+									code->arr[code->cnt-1] = 0x24;
+									break;
+								case BA_IM_RBP:
+									code->cnt += 3;
+									if (code->cnt > code->cap) {
+										ba_ResizeDynArr8(code);
+									}
+									code->arr[code->cnt-3] = 0x88;
+									code->arr[code->cnt-2] = 0x40 + b2;
+									code->arr[code->cnt-1] = 0;
+									break;
+								case BA_IM_R12:
+									code->cnt += 4;
+									if (code->cnt > code->cap) {
+										ba_ResizeDynArr8(code);
+									}
+									code->arr[code->cnt-4] = b0;
+									code->arr[code->cnt-3] = 0x88;
+									code->arr[code->cnt-2] = b2;
+									code->arr[code->cnt-1] = 0x24;
+									break;
+								case BA_IM_R13:
+									code->cnt += 4;
+									if (code->cnt > code->cap) {
+										ba_ResizeDynArr8(code);
+									}
+									code->arr[code->cnt-4] = b0;
+									code->arr[code->cnt-3] = 0x88;
+									code->arr[code->cnt-2] = 0x40 + b2;
+									code->arr[code->cnt-1] = 0;
+									break;
+								default:
+									code->cnt += 3;
+									if (code->cnt > code->cap) {
+										ba_ResizeDynArr8(code);
+									}
+									code->arr[code->cnt-3] = b0;
+									code->arr[code->cnt-2] = 0x88;
+									code->arr[code->cnt-1] = b2;
+									break;
+							}
+						}
+						else {
+							if ((r0 & 7) == 4) {
+								code->cnt += 4;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-4] = b0;
+								code->arr[code->cnt-3] = 0x88;
+								code->arr[code->cnt-2] = b2;
+								code->arr[code->cnt-1] = 0x24;
+								break;
+							}
+							else if ((r0 & 7) == 5) {
+								code->cnt += 4;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-4] = b0;
+								code->arr[code->cnt-3] = 0x88;
+								code->arr[code->cnt-2] = 0x40 + b2;
+								code->arr[code->cnt-1] = 0;
+								break;
+							}
+							else {
+								code->cnt += 3;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-3] = b0;
+								code->arr[code->cnt-2] = 0x88;
+								code->arr[code->cnt-1] = b2;
+								break;
+							}
+						}
+					}
+				}
+
 				// Into ADRADD/ADRSUB GPR effective address
 				else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
 					if (im->count < 5) {
