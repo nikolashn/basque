@@ -285,7 +285,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// TODO: else
 				}
 				
-				
 				// Into ADR GPR effective address
 				else if (im->vals[1] == BA_IM_ADR) {
 					if (im->count < 4) {
@@ -1728,6 +1727,29 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				}
 				
 				// TODO: else
+			}
+			// Into ADR GPR effective address
+			else if (im->vals[1] == BA_IM_ADR) {
+				u8 r0 = im->vals[2] - BA_IM_RAX;
+				// From GPRb
+				if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
+					u8 r1 = im->vals[3] - BA_IM_AL;
+					if (r1 < BA_IM_SPL - BA_IM_AL) {
+						switch (im->vals[2]) {
+							case BA_IM_RAX: case BA_IM_RCX: case BA_IM_RDX: 
+							case BA_IM_RBX: case BA_IM_RSI: case BA_IM_RDI:
+								return 2;
+							case BA_IM_R12:
+							case BA_IM_R13:
+								return 4;
+							default:
+								return 3;
+						}
+					}
+					else {
+						return 3 + ((r0 & 7) == 4 || (r0 & 7) == 5);
+					}
+				}
 			}
 			// Into ADRADD/ADRSUB GPR effective address
 			else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
