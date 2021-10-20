@@ -30,7 +30,9 @@ enum {
 	BA_IM_MUL          = 0x1c,
 	
 	BA_IM_SYSCALL      = 0x40,
-
+	BA_IM_LABELCALL    = 0x41,
+	BA_IM_RET          = 0x42,
+	
 	BA_IM_LABELJMP     = 0x50,
 	BA_IM_LABELJNZ     = 0x51,
 
@@ -164,6 +166,14 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SYSCALL:
 				strcat(str, "SYSCALL ");
+				break;
+			case BA_IM_LABELCALL:
+				strcat(str, "LABELCALL ");
+				isImm = 1;
+				break;
+			case BA_IM_RET:
+				strcat(str, "RET ");
+				isImm = 1;
 				break;
 			case BA_IM_LABELJMP:
 				strcat(str, "LABELJMP ");

@@ -1396,6 +1396,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 
 			case BA_IM_SYSCALL:
+			{
 				code->cnt += 2;
 				if (code->cnt > code->cap) {
 					ba_ResizeDynArr8(code);
@@ -1405,6 +1406,78 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				code->arr[code->cnt-1] = 0x5;
 
 				break;
+			}
+			case BA_IM_LABELCALL:
+			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("LABELCALL", 1);
+				}
+
+				u64 labelID = im->vals[1];
+				struct ba_IMLabel* lbl = &labels[labelID];
+
+				if (labelID >= ctr->labelCnt) {
+					printf("Error: cannot find intermediate label %lld\n", 
+						labelID);
+					exit(-1);
+				}
+
+				// Label appears before call
+				if (lbl->addr) {
+					i64 relAddr = lbl->addr - (code->cnt + 5);
+
+					code->cnt += 5;
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+					code->arr[code->cnt-5] = 0xe8;
+					code->arr[code->cnt-4] = relAddr & 0xff;
+					relAddr >>= 8;
+					code->arr[code->cnt-3] = relAddr & 0xff;
+					relAddr >>= 8;
+					code->arr[code->cnt-2] = relAddr & 0xff;
+					relAddr >>= 8;
+					code->arr[code->cnt-1] = relAddr & 0xff;
+				}
+				// Label appears after call
+				else {
+					// Don't check for lbl->jmpOfstSizes, they are allocated together
+					if (!lbl->jmpOfsts) {
+						lbl->jmpOfsts = ba_NewDynArr64(0x100);
+						lbl->jmpOfstSizes = ba_NewDynArr8(0x100);
+					}
+
+					if (++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) {
+						ba_ResizeDynArr64(lbl->jmpOfsts);
+					}
+					if (++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) {
+						ba_ResizeDynArr8(lbl->jmpOfstSizes);
+					}
+
+					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt+1;
+					
+					code->cnt += 5;
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+					*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
+					code->arr[code->cnt-5] = 0xe8;
+				}
+
+				break;
+			}
+
+			case BA_IM_RET:
+			{
+				code->cnt += 1;
+				if (code->cnt > code->cap) {
+					ba_ResizeDynArr8(code);
+				}
+
+				code->arr[code->cnt-1] = 0xc3;
+
+				break;
+			}
 
 			case BA_IM_LABELJMP:
 			{
@@ -1509,6 +1582,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 			}
+
 			case BA_IM_LABELJNZ:
 			{
 				if (im->count < 2) {
@@ -2036,8 +2110,12 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		case BA_IM_SYSCALL:
 			return 2;
 
+		case BA_IM_RET:
+			return 1;
+
 		// JMP/Jcc instructions are all calculated pessimally
 
+		case BA_IM_LABELCALL:
 		case BA_IM_LABELJMP:
 			return 5;
 
