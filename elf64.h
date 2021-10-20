@@ -1509,6 +1509,111 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 			}
+			case BA_IM_LABELJNZ:
+			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("LABELJNZ", 1);
+				}
+
+				u64 labelID = im->vals[1];
+				struct ba_IMLabel* lbl = &labels[labelID];
+
+				if (labelID >= ctr->labelCnt) {
+					printf("Error: cannot find intermediate label %lld\n", 
+						labelID);
+					exit(-1);
+				}
+
+				// Label appears before jnz
+				if (lbl->addr) {
+					// Assumes this instruction will be 2 bytes initially
+					i64 relAddr = lbl->addr - (code->cnt + 2);
+
+					// 2 byte jnz
+					if ((relAddr >= 0ll && relAddr < 0x80ll) || 
+						(relAddr < 0ll && relAddr >= -0x80ll))
+					{
+						code->cnt += 2;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+						code->arr[code->cnt-2] = 0x75;
+						code->arr[code->cnt-1] = (u8)(relAddr & 0xff);
+					}
+					// 6 byte jnz
+					else {
+						code->cnt += 6;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+						relAddr -= 4; // Accounts for the instr. being 6 bytes
+						code->arr[code->cnt-6] = 0xf;
+						code->arr[code->cnt-5] = 0x85;
+						code->arr[code->cnt-4] = relAddr & 0xff;
+						relAddr >>= 8;
+						code->arr[code->cnt-3] = relAddr & 0xff;
+						relAddr >>= 8;
+						code->arr[code->cnt-2] = relAddr & 0xff;
+						relAddr >>= 8;
+						code->arr[code->cnt-1] = relAddr & 0xff;
+					}
+				}
+				// Label appears after jnz
+				else {
+					struct ba_IM* tmpIM = im;
+					u64 labelDistance = 0;
+					while (tmpIM && tmpIM->count) {
+						labelDistance += ba_PessimalInstrSize(tmpIM);
+						tmpIM = tmpIM->next;
+
+						// 6 byte jnz
+						if (labelDistance >= 0x80) {
+							break;
+						}
+						// 2 byte jnz
+						else if (tmpIM->vals[0] == BA_IM_LABEL && 
+							tmpIM->vals[1] == labelID)
+						{
+							break;
+						}
+					}
+
+					// Don't check for lbl->jmpOfstSizes, they are allocated together
+					if (!lbl->jmpOfsts) {
+						lbl->jmpOfsts = ba_NewDynArr64(0x100);
+						lbl->jmpOfstSizes = ba_NewDynArr8(0x100);
+					}
+
+					if (++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) {
+						ba_ResizeDynArr64(lbl->jmpOfsts);
+					}
+					if (++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) {
+						ba_ResizeDynArr8(lbl->jmpOfstSizes);
+					}
+
+					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt+1;
+					
+					if (labelDistance >= 0x80) {
+						code->cnt += 6;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+						*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
+						code->arr[code->cnt-6] = 0xf;
+						code->arr[code->cnt-5] = 0x85;
+					}
+					else {
+						code->cnt += 2;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
+						code->arr[code->cnt-2] = 0x75;
+					}
+				}
+
+				break;
+			}
 
 			default:
 				printf("Error: unrecognized intermediate instruction: %#llx\n",
@@ -1931,9 +2036,13 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		case BA_IM_SYSCALL:
 			return 2;
 
+		// JMP/Jcc instructions are all calculated pessimally
+
 		case BA_IM_LABELJMP:
-			// Pessimal
 			return 5;
+
+		case BA_IM_LABELJNZ:
+			return 6;
 
 		default:
 			printf("Error: unrecognized intermediate instruction: %#llx\n",

@@ -32,6 +32,7 @@ enum {
 	BA_IM_SYSCALL      = 0x40,
 
 	BA_IM_LABELJMP     = 0x50,
+	BA_IM_LABELJNZ     = 0x51,
 
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
@@ -166,6 +167,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_LABELJMP:
 				strcat(str, "LABELJMP ");
+				isImm = 1;
+				break;
+			case BA_IM_LABELJNZ:
+				strcat(str, "LABELJNZ ");
 				isImm = 1;
 				break;
 			case BA_IM_INC:
