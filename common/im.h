@@ -36,6 +36,12 @@ enum {
 	BA_IM_LABELJMP     = 0x50,
 	BA_IM_LABELJNZ     = 0x51,
 
+	// More special syntax
+	
+	BA_IM_64ADR        = 0x82,
+	BA_IM_64ADRADD     = 0x83,
+	BA_IM_64ADRSUB     = 0x84,
+
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
 	// while the bits before those must be the same for each register

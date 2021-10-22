@@ -88,6 +88,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					return ba_ErrorIMArgs("MOV", 2);
 				}
 
+				u8 adrAddDestSize = 
+					0xff * ((im->vals[1] == BA_IM_ADRADD) | 
+						(im->vals[1] == BA_IM_ADRSUB)) +
+					0x04 * ((im->vals[1] == BA_IM_64ADRADD) | 
+						(im->vals[1] == BA_IM_64ADRSUB));
+
 				// Into GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					// GPR, GPR
@@ -290,7 +296,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					if (im->count < 4) {
 						return ba_ErrorIMArgs("MOV", 2);
 					}
-					
+
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
 						printf("Error: first argument for ADR must be a "
 							"general purpose register\n");
@@ -402,31 +408,33 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 						}
 					}
+
+					// TODO: else
 				}
 
 				// Into ADRADD/ADRSUB GPR effective address
-				else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
+				else if (adrAddDestSize) {
 					if (im->count < 5) {
 						return ba_ErrorIMArgs("MOV", 2);
 					}
-					
+
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
 						printf("Error: first argument for ADRADD/ADRSUB must be a "
 							"general purpose register\n");
 						exit(-1);
 					}
+
+					u8 r0 = im->vals[2] - BA_IM_RAX;
+					u64 offset = im->vals[3];
 					
 					// From GPR
 					if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
 						u8 sub = im->vals[1] == BA_IM_ADRSUB;
 
-						u8 r0 = im->vals[2] - BA_IM_RAX;
 						u8 r1 = im->vals[4] - BA_IM_RAX;
 						u8 b0, b2;
 						
 						b0 = 0x48 | (r0 >= 8) | ((r1 >= 8) << 3);
-
-						u64 offset = im->vals[3];
 
 						// Work out scale of the offset
 						if (offset < 0x80) {
@@ -495,6 +503,109 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							code->arr[code->cnt-2] = offset & 0xff;
 							offset >>= 8;
 							code->arr[code->cnt-1] = offset & 0xff;
+						}
+						else {
+							printf("Error: Effective address cannot have a more "
+								"than 32 bit offset\n");
+							exit(-1);
+						}
+					}
+
+					// From IMM
+					else if (im->vals[4] == BA_IM_IMM) {
+						if (adrAddDestSize == 0xff) {
+							printf("Error: no size specified for MOV");
+							exit(-1);
+						}
+
+						if (im->count < 6) {
+							return ba_ErrorIMArgs("MOV", 2);
+						}
+
+						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
+							im->vals[1] == BA_IM_64ADRSUB;
+						u64 imm = im->vals[5];
+
+						u8 b0, b2;
+						b0 = 0x48 | (r0 >= 8);
+
+						code->cnt += adrAddDestSize;
+
+						// Work out scale of the offset
+						if (offset < 0x80) {
+							// Offset byte
+							if (sub) {
+								offset = -offset;
+							}
+
+							b2 = 0x40 | (r0 & 7);
+
+							if ((r0 & 7) == 4) {
+								code->cnt += 5;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-5-adrAddDestSize] = b0;
+								code->arr[code->cnt-4-adrAddDestSize] = 0xc7;
+								code->arr[code->cnt-3-adrAddDestSize] = b2;
+								code->arr[code->cnt-2-adrAddDestSize] = 0x24;
+							}
+							else {
+								code->cnt += 4;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-4-adrAddDestSize] = b0;
+								code->arr[code->cnt-3-adrAddDestSize] = 0xc7;
+								code->arr[code->cnt-2-adrAddDestSize] = b2;
+							}
+							
+							code->arr[code->cnt-1-adrAddDestSize] = offset & 0xff;
+
+							for (u64 i = adrAddDestSize; i-- > 0;) {
+								code->arr[code->cnt-1-i] = imm & 0xff;
+								imm >>= 8;
+							}
+						}
+						else if (offset < (1llu << 31)) {
+							if (sub) {
+								offset = -offset;
+							}
+
+							b2 = 0x80 | (r0 & 7);
+
+							if ((r0 & 7) == 4) {
+								code->cnt += 8;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-8-adrAddDestSize] = b0;
+								code->arr[code->cnt-7-adrAddDestSize] = 0xc7;
+								code->arr[code->cnt-6-adrAddDestSize] = b2;
+								code->arr[code->cnt-5-adrAddDestSize] = 0x24;
+							}
+							else {
+								code->cnt += 7;
+								if (code->cnt > code->cap) {
+									ba_ResizeDynArr8(code);
+								}
+								code->arr[code->cnt-7-adrAddDestSize] = b0;
+								code->arr[code->cnt-6-adrAddDestSize] = 0xc7;
+								code->arr[code->cnt-5-adrAddDestSize] = b2;
+							}
+
+							code->arr[code->cnt-4-adrAddDestSize] = offset & 0xff;
+							offset >>= 8;
+							code->arr[code->cnt-3-adrAddDestSize] = offset & 0xff;
+							offset >>= 8;
+							code->arr[code->cnt-2-adrAddDestSize] = offset & 0xff;
+							offset >>= 8;
+							code->arr[code->cnt-1-adrAddDestSize] = offset & 0xff;
+
+							for (u64 i = adrAddDestSize; i-- > 0;) {
+								code->arr[code->cnt-1-i] = imm & 0xff;
+								imm >>= 8;
+							}
 						}
 						else {
 							printf("Error: Effective address cannot have a more "
@@ -1876,6 +1987,13 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			return 0;
 
 		case BA_IM_MOV:
+		{
+			u8 adrAddDestSize = 
+				0xff * ((im->vals[1] == BA_IM_ADRADD) | 
+					(im->vals[1] == BA_IM_ADRSUB)) +
+				0x04 * ((im->vals[1] == BA_IM_64ADRADD) | 
+					(im->vals[1] == BA_IM_64ADRSUB));
+
 			// Into GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				// GPR, GPR
@@ -1931,23 +2049,35 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				}
 			}
 			// Into ADRADD/ADRSUB GPR effective address
-			else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
+			else if (adrAddDestSize) {
+				u8 r0 = im->vals[2] - BA_IM_RAX;
+				u64 offset = im->vals[3];
+
 				// From GPR
 				if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-					if (im->vals[3] < 0x80) {
+					if (offset < 0x80) {
 						return 4 + ((r0 & 7) == 4);
 					}
-					else if (im->vals[3] < (1llu << 31)) {
+					else if (offset < (1llu << 31)) {
 						return 7 + ((r0 & 7) == 4);
 					}
 				}
-				
+
+				// From IMM
+				else if (im->vals[4] == BA_IM_IMM) {
+					if (offset < 0x80) {
+						return adrAddDestSize + 4 + ((r0 & 7) == 4);
+					}
+					else if (offset < (1llu << 31)) {
+						return adrAddDestSize + 7 + ((r0 & 7) == 4);
+					}
+				}
+
 				// TODO: else
 			}
 
 			break;
-
+		}
 		case BA_IM_ADD:
 		case BA_IM_SUB:
 			// First arg GPR

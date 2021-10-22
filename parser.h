@@ -1083,7 +1083,7 @@ u8 ba_Parse(struct ba_Controller* ctr) {
 	
 	// Exit
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 60);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBX, BA_IM_IMM, 0);
+	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_RBX, BA_IM_RBX);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 
 	return 1;
