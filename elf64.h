@@ -27,8 +27,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		if (e.key) {
 			u64 sz = ba_GetSizeOfType(e.val->type);
 			tmp = (u64)e.val->initVal;
-			for (u64 j = e.val->address; j < sz; j++) {
-				dataSgmt->arr[j] = tmp & 0xff;
+			for (u64 j = 0; j < sz; j++) {
+				dataSgmt->arr[e.val->address+j] = tmp & 0xff;
 				tmp >>= 8;
 			}
 		}
