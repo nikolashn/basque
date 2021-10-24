@@ -221,17 +221,28 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				return 1;
 			}
 			else if (op->lexemeType == '-') {
-				if (ba_IsTypeUnsigned(arg->type)) {
+				if (ba_IsTypeIntegral(arg->type)) {
 					u64 argVal = (u64)arg->val;
-					arg->type = BA_TYPE_U64;
-					arg->val = (void*)(-argVal);
-				}
-				else if (ba_IsTypeSigned(arg->type)) {
-					arg->type = BA_TYPE_I64;
-					arg->val = (void*)(-(i64)arg->val);
+					if (ba_IsTypeUnsigned(arg->type)) {
+						arg->type = BA_TYPE_U64;
+					}
+					else {
+						arg->type = BA_TYPE_I64;
+					}
+
+					if (arg->lexemeType == BA_TK_IDENTIFIER) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+							((struct ba_STVal*)arg->val)->address);
+						ba_AddIM(&ctr->im, 2, BA_IM_NEG, BA_IM_RAX);
+						arg->lexemeType = BA_TK_GPREGISTER;
+						arg->val = (void*)BA_IM_RAX;
+					}
+					else {
+						arg->val = (void*)(-argVal);
+					}
 				}
 				else {
-					return ba_ExitMsg(BA_EXIT_EXTRAWARN, 
+					return ba_ExitMsg(BA_EXIT_ERR, 
 						"unary '-' used with non numeric operand on", 
 						op->line, op->col);
 				}
@@ -832,34 +843,49 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			str = ((struct ba_Str*)stkItem->val)->str;
 			len = ((struct ba_Str*)stkItem->val)->len;
 		}
-		else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
-			// U64ToStr is needed
-			if (!ba_BltinFlagsTest(BA_BLTIN_U64ToStr)) {
-				ba_BltinU64ToStr(ctr);
-			}
-			
-			// Load the data and call U64ToStr
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
-				BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
-			ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
-				ba_BltinLabels[BA_BLTIN_U64ToStr]);
-			// write
-			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-			ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
-
-			// deallocate stack memory
-			ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x30);
-
-			return 1;
-		}
 		// Everything is printed as unsigned, this will be removed in the 
 		// future anyway so i don't care about adding signed representation
-		else if (ba_IsTypeNumeric(stkItem->type)) {
-			str = ba_U64ToStr((u64)stkItem->val);
-			len = strlen(str);
+		else if (ba_IsTypeIntegral(stkItem->type)) {
+			if (stkItem->lexemeType == BA_TK_IDENTIFIER ||
+				stkItem->lexemeType == BA_TK_GPREGISTER)
+			{
+				// U64ToStr is needed
+				if (!ba_BltinFlagsTest(BA_BLTIN_U64ToStr)) {
+					ba_BltinU64ToStr(ctr);
+				}
+
+				if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
+					// Load the data and call U64ToStr
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
+					ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
+						ba_BltinLabels[BA_BLTIN_U64ToStr]);
+				}
+				else if (stkItem->lexemeType == BA_TK_GPREGISTER) {
+					if ((u64)stkItem->val != BA_IM_RAX) {
+						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX, 
+							(u64)stkItem->val);
+					}
+					ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
+						ba_BltinLabels[BA_BLTIN_U64ToStr]);
+				}
+
+				// write
+				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
+				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
+				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
+				ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
+
+				// deallocate stack memory
+				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x30);
+
+				return 1;
+			}
+			else {
+				str = ba_U64ToStr((u64)stkItem->val);
+				len = strlen(str);
+			}
 		}
 		else {
 			return ba_ExitMsg(BA_EXIT_ERR, "expression of incorrect type "
@@ -992,10 +1018,14 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 				if (expItem->lexemeType == BA_TK_IDENTIFIER) {
 					// Load the data into RAX, then load RAX into id address
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_DATASGMT, ((struct ba_STVal*)expItem->val)->address);
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
+						((struct ba_STVal*)expItem->val)->address);
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
 						idVal->address, BA_IM_RAX);
+				}
+				else if (expItem->lexemeType == BA_TK_GPREGISTER) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+						idVal->address, (u64)expItem->val);
 				}
 				else {
 					idVal->initVal = expItem->val;
