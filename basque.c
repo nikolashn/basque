@@ -65,7 +65,8 @@ int main(int argc, char* argv[]) {
 							break;
 						case 'W':
 							ba_IsWarningsAsErrors = 1;
-							break; default:
+							break;
+						default:
 							printf("Command line option %s not found\n", argv[i]);
 							return -1;
 					}

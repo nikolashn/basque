@@ -70,7 +70,7 @@ An atom is one of the following:
 - A string literal beginning and ending with `"` characters. String literals can contain line breaks and escape characters (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character).
 - A series of string literals (combined together into 1 string)
 - An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). The suffix `u` can be added to a literal to make it u64. Integer literals with no prefix are of type i64 unless they represent a value larger than 2^63 in which case they are u64.
-- An identifier (variable). When using `write <identifier>;`, these evaluate to their position in the executable's data segment, not their actual stored value. In any other expression, they evaluate to an internal pointer. They will work properly soon :)
+- An identifier (variable). `write <identifier>;` converts the identifier's data to a string and outputs it.
 
 ## Future
 Much more is planned for Basque and all of the above will heavily change in the future.
