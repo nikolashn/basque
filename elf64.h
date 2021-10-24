@@ -300,7 +300,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				// Into GPRb
 				else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
-					// GPR, IMM
+					// GPRb, IMM
 					if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
 							return ba_ErrorIMArgs("MOV", 2);
@@ -653,6 +653,56 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					// TODO: else
+				}
+
+				// Into DATASGMT
+				else if (im->vals[1] == BA_IM_DATASGMT) {
+					if (im->count < 4) {
+						return ba_ErrorIMArgs("MOV", 2);
+					}
+
+					// DATASGMT, GPR
+					if ((BA_IM_RAX <= im->vals[3]) && (BA_IM_R15 >= im->vals[3])) {
+						// Addr. rel. to start of data segment
+						u64 imm = im->vals[2];
+
+						u8 r0 = im->vals[3] - BA_IM_RAX;
+						u8 b0 = 0x48, b2 = 0x5;
+
+						b0 |= (r0 >= 8) << 2;
+						b2 |= (r0 & 7) << 3;
+
+						// Make sure there is enough space in the data segment
+						// address related arrays
+						
+						if (++relDSOffsets->cnt > relDSOffsets->cap) {
+							ba_ResizeDynArr64(relDSOffsets);
+						}
+						if (++relDSRips->cnt > relDSRips->cap) {
+							ba_ResizeDynArr64(relDSOffsets);
+						}
+
+						// Where imm (data location) is stored; instruction ptr
+						// (Looks like dereferencing NULL, but shouldn't occur)
+						*ba_TopDynArr64(relDSOffsets) = code->cnt + 3;
+						*ba_TopDynArr64(relDSRips) = code->cnt + 7;
+
+						code->cnt += 7;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+
+						code->arr[code->cnt-7] = b0;
+						code->arr[code->cnt-6] = 0x89;
+						code->arr[code->cnt-5] = b2;
+						code->arr[code->cnt-4] = imm & 0xff;
+						imm >>= 8;
+						code->arr[code->cnt-3] = imm & 0xff;
+						imm >>= 8;
+						code->arr[code->cnt-2] = imm & 0xff;
+						imm >>= 8;
+						code->arr[code->cnt-1] = imm & 0xff;
+					}
 				}
 				
 				else {

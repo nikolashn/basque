@@ -3,6 +3,6 @@
 #ifndef BA__BLTIN_H
 #define BA__BLTIN_H
 
-#include "itos.h"
+#include "u64tostr.h"
 
 #endif

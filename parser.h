@@ -203,7 +203,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 	if (!arg) {
 		return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, op->col);
 	}
-		
+	
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 			if (op->lexemeType == '+') {
@@ -223,11 +223,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			else if (op->lexemeType == '-') {
 				if (ba_IsTypeUnsigned(arg->type)) {
 					u64 argVal = (u64)arg->val;
-					if (argVal > (1llu << 63)) {
-						ba_ExitMsg(BA_EXIT_EXTRAWARN, "unary '-' used on integer "
-							"too large to be represented as i64 on", 
-							op->line, op->col);
-					}
 					arg->type = BA_TYPE_U64;
 					arg->val = (void*)(-argVal);
 				}
@@ -995,7 +990,16 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 						varTypeStr, line, col);
 				}
 
-				idVal->initVal = expItem->val;
+				if (expItem->lexemeType == BA_TK_IDENTIFIER) {
+					// Load the data into RAX, then load RAX into id address
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_DATASGMT, ((struct ba_STVal*)expItem->val)->address);
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+						idVal->address, BA_IM_RAX);
+				}
+				else {
+					idVal->initVal = expItem->val;
+				}
 			}
 		}
 
