@@ -32,6 +32,8 @@ enum {
 	BA_IM_SYSCALL      = 0x40,
 	BA_IM_LABELCALL    = 0x41,
 	BA_IM_RET          = 0x42,
+	BA_IM_PUSH         = 0x43,
+	BA_IM_POP          = 0x44,
 	
 	BA_IM_LABELJMP     = 0x50,
 	BA_IM_LABELJNZ     = 0x51,
@@ -108,6 +110,7 @@ struct ba_IMLabel {
 	u64 addr;
 	struct ba_DynArr64* jmpOfsts;
 	struct ba_DynArr8* jmpOfstSizes;
+	u8 isFound;
 };
 
 char* ba_IMToStr(struct ba_IM* im) {
@@ -180,6 +183,12 @@ char* ba_IMToStr(struct ba_IM* im) {
 			case BA_IM_RET:
 				strcat(str, "RET ");
 				isImm = 1;
+				break;
+			case BA_IM_PUSH:
+				strcat(str, "PUSH ");
+				break;
+			case BA_IM_POP:
+				strcat(str, "POP ");
 				break;
 			case BA_IM_LABELJMP:
 				strcat(str, "LABELJMP ");

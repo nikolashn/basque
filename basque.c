@@ -3,6 +3,8 @@
 #include "parser.h"
 #include "elf64.h"
 
+#include "bltin/bltin.h"
+
 char usageStr[] = 
 	"Usage: basque [options] file\n"
 	"Options:\n"
@@ -63,8 +65,7 @@ int main(int argc, char* argv[]) {
 							break;
 						case 'W':
 							ba_IsWarningsAsErrors = 1;
-							break;
-						default:
+							break; default:
 							printf("Command line option %s not found\n", argv[i]);
 							return -1;
 					}
@@ -147,7 +148,7 @@ int main(int argc, char* argv[]) {
 		lex = lex->next;
 	}
 	*/
-	
+
 	if (!ba_Parse(ctr)) {
 		return -1;
 	}
@@ -164,7 +165,7 @@ int main(int argc, char* argv[]) {
 
 	// ----- Optimization -----
 	// TODO: optimization
-	
+
 	// ----- Binary generation -----
 	
 	if (!ba_WriteBinary(outFileName, ctr)) {

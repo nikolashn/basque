@@ -19,6 +19,7 @@ struct ba_Controller {
 	// Code generation
 	struct ba_IM* startIM;
 	struct ba_IM* im;
+	struct ba_IM* entryIM;
 	u64 labelCnt;
 	u64 dataSgmtSize;
 };
@@ -61,6 +62,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->pOpStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
+	ctr->entryIM = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
 	ctr->currScope = ctr->globalST;
 	ctr->labelCnt = 0;
@@ -89,25 +91,26 @@ void ba_DelController(struct ba_Controller* ctr) {
 	free(ctr);
 }
 
-void ba_AddIM(struct ba_Controller* ctr, u64 count, ...) {
-	ctr->im->vals = malloc(sizeof(u64) * count);
-	if (!ctr->im->vals) {
+void ba_AddIM(struct ba_IM** imPtr, u64 count, ...) {
+	struct ba_IM* im = *imPtr;
+	im->vals = malloc(sizeof(u64) * count);
+	if (!im->vals) {
 		ba_ErrorMallocNoMem();
 	}
 	
 	va_list vals;
 	va_start(vals, count);
 	for (u64 i = 0; i < count; i++) {
-		ctr->im->vals[i] = va_arg(vals, u64);
+		im->vals[i] = va_arg(vals, u64);
 	}
 	va_end(vals);
 
-	ctr->im->count = count;
-	ctr->im->next = ba_NewIM();
+	im->count = count;
+	im->next = ba_NewIM();
 	
-	//printf("%s\n", ba_IMToStr(ctr->im)); // DEBUG
+	//printf("%s\n", ba_IMToStr(im)); // DEBUG
 
-	ctr->im = ctr->im->next;
+	*imPtr = im->next;
 }
 
 #endif

@@ -9,10 +9,12 @@
 u8 ba_PessimalInstrSize(struct ba_IM* im);
 
 u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
-	// Note: start memory location is fixed at 0x400000, 
-	// entry point fixed at 0x401000
-
 	u64 tmp;
+
+	u64 memStart = 0x400000;
+	// Not the final entry point, the actual entry point will 
+	// use this as an offset
+	u64 entryPoint = memStart+0x1000;
 	
 	// Generate data segment
 	u64 dataSgmtAddr = 0;
@@ -49,6 +51,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 	struct ba_IM* im = ctr->startIM;
 	while (im && im->count) {
+		if (im == ctr->entryIM) {
+			entryPoint += code->cnt;
+		}
+
 		switch (im->vals[0]) {
 			case BA_IM_LABEL:
 			{
@@ -59,13 +65,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				u64 labelID = im->vals[1];
 				struct ba_IMLabel* lbl = &labels[labelID];
 				
-				if (labelID >= ctr->labelCnt || lbl->addr) {
+				if (labelID >= ctr->labelCnt || lbl->isFound) {
 					printf("Error: cannot generate intermediate label %lld\n", 
 						labelID);
 					exit(-1);
 				}
 
 				lbl->addr = code->cnt;
+				lbl->isFound = 1;
 				
 				if (lbl->jmpOfsts) {
 					for (u64 i = 0; i < lbl->jmpOfsts->cnt; i++) {
@@ -136,13 +143,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 r0 = im->vals[1] - BA_IM_RAX;
 						u8 r1 = im->vals[3] - BA_IM_RAX;
 						
-						b0 |= (r1 >= 8) << 2;
-						b0 |= (r0 >= 8);
+						b0 |= (r0 >= 8) << 2;
+						b0 |= (r1 >= 8);
+
+						b2 |= (r0 & 7) << 3;
+						b2 |= (r1 & 7);
 						
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
-						
-						if ((r0 & 7) == 4) {
+						if ((r1 & 7) == 4) {
 							code->cnt += 4;
 							if (code->cnt > code->cap) {
 								ba_ResizeDynArr8(code);
@@ -153,7 +160,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							code->arr[code->cnt-2] = b2;
 							code->arr[code->cnt-1] = 0x24;
 						}
-						else if ((r0 & 7) == 5) {
+						else if ((r1 & 7) == 5) {
 							code->cnt += 4;
 							if (code->cnt > code->cap) {
 								ba_ResizeDynArr8(code);
@@ -286,6 +293,36 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							imm >>= 8;
 							code->arr[code->cnt-1] = imm & 0xff;
 						}
+					}
+
+					// TODO: else
+				}
+
+				// Into GPRb
+				else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
+					// GPR, IMM
+					if (im->vals[2] == BA_IM_IMM) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgs("MOV", 2);
+						}
+						u8 imm = im->vals[3];
+
+						u8 b0 = 0x40, b1 = 0xb0;
+						u8 r0 = im->vals[1] - BA_IM_AL;
+
+						b0 |= (r0 >= 8);
+						b1 |= (r0 & 7);
+
+						code->cnt += 2 + (r0 >= 4);
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+
+						if (r0 >= 4) {
+							code->arr[code->cnt-3] = b0;
+						}
+						code->arr[code->cnt-2] = b1;
+						code->arr[code->cnt-1] = imm & 0xff;
 					}
 
 					// TODO: else
@@ -429,7 +466,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					
 					// From GPR
 					if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
-						u8 sub = im->vals[1] == BA_IM_ADRSUB;
+						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
+							im->vals[1] == BA_IM_64ADRSUB;
 
 						u8 r1 = im->vals[4] - BA_IM_RAX;
 						u8 b0, b2;
@@ -1534,7 +1572,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				// Label appears before call
-				if (lbl->addr) {
+				if (lbl->isFound) {
 					i64 relAddr = lbl->addr - (code->cnt + 5);
 
 					code->cnt += 5;
@@ -1590,6 +1628,56 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
+			case BA_IM_PUSH:
+			{
+				// GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 r0 = im->vals[1] - BA_IM_RAX;
+					u8 bLast = 0x50 | (r0 & 7);
+
+					code->cnt += 1 + (r0 >= 8);
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+
+					if (r0 >= 8) {
+						code->arr[code->cnt-2] = 0x41;
+					}
+					code->arr[code->cnt-1] = bLast;
+				}
+				else {
+					printf("Error: invalid set of arguments to PUSH instruction\n");
+					exit(-1);
+				}
+
+				break;
+			}
+
+			case BA_IM_POP:
+			{
+				// GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 r0 = im->vals[1] - BA_IM_RAX;
+					u8 bLast = 0x58 | (r0 & 7);
+
+					code->cnt += 1 + (r0 >= 8);
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+
+					if (r0 >= 8) {
+						code->arr[code->cnt-2] = 0x41;
+					}
+					code->arr[code->cnt-1] = bLast;
+				}
+				else {
+					printf("Error: invalid set of arguments to POP instruction\n");
+					exit(-1);
+				}
+
+				break;
+			}
+
 			case BA_IM_LABELJMP:
 			{
 				if (im->count < 2) {
@@ -1606,7 +1694,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				// Label appears before jmp
-				if (lbl->addr) {
+				if (lbl->isFound) {
 					// Assumes this instruction will be 2 bytes initially
 					i64 relAddr = lbl->addr - (code->cnt + 2);
 
@@ -1710,7 +1798,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				// Label appears before jnz
-				if (lbl->addr) {
+				if (lbl->isFound) {
 					// Assumes this instruction will be 2 bytes initially
 					i64 relAddr = lbl->addr - (code->cnt + 2);
 
@@ -1817,7 +1905,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		dataSgmtAddr ^= tmp;
 		dataSgmtAddr += 0x1000;
 	}
-
+	
 	// Fix RIP relative addresses
 	for (u64 i = 0; i < relDSRips->cnt; i++) {
 		u64 codeLoc = relDSOffsets->arr[i];
@@ -1839,12 +1927,19 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		0x7f, 'E',  'L',  'F',  2,    1,    1,    3,
 		0,    0,    0,    0,    0,    0,    0,    0,
 		2,    0,    62,   0,    1,    0,    0,    0,
-		0,    0x10, 0x40, 0,    0,    0,    0,    0,    // Entry point 0x401000
+		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint}
 		0x40, 0,    0,    0,    0,    0,    0,    0,
 		0,    0,    0,    0,    0,    0,    0,    0,    // No section headers
 		0,    0,    0,    0,    0x40, 0,    0x38, 0,
 		3,    0,    0,    0,    0,    0,    0,    0,    // 3 p header entries
 	};
+
+	// Set entry point in header
+	tmp = entryPoint;
+	for (u64 i = 0; i < 8; i++) {
+		fileHeader[0x18+i] = tmp & 0xff;
+		tmp >>= 8;
+	}
 
 	// Generate program headers
 	enum {
@@ -1853,36 +1948,55 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u8 programHeader[phSz] = {
 		1,    0,    0,    0,    4,    0,    0,    0,    // LOAD, Read
 		0,    0,    0,    0,    0,    0,    0,    0,    // 0x0000 in file
-		0,    0,    0x40, 0,    0,    0,    0,    0,    // 0x400000 in mem
-		0,    0,    0x40, 0,    0,    0,    0,    0,    // "
+		0,    0,    0,    0,    0,    0,    0,    0,    // {memStart}
+		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0xe8, 0,    0,    0,    0,    0,    0,    0,    // f.h.sz (0x40) + p.h.sz (3 * 0x56)
 		0xe8, 0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
 
 		1,    0,    0,    0,    5,    0,    0,    0,    // LOAD, Read+Execute
-		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 in file
-		0,    0x10, 0x40, 0,    0,    0,    0,    0,    // 0x401000 in mem
-		0,    0x10, 0x40, 0,    0,    0,    0,    0,    // "
+		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint-memStart}
+		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint}
+		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0,    0,    0,    0,    0,    0,    0,    // {code->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
 
 		1,    0,    0,    0,    6,    0,    0,    0,    // LOAD, Read+Write
 		0,    0,    0,    0,    0,    0,    0,    0,    // {dataSgmtAddr}
-		0,    0,    0,    0,    0,    0,    0,    0,    // {0x400000+dataSgmtAddr} in mem
+		0,    0,    0,    0,    0,    0,    0,    0,    // {memStart+dataSgmtAddr} in mem
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0,    0,    0,    0,    0,    0,    0,    // {dataSgmt->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
 	};
 
-	// {code->cnt} in second header (code)
 	for (u64 i = 0; i < 16; i += 8) {
+		// {memStart} in first header
+		tmp = memStart;
+		for (u64 j = 0; j < 8; j++) {
+			programHeader[0x10+i+j] = tmp & 0xff;
+			tmp >>= 8;
+		}
+		// {entryPoint} in second header (code)
+		tmp = entryPoint;
+		for (u64 j = 0; j < 8; j++) {
+			programHeader[0x48+i+j] = tmp & 0xff;
+			tmp >>= 8;
+		}
+		// {code->cnt} in second header (code)
 		tmp = code->cnt;
 		for (u64 j = 0; j < 8; j++) {
 			programHeader[0x58+i+j] = tmp & 0xff;
 			tmp >>= 8;
 		}
+	}
+
+	// {entryPoint-memStart} in second header (code)
+	tmp = entryPoint-memStart;
+	for (u64 i = 0; i < 8; i++) {
+		programHeader[0x40+i] = tmp & 0xff;
+		tmp >>= 8;
 	}
 
 	// {dataSgmtAddr} in third header (data)
@@ -1892,17 +2006,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		tmp >>= 8;
 	}
 
-	// {0x400000+dataSgmtAddr} in third header (data)
 	for (u64 i = 0; i < 16; i += 8) {
-		tmp = 0x400000 + dataSgmtAddr;
+		// {memStart+dataSgmtAddr} in third header (data)
+		tmp = memStart + dataSgmtAddr;
 		for (u64 j = 0; j < 8; j++) {
 			programHeader[0x80+i+j] = tmp & 0xff;
 			tmp >>= 8;
 		}
-	}
-
-	// {dataSgmt->cnt} in third header (data)
-	for (u64 i = 0; i < 16; i += 8) {
+		// {dataSgmt->cnt} in third header (data)
 		tmp = dataSgmt->cnt;
 		for (u64 j = 0; j < 8; j++) {
 			programHeader[0x90+i+j] = tmp & 0xff;
@@ -2002,8 +2113,8 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				}
 				// GPR, ADR GPR
 				else if (im->vals[2] == BA_IM_ADR) {
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-					return 3 + ((r0 & 7) == 4 || (r0 & 7) == 5);
+					u8 r1 = im->vals[1] - BA_IM_RAX;
+					return 3 + ((r1 & 7) == 4 || (r1 & 7) == 5);
 				}
 				// GPR, DATASGMT
 				else if (im->vals[2] == BA_IM_DATASGMT) {
@@ -2242,6 +2353,18 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 		case BA_IM_RET:
 			return 1;
+
+		case BA_IM_PUSH:
+		case BA_IM_POP:
+		{
+			// GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				u8 r0 = im->vals[1] - BA_IM_RAX;
+				return 1 + (r0 >= 8);
+			}
+
+			break;
+		}
 
 		// JMP/Jcc instructions are all calculated pessimally
 
