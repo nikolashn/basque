@@ -2324,6 +2324,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 		case BA_IM_INC:
 		case BA_IM_NOT:
+		case BA_IM_NEG:
 			// GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				return 3;
