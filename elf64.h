@@ -1176,7 +1176,39 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				else {
-					printf("Error: invalid set of arguments to INC instruction\n");
+					printf("Error: invalid set of arguments to NOT instruction\n");
+					exit(-1);
+				}
+
+				break;
+			}
+
+			case BA_IM_NEG:
+			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("NEG", 1);
+				}
+
+				// GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 b0 = 0x48, b2 = 0xd8;
+					u8 r0 = im->vals[1] - BA_IM_RAX;
+
+					b0 |= (r0 >= 8);
+					b2 |= (r0 & 7);
+
+					code->cnt += 3;
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+
+					code->arr[code->cnt-3] = b0;
+					code->arr[code->cnt-2] = 0xf7;
+					code->arr[code->cnt-1] = b2;
+				}
+
+				else {
+					printf("Error: invalid set of arguments to NEG instruction\n");
 					exit(-1);
 				}
 
