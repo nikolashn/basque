@@ -1120,6 +1120,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 
 			case BA_IM_INC:
+			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgs("INC", 1);
 				}
@@ -1148,8 +1149,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_NOT:
+			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgs("NOT", 1);
 				}
@@ -1178,8 +1181,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_TEST:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("TEST", 2);
 				}
@@ -1426,8 +1431,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_SHL:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("SHL", 2);
 				}
@@ -1486,8 +1493,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_SHR:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("SHR", 2);
 				}
@@ -1563,8 +1572,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_MUL:
+			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgs("MUL", 1);
 				}
@@ -1593,6 +1604,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_SYSCALL:
 			{
@@ -1606,6 +1618,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				break;
 			}
+
 			case BA_IM_LABELCALL:
 			{
 				if (im->count < 2) {
@@ -2235,6 +2248,13 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				}
 
 				// TODO: else
+			}
+			// Into DATASGMT
+			else if (im->vals[1] == BA_IM_DATASGMT) {
+				// DATASGMT, GPR
+				if ((BA_IM_RAX <= im->vals[3]) && (BA_IM_R15 >= im->vals[3])) {
+					return 7;
+				}
 			}
 
 			break;
