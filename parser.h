@@ -250,9 +250,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 				}
 				else {
-					return ba_ExitMsg(BA_EXIT_ERR, 
-						"unary '-' used with non numeric operand on", 
-						op->line, op->col);
+					return ba_ExitMsg(BA_EXIT_ERR, "unary '-' used with "
+						"non numeric operand on", op->line, op->col);
 				}
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
@@ -261,19 +260,18 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				arg->type = BA_TYPE_U8;
 
 				if (ba_IsTypeIntegral(arg->type)) {
-					if (arg->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-							((struct ba_STVal*)arg->val)->address);
-						ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
-						ba_AddIM(&ctr->im, 2, BA_IM_SETZ, BA_IM_AL);
-						ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
-						arg->lexemeType = BA_TK_GPREGISTER;
-						arg->val = (void*)BA_IM_RAX;
-					}
-					else if (arg->lexemeType == BA_TK_GPREGISTER) {
-						if ((u64)arg->val != BA_IM_RAX) {
-							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX, 
-								(struct ba_STVal*)arg->val);
+					if (arg->lexemeType == BA_TK_IDENTIFIER ||
+						arg->lexemeType == BA_TK_GPREGISTER)
+					{
+						if (arg->lexemeType == BA_TK_IDENTIFIER) {
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+								((struct ba_STVal*)arg->val)->address);
+						}
+						else if (arg->lexemeType == BA_TK_GPREGISTER) {
+							if ((u64)arg->val != BA_IM_RAX) {
+								ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX, 
+									(struct ba_STVal*)arg->val);
+							}
 						}
 						ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 						ba_AddIM(&ctr->im, 2, BA_IM_SETZ, BA_IM_AL);
@@ -293,17 +291,38 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				return 1;
 			}
 			else if (op->lexemeType == '~') {
-				if (ba_IsTypeUnsigned(arg->type)) {
-					arg->type = BA_TYPE_U64;
-				}
-				else if (ba_IsTypeSigned(arg->type)) {
-					arg->type = BA_TYPE_I64;
+				if (ba_IsTypeIntegral(arg->type)) {
+					if (ba_IsTypeUnsigned(arg->type)) {
+						arg->type = BA_TYPE_U64;
+					}
+					else {
+						arg->type = BA_TYPE_I64;
+					}
+
+					if (arg->lexemeType == BA_TK_IDENTIFIER) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+							((struct ba_STVal*)arg->val)->address);
+						ba_AddIM(&ctr->im, 2, BA_IM_NOT, BA_IM_RAX);
+						arg->lexemeType = BA_TK_GPREGISTER;
+						arg->val = (void*)BA_IM_RAX;
+					}
+					else if (arg->lexemeType == BA_TK_GPREGISTER) {
+						if ((u64)arg->val != BA_IM_RAX) {
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX, 
+								(struct ba_STVal*)arg->val);
+						}
+						ba_AddIM(&ctr->im, 2, BA_IM_NOT, BA_IM_RAX);
+						arg->lexemeType = BA_TK_GPREGISTER;
+						arg->val = (void*)BA_IM_RAX;
+					}
+					else {
+						arg->val = (void*)(~(u64)arg->val);
+					}
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "unary '~' used with "
-						"non integral operand on", op->line, op->col);
+						"non numeric operand on", op->line, op->col);
 				}
-				arg->val = (void*)(~(u64)arg->val);
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}

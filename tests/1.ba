@@ -19,3 +19,6 @@ write !!zero; "\n";
 write !one; "\n";
 write -!zero; "\n";
 write !!zero; "\n";
+write ~a; "\n";
+write ~zero; "\n";
+write -~z; "\n";
