@@ -91,6 +91,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			}
 
 			case BA_IM_MOV:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("MOV", 2);
 				}
@@ -711,8 +712,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_ADD:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("ADD", 2);
 				}
@@ -914,8 +917,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 			
 			case BA_IM_SUB:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("SUB", 2);
 				}
@@ -1118,6 +1123,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_INC:
 			{
@@ -1725,10 +1731,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_PUSH:
 			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("PUSH", 1);
+				}
+
 				// GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					u8 r0 = im->vals[1] - BA_IM_RAX;
-					u8 bLast = 0x50 | (r0 & 7);
+					u8 b2 = 0x50 | (r0 & 7);
 
 					code->cnt += 1 + (r0 >= 8);
 					if (code->cnt > code->cap) {
@@ -1738,7 +1748,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					if (r0 >= 8) {
 						code->arr[code->cnt-2] = 0x41;
 					}
-					code->arr[code->cnt-1] = bLast;
+					code->arr[code->cnt-1] = b2;
 				}
 				else {
 					printf("Error: invalid set of arguments to PUSH instruction\n");
@@ -1750,10 +1760,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_POP:
 			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("POP", 1);
+				}
+
 				// GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					u8 r0 = im->vals[1] - BA_IM_RAX;
-					u8 bLast = 0x58 | (r0 & 7);
+					u8 b2 = 0x58 | (r0 & 7);
 
 					code->cnt += 1 + (r0 >= 8);
 					if (code->cnt > code->cap) {
@@ -1763,7 +1777,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					if (r0 >= 8) {
 						code->arr[code->cnt-2] = 0x41;
 					}
-					code->arr[code->cnt-1] = bLast;
+					code->arr[code->cnt-1] = b2;
 				}
 				else {
 					printf("Error: invalid set of arguments to POP instruction\n");
@@ -1978,6 +1992,81 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
 						code->arr[code->cnt-2] = 0x75;
 					}
+				}
+
+				break;
+			}
+
+			case BA_IM_MOVZX:
+			{
+				if (im->count < 3) {
+					return ba_ErrorIMArgs("MOVZX", 2);
+				}
+
+				// Into GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					// GPR, GPRb
+					if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
+						// Bytes to be written
+						u8 b0 = 0x48, b3 = 0xc0;
+						// Register values
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[2] - BA_IM_AL;
+						
+						b0 |= (r0 >= 8) << 2;
+						b0 |= (r1 >= 8);
+						
+						b3 |= (r0 & 7) << 3;
+						b3 |= (r1 & 7);
+						
+						code->cnt += 4;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+
+						code->arr[code->cnt-4] = b0;
+						code->arr[code->cnt-3] = 0x0f;
+						code->arr[code->cnt-2] = 0xb6;
+						code->arr[code->cnt-1] = b3;
+					}
+					
+					// TODO: else
+				}
+				
+				else {
+					printf("Error: invalid set of arguments to MOVZX instruction\n");
+					exit(-1);
+				}
+
+				break;
+			}
+
+			case BA_IM_SETZ:
+			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgs("SETZ", 1);
+				}
+
+				// GPRb
+				if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
+					u8 r0 = im->vals[1] - BA_IM_AL;
+					u8 b2 = 0xc0 | (r0 & 7);
+
+					code->cnt += 3 + (r0 >= 4);
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+
+					if (r0 >= 4) {
+						code->arr[code->cnt-4] = 0x40 | (r0 >= 8);
+					}
+					code->arr[code->cnt-3] = 0x0f;
+					code->arr[code->cnt-2] = 0x94;
+					code->arr[code->cnt-1] = b2;
+				}
+				else {
+					printf("Error: invalid set of arguments to SETZ instruction\n");
+					exit(-1);
 				}
 
 				break;
@@ -2477,6 +2566,18 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 		case BA_IM_LABELJNZ:
 			return 6;
+		
+		case BA_IM_MOVZX:
+			return 4;
+
+		case BA_IM_SETZ:
+		{
+			// GPRb
+			if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
+				u8 r0 = im->vals[1] - BA_IM_AL;
+				return 3 + (r0 >= 4);
+			}
+		}
 
 		default:
 			printf("Error: unrecognized intermediate instruction: %#llx\n",

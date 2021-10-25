@@ -11,8 +11,11 @@ enum {
 	BA_IM_ADR          = 0x2,
 	BA_IM_ADRADD       = 0x3,
 	BA_IM_ADRSUB       = 0x4,
-	BA_IM_LABEL        = 0x5,
-	BA_IM_DATASGMT     = 0xf,
+	BA_IM_64ADR        = 0x5,
+	BA_IM_64ADRADD     = 0x6,
+	BA_IM_64ADRSUB     = 0x7,
+	BA_IM_LABEL        = 0x8,
+	BA_IM_DATASGMT     = 0x9,
 	
 	// Normal assembly instructions
 	BA_IM_MOV          = 0x10,
@@ -39,11 +42,8 @@ enum {
 	BA_IM_LABELJMP     = 0x50,
 	BA_IM_LABELJNZ     = 0x51,
 
-	// More special syntax
-	
-	BA_IM_64ADR        = 0x82,
-	BA_IM_64ADRADD     = 0x83,
-	BA_IM_64ADRSUB     = 0x84,
+	BA_IM_MOVZX        = 0x60,
+	BA_IM_SETZ         = 0x61,
 
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
