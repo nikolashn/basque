@@ -20,6 +20,8 @@ struct ba_Controller {
 	struct ba_IM* startIM;
 	struct ba_IM* im;
 	struct ba_IM* entryIM;
+	u64 usedRegisters;
+	u64 imStackCnt;
 	u64 labelCnt;
 	u64 dataSgmtSize;
 };
@@ -65,6 +67,8 @@ struct ba_Controller* ba_NewController() {
 	ctr->entryIM = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
 	ctr->currScope = ctr->globalST;
+	ctr->usedRegisters = 0;
+	ctr->imStackCnt = 0;
 	ctr->labelCnt = 0;
 	ctr->dataSgmtSize = 0;
 	return ctr;
@@ -111,6 +115,62 @@ void ba_AddIM(struct ba_IM** imPtr, u64 count, ...) {
 	//printf("%s\n", ba_IMToStr(im)); // DEBUG
 
 	*imPtr = im->next;
+}
+
+enum {
+	BA_CTR_RAX = 0x1,
+	BA_CTR_RCX = 0x2,
+	BA_CTR_RDX = 0x4,
+	BA_CTR_RSI = 0x8,
+	BA_CTR_RDI = 0x10,
+};
+
+u64 ba_NextIMRegister(struct ba_Controller* ctr) {
+	if (!(ctr->usedRegisters & BA_CTR_RAX)) {
+		ctr->usedRegisters |= BA_CTR_RAX;
+		return BA_IM_RAX;
+	}
+	if (!(ctr->usedRegisters & BA_CTR_RCX)) {
+		ctr->usedRegisters |= BA_CTR_RCX;
+		return BA_IM_RCX;
+	}
+	if (!(ctr->usedRegisters & BA_CTR_RDX)) {
+		ctr->usedRegisters |= BA_CTR_RDX;
+		return BA_IM_RDX;
+	}
+	if (!(ctr->usedRegisters & BA_CTR_RSI)) {
+		ctr->usedRegisters |= BA_CTR_RSI;
+		return BA_IM_RSI;
+	}
+	if (!(ctr->usedRegisters & BA_CTR_RDI)) {
+		ctr->usedRegisters |= BA_CTR_RDI;
+		return BA_IM_RDI;
+	}
+
+	// Stack
+	++ctr->imStackCnt;
+	return 0;
+}
+
+void ba_PrevIMRegister(struct ba_Controller* ctr) {
+	if (ctr->imStackCnt) {
+		--ctr->imStackCnt;
+	}
+	else if (ctr->usedRegisters & BA_CTR_RDI) {
+		ctr->usedRegisters &= ~BA_CTR_RDI;
+	}
+	else if (ctr->usedRegisters & BA_CTR_RSI) {
+		ctr->usedRegisters &= ~BA_CTR_RSI;
+	}
+	else if (ctr->usedRegisters & BA_CTR_RDX) {
+		ctr->usedRegisters &= ~BA_CTR_RDX;
+	}
+	else if (ctr->usedRegisters & BA_CTR_RCX) {
+		ctr->usedRegisters &= ~BA_CTR_RCX;
+	}
+	else if (ctr->usedRegisters & BA_CTR_RAX) {
+		ctr->usedRegisters &= ~BA_CTR_RAX;
+	}
 }
 
 #endif

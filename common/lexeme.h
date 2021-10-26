@@ -21,9 +21,9 @@ enum {
 	BA_TK_LITINT = 0x201,
 	BA_TK_IDENTIFIER = 0x202,
 	
-	// BA_TK_GPREGISTER is not an actual lexeme but instead is used by 
+	// BA_TK_IMREGISTER is not an actual lexeme but instead is used by 
 	// the parser for intermediate values (in general purpose registers)
-	BA_TK_GPREGISTER = 0x2ff,
+	BA_TK_IMREGISTER = 0x2ff,
 
 	BA_TK_KW_WRITE = 0x300,
 	BA_TK_KW_U64 = 0x301,
