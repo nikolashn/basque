@@ -9,6 +9,9 @@ Run the following command in the root directory (might need to be run as root us
 make install
 ```
 
+## Command-line options
+Run `basque -h` for a list of command-line options.
+
 ## Current features of the programming language
 ### Comments
 Single-line comments use a `#` symbol; multi-line comments begin and end with `##`, and do not nest.
