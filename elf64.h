@@ -1774,7 +1774,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					// Addr. rel. to start of data segment
-					u64 imm = im->vals[3];
+					u64 imm = im->vals[2];
 
 					// Make sure there is enough space in the data segment
 					// address related arrays
@@ -1841,7 +1841,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					// Addr. rel. to start of data segment
-					u64 imm = im->vals[3];
+					u64 imm = im->vals[2];
 
 					// Make sure there is enough space in the data segment
 					// address related arrays
