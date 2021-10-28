@@ -4,6 +4,6 @@ VERSION = 1.0.0
 CC = cc
 # C compiler flags
 CFLAGS = -std=gnu99 -O2 -Wall -Wshadow -static
-CFLAGSDEBUG = -std=gnu99 -O0 -Wall -Wshadow -static -g
+CFLAGSDEBUG = -std=gnu99 -O0 -Wall -Wshadow -static
 # Path
 PPATH = /usr

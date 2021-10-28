@@ -20,8 +20,10 @@ struct ba_Controller {
 	struct ba_IM* startIM;
 	struct ba_IM* im;
 	struct ba_IM* entryIM;
+	
 	u64 usedRegisters;
 	u64 imStackCnt;
+	u64 imStackSize;
 	u64 labelCnt;
 	u64 dataSgmtSize;
 };
@@ -69,6 +71,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->currScope = ctr->globalST;
 	ctr->usedRegisters = 0;
 	ctr->imStackCnt = 0;
+	ctr->imStackSize = 0;
 	ctr->labelCnt = 0;
 	ctr->dataSgmtSize = 0;
 	return ctr;

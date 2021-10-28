@@ -396,15 +396,22 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							regL = ba_NextIMRegister(ctr);
 							ctr->usedRegisters &= ~BA_CTRREG_RCX;
 						}
-
+						
+						// lhs on the stack
 						if (!regL) {
-							// TODO: handle stack instead of throwing this err
-							printf("stack intermediates currently not supported\n");
-							exit(-1);
+							if (ctr->imStackCnt == 1) {
+								ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+							}
+							ba_AddIM(&ctr->im, 3, BA_IM_SUB, BA_IM_RSP, 8);
+							ctr->imStackSize += 8;
+							// Result location
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+							// Preserving rax
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 						}
 
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL, BA_IM_DATASGMT,
-							((struct ba_STVal*)lhs->val)->address);
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
+							BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
 					}
 
 					if (rhs->lexemeType == BA_TK_IDENTIFIER ||
@@ -432,7 +439,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, 
 								(u64)rhs->val);
 						}
-						ba_AddIM(&ctr->im, 3, imOp, regL, BA_IM_CL);
+						ba_AddIM(&ctr->im, 3, imOp, regL ? regL : BA_IM_RAX, 
+							BA_IM_CL);
 
 						if (regTmp != BA_IM_RCX) {
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
@@ -440,12 +448,21 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						}
 					}
 					else {
-						ba_AddIM(&ctr->im, 4, imOp, regL, 
+						ba_AddIM(&ctr->im, 4, imOp, regL ? regL : BA_IM_RAX, 
 							BA_IM_IMM, (u64)rhs->val);
 					}
-					
-					arg->lexemeType = BA_TK_IMREGISTER;
-					arg->val = (void*)regL;
+
+					if (!regL) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+							ctr->imStackSize, BA_IM_RAX);
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+						arg->lexemeType = BA_TK_IMRBPSUB;
+						arg->val = (void*)ctr->imStackSize;
+					}
+					else {
+						arg->lexemeType = BA_TK_IMREGISTER;
+						arg->val = (void*)regL;
+					}
 				}
 				else if (rhs->lexemeType == BA_TK_IDENTIFIER ||
 					rhs->lexemeType == BA_TK_IMREGISTER)
@@ -1061,7 +1078,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
 
 				// deallocate stack memory
-				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x30);
+				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
 
 				return 1;
 			}

@@ -21,15 +21,16 @@ enum {
 	BA_TK_LITINT = 0x201,
 	BA_TK_IDENTIFIER = 0x202,
 	
-	// BA_TK_IMREGISTER is not an actual lexeme but instead is used by 
-	// the parser for intermediate values (in general purpose registers)
-	BA_TK_IMREGISTER = 0x2ff,
-
 	BA_TK_KW_WRITE = 0x300,
 	BA_TK_KW_U64 = 0x301,
 	BA_TK_KW_I64 = 0x302,
 
-	BA_TK__COUNT = 0x400
+	BA_TK__COUNT = 0x400,
+
+	// Not actual lexemes but instead used by the parser for 
+	// intermediate values
+	BA_TK_IMREGISTER = 0x1000,
+	BA_TK_IMRBPSUB = 0x1001,
 };
 
 struct ba_Lexeme {

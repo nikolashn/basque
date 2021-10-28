@@ -1805,6 +1805,36 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					imm >>= 8;
 					code->arr[code->cnt-1] = imm & 0xff;
 				}
+				// IMM
+				else if (im->vals[1] == BA_IM_IMM) {
+					if (im->count < 3) {
+						return ba_ErrorIMArgs("PUSH", 1);
+					}
+
+					u64 imm = im->vals[2];
+					
+					if (imm < 0x80llu) {
+						code->cnt += 2;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+						code->arr[code->cnt-2] = 0x6a;
+					}
+					else {
+						code->cnt += 5;
+						if (code->cnt > code->cap) {
+							ba_ResizeDynArr8(code);
+						}
+						code->arr[code->cnt-5] = 0x68;
+						code->arr[code->cnt-4] = imm & 0xff;
+						imm >>= 8;
+						code->arr[code->cnt-3] = imm & 0xff;
+						imm >>= 8;
+						code->arr[code->cnt-2] = imm & 0xff;
+						imm >>= 8;
+					}
+					code->arr[code->cnt-1] = imm & 0xff;
+				}
 				else {
 					printf("Error: invalid set of arguments to PUSH instruction\n");
 					exit(-1);
@@ -2646,6 +2676,15 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				u8 r0 = im->vals[1] - BA_IM_RAX;
 				return 1 + (r0 >= 8);
+			}
+			// DATASGMT
+			else if (im->vals[1] == BA_IM_DATASGMT) {
+				return 6;
+			}
+			// IMM
+			else if (im->vals[1] == BA_IM_IMM) {
+				u64 imm = im->vals[2];
+				return 2 + (imm >= 0x80llu) * 3;
 			}
 
 			break;
