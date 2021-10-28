@@ -22,8 +22,6 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, ctr->labelCnt-5);
 	ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RBX);
 	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-	// Space for intermediate digits and final str
-	ba_AddIM(&ctr->im, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 0x30);
 	// Integer value
 	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_R8, BA_IM_RAX);
 	// String length
@@ -36,14 +34,14 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, ctr->labelCnt-2);
 
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, ctr->labelCnt-4);
-	// Number isn't 0
-	ba_AddIM(&ctr->im, 6, BA_IM_MOV, BA_IM_64ADRSUB, BA_IM_RBP, 0x18, BA_IM_IMM, 0);
-	ba_AddIM(&ctr->im, 6, BA_IM_MOV, BA_IM_64ADRSUB, BA_IM_RBP, 0x10, BA_IM_IMM, 0);
-	ba_AddIM(&ctr->im, 6, BA_IM_MOV, BA_IM_64ADRSUB, BA_IM_RBP, 0x08, BA_IM_IMM, 0);
+	ba_AddIM(&ctr->im, 3, BA_IM_XOR, BA_IM_RAX, BA_IM_RAX);
+	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 0x3030303030303030);
-	ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 0x30, BA_IM_RAX);
-	ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 0x28, BA_IM_RAX);
-	ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 0x20, BA_IM_RAX);
+	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 	// Offset from the bottom of the stack of where the digits start
 	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_R10, BA_IM_IMM, 0x18);
 	// Ensures that later test cl,cl doesn't use garbage data
