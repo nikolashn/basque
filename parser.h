@@ -394,7 +394,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						// To avoid some unnecessary swapping of registers
 						if (regL == BA_IM_RCX) {
 							regL = ba_NextIMRegister(ctr);
-							ctr->usedRegisters &= ~BA_CTR_RCX;
+							ctr->usedRegisters &= ~BA_CTRREG_RCX;
 						}
 
 						if (!regL) {
@@ -414,7 +414,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
 							(u64)rhs->val == BA_IM_RCX;
 
-						if ((ctr->usedRegisters & BA_CTR_RCX) && !rhsIsRcx) {
+						if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
 							regTmp = ba_NextIMRegister(ctr);
 							if (!regTmp) {
 								// TODO: handle stack instead of throwing this err
@@ -436,7 +436,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 						if (regTmp != BA_IM_RCX) {
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
-							ba_PrevIMRegister(ctr);
+							ctr->usedRegisters &= ~BA_CTRREG_RCX;
 						}
 					}
 					else {
@@ -455,7 +455,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					// To avoid some unnecessary swapping of registers
 					if (regL == BA_IM_RCX) {
 						regL = ba_NextIMRegister(ctr);
-						ctr->usedRegisters &= ~BA_CTR_RCX;
+						ctr->usedRegisters &= ~BA_CTRREG_RCX;
 					}
 
 					if (!regL) {
@@ -471,7 +471,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
 						(u64)rhs->val == BA_IM_RCX;
 
-					if ((ctr->usedRegisters & BA_CTR_RCX) && !rhsIsRcx) {
+					if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
 						regTmp = ba_NextIMRegister(ctr);
 						if (!regTmp) {
 							// TODO: handle stack instead of throwing this err
@@ -493,7 +493,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 					if (regTmp != BA_IM_RCX) {
 						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
-						ba_PrevIMRegister(ctr);
+						ctr->usedRegisters &= ~BA_CTRREG_RCX;
 					}
 					
 					arg->lexemeType = BA_TK_IMREGISTER;

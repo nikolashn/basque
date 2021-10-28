@@ -118,32 +118,32 @@ void ba_AddIM(struct ba_IM** imPtr, u64 count, ...) {
 }
 
 enum {
-	BA_CTR_RAX = 0x1,
-	BA_CTR_RCX = 0x2,
-	BA_CTR_RDX = 0x4,
-	BA_CTR_RSI = 0x8,
-	BA_CTR_RDI = 0x10,
+	BA_CTRREG_RAX = 0x1,
+	BA_CTRREG_RCX = 0x2,
+	BA_CTRREG_RDX = 0x4,
+	BA_CTRREG_RSI = 0x8,
+	BA_CTRREG_RDI = 0x10,
 };
 
 u64 ba_NextIMRegister(struct ba_Controller* ctr) {
-	if (!(ctr->usedRegisters & BA_CTR_RAX)) {
-		ctr->usedRegisters |= BA_CTR_RAX;
+	if (!(ctr->usedRegisters & BA_CTRREG_RAX)) {
+		ctr->usedRegisters |= BA_CTRREG_RAX;
 		return BA_IM_RAX;
 	}
-	if (!(ctr->usedRegisters & BA_CTR_RCX)) {
-		ctr->usedRegisters |= BA_CTR_RCX;
+	if (!(ctr->usedRegisters & BA_CTRREG_RCX)) {
+		ctr->usedRegisters |= BA_CTRREG_RCX;
 		return BA_IM_RCX;
 	}
-	if (!(ctr->usedRegisters & BA_CTR_RDX)) {
-		ctr->usedRegisters |= BA_CTR_RDX;
+	if (!(ctr->usedRegisters & BA_CTRREG_RDX)) {
+		ctr->usedRegisters |= BA_CTRREG_RDX;
 		return BA_IM_RDX;
 	}
-	if (!(ctr->usedRegisters & BA_CTR_RSI)) {
-		ctr->usedRegisters |= BA_CTR_RSI;
+	if (!(ctr->usedRegisters & BA_CTRREG_RSI)) {
+		ctr->usedRegisters |= BA_CTRREG_RSI;
 		return BA_IM_RSI;
 	}
-	if (!(ctr->usedRegisters & BA_CTR_RDI)) {
-		ctr->usedRegisters |= BA_CTR_RDI;
+	if (!(ctr->usedRegisters & BA_CTRREG_RDI)) {
+		ctr->usedRegisters |= BA_CTRREG_RDI;
 		return BA_IM_RDI;
 	}
 
@@ -152,24 +152,20 @@ u64 ba_NextIMRegister(struct ba_Controller* ctr) {
 	return 0;
 }
 
-void ba_PrevIMRegister(struct ba_Controller* ctr) {
-	if (ctr->imStackCnt) {
-		--ctr->imStackCnt;
-	}
-	else if (ctr->usedRegisters & BA_CTR_RDI) {
-		ctr->usedRegisters &= ~BA_CTR_RDI;
-	}
-	else if (ctr->usedRegisters & BA_CTR_RSI) {
-		ctr->usedRegisters &= ~BA_CTR_RSI;
-	}
-	else if (ctr->usedRegisters & BA_CTR_RDX) {
-		ctr->usedRegisters &= ~BA_CTR_RDX;
-	}
-	else if (ctr->usedRegisters & BA_CTR_RCX) {
-		ctr->usedRegisters &= ~BA_CTR_RCX;
-	}
-	else if (ctr->usedRegisters & BA_CTR_RAX) {
-		ctr->usedRegisters &= ~BA_CTR_RAX;
+u64 ba_GetIMRegisterFlag(u64 reg) {
+	switch (reg) {
+		case BA_IM_RAX:
+			return BA_CTRREG_RAX;
+		case BA_IM_RCX:
+			return BA_CTRREG_RCX;
+		case BA_IM_RDX:
+			return BA_CTRREG_RDX;
+		case BA_IM_RSI:
+			return BA_CTRREG_RSI;
+		case BA_IM_RDI:
+			return BA_CTRREG_RDI;
+		default:
+			return 0;
 	}
 }
 
