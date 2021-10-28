@@ -1767,6 +1767,44 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 					code->arr[code->cnt-1] = b2;
 				}
+				// DATASGMT
+				else if (im->vals[1] == BA_IM_DATASGMT) {
+					if (im->count < 3) {
+						return ba_ErrorIMArgs("PUSH", 1);
+					}
+
+					// Addr. rel. to start of data segment
+					u64 imm = im->vals[3];
+
+					// Make sure there is enough space in the data segment
+					// address related arrays
+					if (++relDSOffsets->cnt > relDSOffsets->cap) {
+						ba_ResizeDynArr64(relDSOffsets);
+					}
+					if (++relDSRips->cnt > relDSRips->cap) {
+						ba_ResizeDynArr64(relDSOffsets);
+					}
+
+					// Where imm (data location) is stored; instruction ptr
+					// (Looks like dereferencing NULL, but shouldn't occur)
+					*ba_TopDynArr64(relDSOffsets) = code->cnt + 2;
+					*ba_TopDynArr64(relDSRips) = code->cnt + 6;
+
+					code->cnt += 6;
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+
+					code->arr[code->cnt-6] = 0xff;
+					code->arr[code->cnt-5] = 0x35;
+					code->arr[code->cnt-4] = imm & 0xff;
+					imm >>= 8;
+					code->arr[code->cnt-3] = imm & 0xff;
+					imm >>= 8;
+					code->arr[code->cnt-2] = imm & 0xff;
+					imm >>= 8;
+					code->arr[code->cnt-1] = imm & 0xff;
+				}
 				else {
 					printf("Error: invalid set of arguments to PUSH instruction\n");
 					exit(-1);
@@ -1795,6 +1833,44 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-2] = 0x41;
 					}
 					code->arr[code->cnt-1] = b2;
+				}
+				// DATASGMT
+				else if (im->vals[1] == BA_IM_DATASGMT) {
+					if (im->count < 3) {
+						return ba_ErrorIMArgs("POP", 1);
+					}
+
+					// Addr. rel. to start of data segment
+					u64 imm = im->vals[3];
+
+					// Make sure there is enough space in the data segment
+					// address related arrays
+					if (++relDSOffsets->cnt > relDSOffsets->cap) {
+						ba_ResizeDynArr64(relDSOffsets);
+					}
+					if (++relDSRips->cnt > relDSRips->cap) {
+						ba_ResizeDynArr64(relDSOffsets);
+					}
+
+					// Where imm (data location) is stored; instruction ptr
+					// (Looks like dereferencing NULL, but shouldn't occur)
+					*ba_TopDynArr64(relDSOffsets) = code->cnt + 2;
+					*ba_TopDynArr64(relDSRips) = code->cnt + 6;
+
+					code->cnt += 6;
+					if (code->cnt > code->cap) {
+						ba_ResizeDynArr8(code);
+					}
+
+					code->arr[code->cnt-6] = 0x8f;
+					code->arr[code->cnt-5] = 0x05;
+					code->arr[code->cnt-4] = imm & 0xff;
+					imm >>= 8;
+					code->arr[code->cnt-3] = imm & 0xff;
+					imm >>= 8;
+					code->arr[code->cnt-2] = imm & 0xff;
+					imm >>= 8;
+					code->arr[code->cnt-1] = imm & 0xff;
 				}
 				else {
 					printf("Error: invalid set of arguments to POP instruction\n");

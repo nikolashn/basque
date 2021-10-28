@@ -1,0 +1,12 @@
+u64 a = 2;
+u64 b = 1;
+
+# 4, 64, 4, 64
+write a << b;
+", "; write (a << b) << (a << b);
+", "; write (a << b) << ((a << b) << (a << b));
+", "; write (a << b) << ((a << b) << ((a << b) << (a << b)));
+# This will give an error because stack temporary variables are not supported yet
+# ", "; write (a << b) << ((a << b) << ((a << b) << ((a << b) << (a << b))));
+"\n";
+
