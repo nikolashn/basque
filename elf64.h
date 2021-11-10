@@ -184,6 +184,77 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
+					// GPR, ADRADD/ADRSUB GPR
+					else if (im->vals[2] == BA_IM_ADRADD || 
+						im->vals[2] == BA_IM_ADRSUB) 
+					{
+						if (im->count < 5) {
+							return ba_ErrorIMArgs("MOV", 2);
+						}
+
+						if (!(BA_IM_RAX <= im->vals[3]) || !(BA_IM_R15 >= im->vals[2])) {
+							printf("Error: first argument for ADRADD/ADRUSB must be a "
+								"general purpose register\n");
+							exit(-1);
+						}
+
+						u8 sub = im->vals[2] == BA_IM_ADRSUB;
+						u64 offset = im->vals[4];
+					
+						u8 b0 = 0x48, b2 = 0x40 + (offset >= 0x80) * 0x40;
+						u8 r0 = im->vals[1] - BA_IM_RAX;
+						u8 r1 = im->vals[3] - BA_IM_RAX;
+						
+						b0 |= (r0 >= 8) << 2;
+						b0 |= (r1 >= 8);
+
+						b2 |= (r0 & 7) << 3;
+						b2 |= (r1 & 7);
+
+						u64 ofstSz = 1 + (offset >= 0x80) * 3;
+						
+						if ((r1 & 7) == 4) {
+							code->cnt += 4 + ofstSz;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							code->arr[code->cnt-ofstSz-4] = b0;
+							code->arr[code->cnt-ofstSz-3] = 0x8b;
+							code->arr[code->cnt-ofstSz-2] = b2;
+							code->arr[code->cnt-ofstSz-1] = 0x24;
+						}
+						else {
+							code->cnt += 3 + ofstSz;
+							if (code->cnt > code->cap) {
+								ba_ResizeDynArr8(code);
+							}
+
+							code->arr[code->cnt-ofstSz-3] = b0;
+							code->arr[code->cnt-ofstSz-2] = 0x8b;
+							code->arr[code->cnt-ofstSz-1] = b2;
+						}
+						
+						if (offset >= 0x80) {
+							if (sub) {
+								offset = -offset;
+							}
+							code->arr[code->cnt-4] = offset & 0xff;
+							offset >>= 8;
+							code->arr[code->cnt-3] = offset & 0xff;
+							offset >>= 8;
+							code->arr[code->cnt-2] = offset & 0xff;
+							offset >>= 8;
+							code->arr[code->cnt-1] = offset & 0xff;
+						}
+						else {
+							if (sub) {
+								offset = -offset;
+							}
+							code->arr[code->cnt-1] = offset & 0xff;
+						}
+					}
+
 					// GPR, DATASGMT
 					else if (im->vals[2] == BA_IM_DATASGMT) {
 						if (im->count < 4) {
@@ -296,7 +367,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to MOV instruction\n");
+						exit(-1);
+					}
 				}
 
 				// Into GPRb
@@ -326,7 +400,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = imm & 0xff;
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to MOV instruction\n");
+						exit(-1);
+					}
 				}
 				
 				// Into ADR GPR effective address
@@ -447,7 +524,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to MOV instruction\n");
+						exit(-1);
+					}
 				}
 
 				// Into ADRADD/ADRSUB GPR effective address
@@ -653,7 +733,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to MOV instruction\n");
+						exit(-1);
+					}
 				}
 
 				// Into DATASGMT
@@ -908,7 +991,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to ADD instruction\n");
+						exit(-1);
+					}
 				}
 				
 				else {
@@ -1114,7 +1200,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to SUB instruction\n");
+						exit(-1);
+					}
 				}
 				
 				else {
@@ -1251,7 +1340,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = b2;
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to TEST instruction\n");
+						exit(-1);
+					}
 				}
 				// First arg GPRb
 				else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
@@ -1281,7 +1373,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = b2;
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to MOV instruction\n");
+						exit(-1);
+					}
 				}
 
 				else {
@@ -1320,7 +1415,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = b2;
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to AND instruction\n");
+						exit(-1);
+					}
 				}
 
 				else {
@@ -1425,7 +1523,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to XOR instruction\n");
+						exit(-1);
+					}
 				}
 
 				else {
@@ -1460,7 +1561,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = b2;
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to ROR instruction\n");
+						exit(-1);
+					}
 				}
 
 				else {
@@ -1519,8 +1623,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							code->arr[code->cnt-2] = 0xd1;
 							code->arr[code->cnt-1] = b2;
 						}
-						// 8 bits
-						else if (imm < 0x100) {
+						// 6 bits
+						else if (imm < 0x40) {
 							code->cnt += 4;
 							if (code->cnt > code->cap) {
 								ba_ResizeDynArr8(code);
@@ -1534,12 +1638,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							code->arr[code->cnt-1] = b3;
 						}
 						else {
-							printf("Error: Cannot SHL a register by more than 8 bytes");
+							printf("Error: Cannot SHL a register by more than 6 bits\n");
 							exit(-1);
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to SHL instruction\n");
+						exit(-1);
+					}
 				}
 
 				else {
@@ -1613,12 +1720,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							code->arr[code->cnt-1] = b3;
 						}
 						else {
-							printf("Error: Cannot SHR a register by more than 8 bytes");
+							printf("Error: Cannot SHR a register by more than 8 bits\n");
 							exit(-1);
 						}
 					}
 
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to SHR instruction\n");
+						exit(-1);
+					}
 				}
 
 				else {
@@ -2153,7 +2263,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-1] = b3;
 					}
 					
-					// TODO: else
+					else {
+						printf("Error: invalid set of arguments to MOVZX instruction\n");
+						exit(-1);
+					}
 				}
 				
 				else {
@@ -2421,7 +2534,16 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				// GPR, ADR GPR
 				else if (im->vals[2] == BA_IM_ADR) {
 					u8 r1 = im->vals[1] - BA_IM_RAX;
-					return 3 + ((r1 & 7) == 4 || (r1 & 7) == 5);
+					return 3 + ((r1 & 7) == 4);
+				}
+				// GPR, ADRADD/ADRSUB GPR
+				else if (im->vals[2] == BA_IM_ADRADD || 
+					im->vals[2] == BA_IM_ADRSUB) 
+				{
+					u64 offset = im->vals[4];
+					u8 r1 = im->vals[3] - BA_IM_RAX;
+					u64 ofstSz = 1 + (offset >= 0x80) * 3;
+					return 3 + ((r1 & 7) == 4 || (r1 & 7) == 5) + ofstSz;
 				}
 				// GPR, DATASGMT
 				else if (im->vals[2] == BA_IM_DATASGMT) {
@@ -2440,8 +2562,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						return 10;
 					}
 				}
-				
-				// TODO: else
 			}
 			// Into ADR GPR effective address
 			else if (im->vals[1] == BA_IM_ADR) {
@@ -2490,8 +2610,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						return adrAddDestSize + 7 + ((r0 & 7) == 4);
 					}
 				}
-
-				// TODO: else
 			}
 			// Into DATASGMT
 			else if (im->vals[1] == BA_IM_DATASGMT) {
@@ -2528,8 +2646,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						return 7 + ((r0 & 7) == 4);
 					}
 				}
-				
-				// TODO: else
 			}
 
 			break;
@@ -2551,8 +2667,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
 				}
-
-				// TODO: else
 			}
 			// First arg GPRb
 			else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
@@ -2561,8 +2675,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 					return 2 + ((BA_IM_SPL <= im->vals[1]) | 
 						(BA_IM_SPL <= im->vals[2]));
 				}
-
-				// TODO: else
 			}
 
 			break;
@@ -2574,8 +2686,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
 				}
-
-				// TODO: else
 			}
 
 			break;
@@ -2592,8 +2702,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				else if (im->vals[2] == BA_IM_IMM) {
 					return 4 + (im->vals[3] >= 0x80) * 2;
 				}
-
-				// TODO: else
 			}
 
 			break;
@@ -2605,8 +2713,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				if (im->vals[2] == BA_IM_CL) {
 					return 3;
 				}
-
-				// TODO: else
 			}
 
 			break;
@@ -2625,8 +2731,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						return 4;
 					}
 				}
-
-				// TODO: else
 			}
 
 			break;
@@ -2649,8 +2753,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						return 4;
 					}
 				}
-
-				// TODO: else
 			}
 
 			break;
