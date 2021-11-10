@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
 		else if (!srcFile) {
 			srcFile = fopen(argv[i], "r");
 			if (!srcFile) {
-				printf("Cannot find %s: no such file or directory\n", argv[i]);
+				printf("Cannot find %s: no such file\n", argv[i]);
 				return -1;
 			}
 			if (!outFileName) {
