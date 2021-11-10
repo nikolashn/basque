@@ -128,6 +128,23 @@ enum {
 	BA_CTRREG_RDI = 0x10,
 };
 
+u64 ba_IMToCtrRegister(u64 imReg) {
+	switch (imReg) {
+		case BA_IM_RAX:
+			return BA_CTRREG_RAX;
+		case BA_IM_RCX:
+			return BA_CTRREG_RCX;
+		case BA_IM_RDX:
+			return BA_CTRREG_RDX;
+		case BA_IM_RSI:
+			return BA_CTRREG_RSI;
+		case BA_IM_RDI:
+			return BA_CTRREG_RDI;
+		default:
+			return 0;
+	}
+}
+
 u64 ba_NextIMRegister(struct ba_Controller* ctr) {
 	if (!(ctr->usedRegisters & BA_CTRREG_RAX)) {
 		ctr->usedRegisters |= BA_CTRREG_RAX;
@@ -151,7 +168,6 @@ u64 ba_NextIMRegister(struct ba_Controller* ctr) {
 	}
 
 	// Stack
-	++ctr->imStackCnt;
 	return 0;
 }
 
