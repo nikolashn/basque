@@ -1,3 +1,5 @@
+# See LICENSE for copyright/license information
+
 VERSION = 1.0.0
 
 # C compiler
