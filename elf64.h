@@ -511,8 +511,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_SUB:
 			{
 				u8 isInstrAdd = im->vals[0] == BA_IM_ADD;
+				char* instrName = isInstrAdd ? "ADD" : "SUB";
 				if (im->count < 3) {
-					return ba_ErrorIMArgs(isInstrAdd ? "ADD" : "SUB", 2);
+					return ba_ErrorIMArgs(instrName, 2);
 				}
 
 				// First argument GPR
@@ -535,7 +536,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs(isInstrAdd ? "ADD" : "SUB", 2);
+							return ba_ErrorIMArgs(instrName, 2);
 						}
 
 						u64 imm = im->vals[3];
@@ -544,8 +545,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						// >31 bits
 						if (imm >= (1llu << 31)) {
-							printf("Error: Cannot ADD/SUB more than 31 bits to "
-								"a register");
+							printf("Error: Cannot %s more than 31 bits to "
+								"a register", instrName);
 							exit(-1);
 						}
 
@@ -635,15 +636,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to ADD/SUB "
-							"instruction\n");
+						printf("Error: invalid set of arguments to %s "
+							"instruction\n", instrName);
 						exit(-1);
 					}
 				}
 				
 				else {
-					printf("Error: invalid set of arguments to ADD/SUB "
-						"instruction\n");
+					printf("Error: invalid set of arguments to %s "
+						"instruction\n", instrName);
 					exit(-1);
 				}
 
@@ -651,95 +652,50 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			}
 			
 			case BA_IM_INC:
-			{
-				if (im->count < 2) {
-					return ba_ErrorIMArgs("INC", 1);
-				}
-
-				// GPR
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					u8 b0 = 0x48, b2 = 0xc0;
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-
-					b0 |= (r0 >= 8);
-					b2 |= (r0 & 7);
-
-					code->cnt += 3;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
-
-					code->arr[code->cnt-3] = b0;
-					code->arr[code->cnt-2] = 0xff;
-					code->arr[code->cnt-1] = b2;
-				}
-
-				else {
-					printf("Error: invalid set of arguments to INC instruction\n");
-					exit(-1);
-				}
-
-				break;
-			}
-
 			case BA_IM_NOT:
-			{
-				if (im->count < 2) {
-					return ba_ErrorIMArgs("NOT", 1);
-				}
-
-				// GPR
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					u8 b0 = 0x48, b2 = 0xd0;
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-
-					b0 |= (r0 >= 8);
-					b2 |= (r0 & 7);
-
-					code->cnt += 3;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
-
-					code->arr[code->cnt-3] = b0;
-					code->arr[code->cnt-2] = 0xf7;
-					code->arr[code->cnt-1] = b2;
-				}
-
-				else {
-					printf("Error: invalid set of arguments to NOT instruction\n");
-					exit(-1);
-				}
-
-				break;
-			}
-
 			case BA_IM_NEG:
 			{
+				char* instrName;
+				u8 opCodeOffset;
+				u8 byte1;
+
+				if (im->vals[0] == BA_IM_INC) {
+					instrName = "INC";
+					opCodeOffset = 0;
+					byte1 = 0xff;
+				}
+				else if (im->vals[0] == BA_IM_NOT) {
+					instrName = "NOT";
+					opCodeOffset = 0x10;
+					byte1 = 0xf7;
+				}
+				else if (im->vals[0] == BA_IM_NEG) {
+					instrName = "NEG";
+					opCodeOffset = 0x18;
+					byte1 = 0xf7;
+				}
+
 				if (im->count < 2) {
-					return ba_ErrorIMArgs("NEG", 1);
+					return ba_ErrorIMArgs(instrName, 1);
 				}
 
 				// GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					u8 b0 = 0x48, b2 = 0xd8;
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-
-					b0 |= (r0 >= 8);
-					b2 |= (r0 & 7);
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+					u8 byte0 = 0x48 | (reg0 >= 8);
+					u8 byte2 = (0xc0 + opCodeOffset) | (reg0 & 7);
 
 					code->cnt += 3;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
+					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-					code->arr[code->cnt-3] = b0;
-					code->arr[code->cnt-2] = 0xf7;
-					code->arr[code->cnt-1] = b2;
+					code->arr[code->cnt-3] = byte0;
+					code->arr[code->cnt-2] = byte1;
+					code->arr[code->cnt-1] = byte2;
 				}
 
 				else {
-					printf("Error: invalid set of arguments to NEG instruction\n");
+					printf("Error: invalid set of arguments to %s "
+						"instruction\n", instrName);
 					exit(-1);
 				}
 
