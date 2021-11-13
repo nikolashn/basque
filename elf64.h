@@ -26,10 +26,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		struct ba_STEntry e = ctr->globalST->entries[i];
 		if (e.key) {
 			u64 sz = ba_GetSizeOfType(e.val->type);
-			tmp = (u64)e.val->initVal;
+			u64 initVal = (u64)e.val->initVal;
 			for (u64 j = 0; j < sz; j++) {
-				dataSgmt->arr[e.val->address+j] = tmp & 0xff;
-				tmp >>= 8;
+				dataSgmt->arr[e.val->address+j] = initVal & 0xff;
+				initVal >>= 8;
 			}
 		}
 	}
@@ -77,10 +77,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u64 addr = lbl->jmpOfsts->arr[i];
 						u8 ripOffsetSize = lbl->jmpOfstSizes->arr[i];
 
-						tmp = lbl->addr - (addr + ripOffsetSize);
+						u64 ripOffset = lbl->addr - (addr + ripOffsetSize);
 						for (u64 j = 0; j < ripOffsetSize; j++) {
-							code->arr[addr+j] = tmp & 0xff;
-							tmp >>= 8;
+							code->arr[addr+j] = ripOffset & 0xff;
+							ripOffset >>= 8;
 						}
 					}
 				}
@@ -712,28 +712,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					// GPR, GPR
 					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-						u8 b0 = 0x48, b2 = 0xc0;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[2] - BA_IM_RAX;
+						u8 reg0 = im->vals[1] - BA_IM_RAX;
+						u8 reg1 = im->vals[2] - BA_IM_RAX;
 						
-						b0 |= (r1 >= 8) << 2;
-						b0 |= (r0 >= 8);
-						
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
+						u8 byte0 = 0x48 | ((reg1 >= 8) << 2) | (reg0 >= 8);
+						u8 byte2 = 0xc0 | ((reg1 & 7) << 3) | (reg0 & 7);
 						
 						code->cnt += 3;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						code->arr[code->cnt-3] = b0;
+						code->arr[code->cnt-3] = byte0;
 						code->arr[code->cnt-2] = 0x85;
-						code->arr[code->cnt-1] = b2;
+						code->arr[code->cnt-1] = byte2;
 					}
 
 					else {
-						printf("Error: invalid set of arguments to TEST instruction\n");
+						printf("Error: invalid set of arguments to TEST "
+							"instruction\n");
 						exit(-1);
 					}
 				}
@@ -741,32 +736,25 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
 					// GPRb, GPRb
 					if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
-						u8 b0 = 0x40, b2 = 0xc0;
-						u8 r0 = im->vals[1] - BA_IM_AL;
-						u8 r1 = im->vals[2] - BA_IM_AL;
+						u8 reg0 = im->vals[1] - BA_IM_AL;
+						u8 reg1 = im->vals[2] - BA_IM_AL;
 
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
+						u8 byte0 = 0x40 | ((reg1 >= 8) << 2) | (reg0 >= 8);
+						u8 byte2 = 0xc0 | ((reg1 & 7) << 3) | (reg0 & 7);
 
-						tmp = ((BA_IM_SPL <= im->vals[1]) | 
+						u64 hasByte0 = ((BA_IM_SPL <= im->vals[1]) | 
 							(BA_IM_SPL <= im->vals[2]));
-						code->cnt += 2 + tmp;
+						code->cnt += 2 + hasByte0;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 						
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						
-						if (tmp) {
-							b0 |= (r1 >= 8) << 2;
-							b0 |= (r0 >= 8);
-							code->arr[code->cnt-3] = b0;
-						}
+						(hasByte0) && (code->arr[code->cnt-3] = byte0);
 						code->arr[code->cnt-2] = 0x84;
-						code->arr[code->cnt-1] = b2;
+						code->arr[code->cnt-1] = byte2;
 					}
 
 					else {
-						printf("Error: invalid set of arguments to MOV instruction\n");
+						printf("Error: invalid set of arguments to TEST "
+							"instruction\n");
 						exit(-1);
 					}
 				}
@@ -777,8 +765,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_AND:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("AND", 2);
 				}
