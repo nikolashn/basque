@@ -508,9 +508,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			}
 
 			case BA_IM_ADD:
+			case BA_IM_SUB:
 			{
+				u8 isInstrAdd = im->vals[0] == BA_IM_ADD;
 				if (im->count < 3) {
-					return ba_ErrorIMArgs("ADD", 2);
+					return ba_ErrorIMArgs(isInstrAdd ? "ADD" : "SUB", 2);
 				}
 
 				// First argument GPR
@@ -527,22 +529,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->cnt += 3;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 						code->arr[code->cnt-3] = byte0;
-						code->arr[code->cnt-2] = 0x1;
+						code->arr[code->cnt-2] = 0x1 + (!isInstrAdd) * 0x28;
 						code->arr[code->cnt-1] = byte2;
 					}
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs("ADD", 2);
+							return ba_ErrorIMArgs(isInstrAdd ? "ADD" : "SUB", 2);
 						}
 
 						u64 imm = im->vals[3];
 						byte0 |= (reg0 >= 8);
-						u8 byte2 = 0xc0 | (reg0 & 7);
+						u8 byte2 = (0xc0 + (!isInstrAdd) * 0x28) | (reg0 & 7);
 
 						// >31 bits
 						if (imm >= (1llu << 31)) {
-							printf("Error: Cannot ADD more than 31 bits to a register");
+							printf("Error: Cannot ADD/SUB more than 31 bits to "
+								"a register");
 							exit(-1);
 						}
 
@@ -560,7 +563,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						else {
 							if (im->vals[1] == BA_IM_RAX) {
 								code->arr[code->cnt-6] = 0x48;
-								code->arr[code->cnt-5] = 0x05;
+								code->arr[code->cnt-5] = 0x05 + 
+									(!isInstrAdd) * 0x28;
 							}
 							else {
 								code->arr[code->cnt-7] = byte0;
@@ -577,7 +581,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 				}
 				// Into ADRADD/ADRSUB GPR effective address
-				else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
+				else if ((im->vals[1] == BA_IM_ADRADD) || 
+					(im->vals[1] == BA_IM_ADRSUB))
+				{
 					if (im->count < 5) {
 						return ba_ErrorIMArgs("ADD", 2);
 					}
@@ -614,7 +620,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							((reg1 & 7) << 3);
 
 						code->arr[code->cnt-instrSz] = byte0;
-						code->arr[code->cnt-instrSz+1] = 0x01;
+						code->arr[code->cnt-instrSz+1] = 0x01 + 
+							(!isInstrAdd) * 0x28;
 						code->arr[code->cnt-instrSz+2] = byte2;
 						((reg0 & 7) == 4) && (code->arr[code->cnt-instrSz+3] = 0x24);
 
@@ -628,228 +635,21 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to ADD instruction\n");
+						printf("Error: invalid set of arguments to ADD/SUB "
+							"instruction\n");
 						exit(-1);
 					}
 				}
 				
 				else {
-					printf("Error: invalid set of arguments to ADD instruction\n");
+					printf("Error: invalid set of arguments to ADD/SUB "
+						"instruction\n");
 					exit(-1);
 				}
 
 				break;
 			}
 			
-			case BA_IM_SUB:
-			{
-				if (im->count < 3) {
-					return ba_ErrorIMArgs("SUB", 2);
-				}
-
-				// First argument GPR
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					// GPR, GPR
-					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-						u8 b0 = 0x48, b2 = 0xc0;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[2] - BA_IM_RAX;
-						
-						b0 |= (r1 >= 8) << 2;
-						b0 |= (r0 >= 8);
-						
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
-						
-						code->cnt += 3;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-
-						code->arr[code->cnt-3] = b0;
-						code->arr[code->cnt-2] = 0x29;
-						code->arr[code->cnt-1] = b2;
-					}
-					// GPR, IMM
-					else if (im->vals[2] == BA_IM_IMM) {
-						if (im->count < 4) {
-							return ba_ErrorIMArgs("SUB", 2);
-						}
-						u64 imm = im->vals[3];
-
-						// 7 bits
-						if (imm < 0x80) {
-							u8 b0 = 0x48, b2 = 0xe8, b3 = imm & 0xff;
-							u8 r0 = im->vals[1] - BA_IM_RAX;
-							
-							b0 |= (r0 >= 8);
-							b2 |= (r0 & 7);
-
-							code->cnt += 4;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-4] = b0;
-							code->arr[code->cnt-3] = 0x83;
-							code->arr[code->cnt-2] = b2;
-							code->arr[code->cnt-1] = b3;
-						}
-						// More bits
-						else {
-							// Do not allow >32 bits
-							if (imm >= (1llu << 31)) {
-								printf("Error: Cannot SUB more than 31 bits from a register");
-								exit(-1);
-							}
-							
-							u8 b0 = 0x48, b2 = 0xe8;
-							u8 r0 = im->vals[1] - BA_IM_RAX;
-							b0 |= (r0 >= 8);
-							b2 |= (r0 & 7);
-
-							code->cnt += 6;
-							if (im->vals[1] != BA_IM_RAX) {
-								code->cnt++;
-							}
-
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							if (im->vals[1] == BA_IM_RAX) {
-								code->arr[code->cnt-6] = 0x48;
-								code->arr[code->cnt-5] = 0x2d;
-							}
-							else {
-								code->arr[code->cnt-7] = b0;
-								code->arr[code->cnt-6] = 0x81;
-								code->arr[code->cnt-5] = b2;
-							}
-
-							code->arr[code->cnt-4] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-3] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-2] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-1] = imm & 0xff;
-						}
-					}
-				}
-				// Into ADRADD/ADRSUB GPR effective address
-				else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
-					if (im->count < 5) {
-						return ba_ErrorIMArgs("SUB", 2);
-					}
-					
-					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
-						printf("Error: first argument for ADRADD/ADRSUB must be a "
-							"general purpose register\n");
-						exit(-1);
-					}
-					
-					// From GPR
-					if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
-						u8 sub = im->vals[1] == BA_IM_ADRSUB;
-
-						u8 r0 = im->vals[2] - BA_IM_RAX;
-						u8 r1 = im->vals[4] - BA_IM_RAX;
-						u8 b0, b2;
-						
-						b0 = 0x48 | (r0 >= 8) | ((r1 >= 8) << 3);
-
-						u64 offset = im->vals[3];
-
-						// Work out scale of the offset
-						if (offset < 0x80) {
-							// Offset byte
-							if (sub) {
-								offset = -offset;
-							}
-
-							u8 ofb0 = offset & 0xff;
-							
-							b2 = 0x40 | (r0 & 7) | ((r1 & 7) << 3);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 5;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-5] = b0;
-								code->arr[code->cnt-4] = 0x29;
-								code->arr[code->cnt-3] = b2;
-								code->arr[code->cnt-2] = 0x24;
-							}
-							else {
-								code->cnt += 4;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-4] = b0;
-								code->arr[code->cnt-3] = 0x29;
-								code->arr[code->cnt-2] = b2;
-							}
-
-							code->arr[code->cnt-1] = ofb0;
-						}
-						else if (offset < (1llu << 31)) {
-							if (sub) {
-								offset = -offset;
-							}
-
-							b2 = 0x80 | (r0 & 7) | ((r1 & 7) << 3);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 8;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-8] = b0;
-								code->arr[code->cnt-7] = 0x29;
-								code->arr[code->cnt-6] = b2;
-								code->arr[code->cnt-5] = 0x24;
-							}
-							else {
-								code->cnt += 7;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-7] = b0;
-								code->arr[code->cnt-6] = 0x29;
-								code->arr[code->cnt-5] = b2;
-							}
-
-							code->arr[code->cnt-4] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-3] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-2] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-1] = offset & 0xff;
-						}
-						else {
-							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset\n");
-							exit(-1);
-						}
-					}
-
-					else {
-						printf("Error: invalid set of arguments to SUB instruction\n");
-						exit(-1);
-					}
-				}
-				
-				else {
-					printf("Error: invalid set of arguments to SUB instruction\n");
-					exit(-1);
-				}
-
-				break;
-			}
-
 			case BA_IM_INC:
 			{
 				if (im->count < 2) {
