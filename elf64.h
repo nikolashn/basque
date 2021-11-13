@@ -385,7 +385,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte2 = (0x40 << (!isOffsetOneByte)) | (reg0 & 7) |
 							((reg1 & 7) << 3);
 
-						u8 instrSz = (4 << (!isOffsetOneByte)) + 
+						u8 instrSz = 4 + 3 * (!isOffsetOneByte) + 
 							((reg0 & 7) == 4);
 						code->cnt += instrSz;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -430,7 +430,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte2 = (0x40 << !isOffsetOneByte) | (reg0 & 7);
 						sub && (offset = -offset);
 
-						u8 instrSz = (4 << (!isOffsetOneByte)) + 
+						u8 instrSz = 4 + 3 * (!isOffsetOneByte) + 
 							adrAddDestSize + ((reg0 & 7) == 4);
 						code->cnt += instrSz;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -515,91 +515,65 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				// First argument GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 byte0 = 0x48;
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+
 					// GPR, GPR
 					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-						u8 b0 = 0x48, b2 = 0xc0;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[2] - BA_IM_RAX;
-						
-						b0 |= (r1 >= 8) << 2;
-						b0 |= (r0 >= 8);
-						
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
+						u8 reg1 = im->vals[2] - BA_IM_RAX;
+						u8 byte2 = 0xc0 | ((reg1 & 7) << 3) | (reg0 & 7);
+						byte0 |= ((reg1 >= 8) << 2) | (reg0 >= 8);
 						
 						code->cnt += 3;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-
-						code->arr[code->cnt-3] = b0;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+						code->arr[code->cnt-3] = byte0;
 						code->arr[code->cnt-2] = 0x1;
-						code->arr[code->cnt-1] = b2;
+						code->arr[code->cnt-1] = byte2;
 					}
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
 							return ba_ErrorIMArgs("ADD", 2);
 						}
+
 						u64 imm = im->vals[3];
+						byte0 |= (reg0 >= 8);
+						u8 byte2 = 0xc0 | (reg0 & 7);
+
+						// >31 bits
+						if (imm >= (1llu << 31)) {
+							printf("Error: Cannot ADD more than 31 bits to a register");
+							exit(-1);
+						}
+
+						code->cnt += 4 + (imm >= 0x80) * 
+							(2 + (im->vals[1] != BA_IM_RAX));
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
 						// 7 bits
 						if (imm < 0x80) {
-							u8 b0 = 0x48, b2 = 0xc0, b3 = imm & 0xff;
-							u8 r0 = im->vals[1] - BA_IM_RAX;
-
-							b0 |= (r0 >= 8);
-							b2 |= (r0 & 7);
-
-							code->cnt += 4;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-4] = b0;
+							code->arr[code->cnt-4] = byte0;
 							code->arr[code->cnt-3] = 0x83;
-							code->arr[code->cnt-2] = b2;
-							code->arr[code->cnt-1] = b3;
+							code->arr[code->cnt-2] = byte2;
 						}
+						// 31 bits
 						else {
-							// Do not allow >31 bits
-							if (imm >= (1llu << 31)) {
-								printf("Error: Cannot ADD more than 31 bits to a register");
-								exit(-1);
-							}
-
-							u8 b0 = 0x48, b2 = 0xc0;
-							u8 r0 = im->vals[1] - BA_IM_RAX;
-							b0 |= (r0 >= 8);
-							b2 |= (r0 & 7);
-
-							code->cnt += 6;
-							if (im->vals[1] != BA_IM_RAX) {
-								++code->cnt;
-							}
-
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
 							if (im->vals[1] == BA_IM_RAX) {
 								code->arr[code->cnt-6] = 0x48;
 								code->arr[code->cnt-5] = 0x05;
 							}
 							else {
-								code->arr[code->cnt-7] = b0;
+								code->arr[code->cnt-7] = byte0;
 								code->arr[code->cnt-6] = 0x81;
-								code->arr[code->cnt-5] = b2;
+								code->arr[code->cnt-5] = byte2;
 							}
 
-							code->arr[code->cnt-4] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-3] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-2] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-1] = imm & 0xff;
+							for (u64 i = 4; i > 1; i--) {
+								code->arr[code->cnt-i] = imm & 0xff;
+								imm >>= 8;
+							}
 						}
+						code->arr[code->cnt-1] = imm & 0xff;
 					}
 				}
 				// Into ADRADD/ADRSUB GPR effective address
@@ -618,87 +592,39 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
 						u8 sub = im->vals[1] == BA_IM_ADRSUB;
 
-						u8 r0 = im->vals[2] - BA_IM_RAX;
-						u8 r1 = im->vals[4] - BA_IM_RAX;
-						u8 b0, b2;
-						
-						b0 = 0x48 | (r0 >= 8) | ((r1 >= 8) << 3);
-
+						u8 reg0 = im->vals[2] - BA_IM_RAX;
+						u8 reg1 = im->vals[4] - BA_IM_RAX;
+						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 3);
 						u64 offset = im->vals[3];
 
-						// Work out scale of the offset
-						if (offset < 0x80) {
-							// Offset byte
-							if (sub) {
-								offset = -offset;
-							}
-
-							u8 ofb0 = offset & 0xff;
-							
-							b2 = 0x40 | (r0 & 7) | ((r1 & 7) << 3);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 5;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-5] = b0;
-								code->arr[code->cnt-4] = 0x01;
-								code->arr[code->cnt-3] = b2;
-								code->arr[code->cnt-2] = 0x24;
-							}
-							else {
-								code->cnt += 4;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-4] = b0;
-								code->arr[code->cnt-3] = 0x01;
-								code->arr[code->cnt-2] = b2;
-							}
-
-							code->arr[code->cnt-1] = ofb0;
-						}
-						else if (offset < (1llu << 31)) {
-							if (sub) {
-								offset = -offset;
-							}
-
-							b2 = 0x80 | (r0 & 7) | ((r1 & 7) << 3);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 8;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-8] = b0;
-								code->arr[code->cnt-7] = 0x01;
-								code->arr[code->cnt-6] = b2;
-								code->arr[code->cnt-5] = 0x24;
-							}
-							else {
-								code->cnt += 7;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-7] = b0;
-								code->arr[code->cnt-6] = 0x01;
-								code->arr[code->cnt-5] = b2;
-							}
-
-							code->arr[code->cnt-4] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-3] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-2] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-1] = offset & 0xff;
-						}
-						else {
+						u8 isOffsetOneByte = offset < 0x80;
+						if (offset >= (1llu << 31)) {
 							printf("Error: Effective address cannot have a more "
 								"than 32 bit offset\n");
 							exit(-1);
 						}
+
+						u8 instrSz = 4 + 3 * (!isOffsetOneByte) + 
+							((reg0 & 7) == 4);
+						code->cnt += instrSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						sub && (offset = -offset);
+						u8 byte2 = (0x40 << (!isOffsetOneByte)) | (reg0 & 7) | 
+							((reg1 & 7) << 3);
+
+						code->arr[code->cnt-instrSz] = byte0;
+						code->arr[code->cnt-instrSz+1] = 0x01;
+						code->arr[code->cnt-instrSz+2] = byte2;
+						((reg0 & 7) == 4) && (code->arr[code->cnt-instrSz+3] = 0x24);
+
+						if (!isOffsetOneByte) {
+							for (u64 i = 4; i > 1; i--) {
+								code->arr[code->cnt-i] = offset & 0xff;
+								offset >>= 8;
+							}
+						}
+						code->arr[code->cnt-1] = offset & 0xff;
 					}
 
 					else {
