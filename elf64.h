@@ -51,9 +51,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 	struct ba_IM* im = ctr->startIM;
 	while (im && im->count) {
-		if (im == ctr->entryIM) {
-			entryPoint += code->cnt;
-		}
+		(im == ctr->entryIM) && (entryPoint += code->cnt);
 
 		switch (im->vals[0]) {
 			case BA_IM_LABEL:
@@ -77,10 +75,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				if (lbl->jmpOfsts) {
 					for (u64 i = 0; i < lbl->jmpOfsts->cnt; i++) {
 						u64 addr = lbl->jmpOfsts->arr[i];
-						u8 ros = lbl->jmpOfstSizes->arr[i];
+						u8 ripOffsetSize = lbl->jmpOfstSizes->arr[i];
 
-						tmp = lbl->addr - (addr + ros);
-						for (u64 j = 0; j < ros; j++) {
+						tmp = lbl->addr - (addr + ripOffsetSize);
+						for (u64 j = 0; j < ripOffsetSize; j++) {
 							code->arr[addr+j] = tmp & 0xff;
 							tmp >>= 8;
 						}
@@ -104,28 +102,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				// Into GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+					u8 byte0 = 0x48;
+
 					// GPR, GPR
 					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-						// Bytes to be written
-						u8 b0 = 0x48, b2 = 0xc0;
-						// Register values
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[2] - BA_IM_RAX;
+						u8 byte2 = 0xc0;
+						u8 reg1 = im->vals[2] - BA_IM_RAX;
 						
-						b0 |= (r1 >= 8) << 2;
-						b0 |= (r0 >= 8);
-						
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
+						byte0 |= ((reg1 >= 8) << 2) | (reg0 >= 8);
+						byte2 |= ((reg1 & 7) << 3) | (reg0 & 7);
 						
 						code->cnt += 3;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						code->arr[code->cnt-3] = b0;
+						code->arr[code->cnt-3] = byte0;
 						code->arr[code->cnt-2] = 0x89;
-						code->arr[code->cnt-1] = b2;
+						code->arr[code->cnt-1] = byte2;
 					}
 
 					// GPR, ADR GPR
@@ -140,47 +133,28 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							exit(-1);
 						}
 					
-						u8 b0 = 0x48, b2 = 0;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[3] - BA_IM_RAX;
+						u8 byte2 = 0;
+						u8 reg1 = im->vals[3] - BA_IM_RAX;
 						
-						b0 |= (r0 >= 8) << 2;
-						b0 |= (r1 >= 8);
-
-						b2 |= (r0 & 7) << 3;
-						b2 |= (r1 & 7);
+						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
+						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 						
-						if ((r1 & 7) == 4) {
+						if ((reg1 & 7) == 4 || (reg1 & 7) == 5) {
 							code->cnt += 4;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-4] = b0;
+							(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+							code->arr[code->cnt-4] = byte0;
 							code->arr[code->cnt-3] = 0x8b;
-							code->arr[code->cnt-2] = b2;
-							code->arr[code->cnt-1] = 0x24;
-						}
-						else if ((r1 & 7) == 5) {
-							code->cnt += 4;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-4] = b0;
-							code->arr[code->cnt-3] = 0x8b;
-							code->arr[code->cnt-2] = 0x40 + b2;
-							code->arr[code->cnt-1] = 0;
+							code->arr[code->cnt-2] = 
+								((reg1 & 7) == 5) * 0x40 + byte2;
+							code->arr[code->cnt-1] = 
+								((reg1 & 7) == 4) * 0x24;
 						}
 						else {
 							code->cnt += 3;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-3] = b0;
+							(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+							code->arr[code->cnt-3] = byte0;
 							code->arr[code->cnt-2] = 0x8b;
-							code->arr[code->cnt-1] = b2;
+							code->arr[code->cnt-1] = byte2;
 						}
 					}
 
@@ -201,56 +175,32 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 sub = im->vals[2] == BA_IM_ADRSUB;
 						u64 offset = im->vals[4];
 					
-						u8 b0 = 0x48, b2 = 0x40 + (offset >= 0x80) * 0x40;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[3] - BA_IM_RAX;
+						u8 byte2 = 0x40 + (offset >= 0x80) * 0x40;
+						u8 reg1 = im->vals[3] - BA_IM_RAX;
 						
-						b0 |= (r0 >= 8) << 2;
-						b0 |= (r1 >= 8);
+						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
+						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 
-						b2 |= (r0 & 7) << 3;
-						b2 |= (r1 & 7);
-
-						u64 ofstSz = 1 + (offset >= 0x80) * 3;
+						u8 isReg1Mod4 = (reg1 & 7) == 4; // RBP or R13
+						u64 ofstSz = 1 + (offset >= 0x80) * 3 + isReg1Mod4;
 						
-						if ((r1 & 7) == 4) {
-							code->cnt += 4 + ofstSz;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
+						code->cnt += 3 + ofstSz + isReg1Mod4;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-							code->arr[code->cnt-ofstSz-4] = b0;
-							code->arr[code->cnt-ofstSz-3] = 0x8b;
-							code->arr[code->cnt-ofstSz-2] = b2;
-							code->arr[code->cnt-ofstSz-1] = 0x24;
-						}
-						else {
-							code->cnt += 3 + ofstSz;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-ofstSz-3] = b0;
-							code->arr[code->cnt-ofstSz-2] = 0x8b;
-							code->arr[code->cnt-ofstSz-1] = b2;
-						}
+						code->arr[code->cnt-ofstSz-3] = byte0;
+						code->arr[code->cnt-ofstSz-2] = 0x8b;
+						code->arr[code->cnt-ofstSz-1] = byte2;
+						(isReg1Mod4) && (code->arr[code->cnt-ofstSz-1] = 0x24);
 						
 						if (offset >= 0x80) {
-							if (sub) {
-								offset = -offset;
+							sub && (offset = -offset);
+							for (u64 i = 4; i > 0; i--) {
+								code->arr[code->cnt-i] = offset & 0xff;
+								offset >>= 8;
 							}
-							code->arr[code->cnt-4] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-3] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-2] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-1] = offset & 0xff;
 						}
 						else {
-							if (sub) {
-								offset = -offset;
-							}
+							sub && (offset = -offset);
 							code->arr[code->cnt-1] = offset & 0xff;
 						}
 					}
@@ -263,22 +213,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						// Addr. rel. to start of data segment
 						u64 imm = im->vals[3];
+						u8 byte2 = 0x5 | ((reg0 & 7) << 3);
+						byte0 |= (reg0 >= 8) << 2;
 
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 b0 = 0x48, b2 = 0x5;
-
-						b0 |= (r0 >= 8) << 2;
-						b2 |= (r0 & 7) << 3;
-
-						// Make sure there is enough space in the data segment
-						// address related arrays
-						
-						if (++relDSOffsets->cnt > relDSOffsets->cap) {
+						// Ensure enough space in data sgmt addr related arrays
+						(++relDSOffsets->cnt > relDSOffsets->cap) &&
 							ba_ResizeDynArr64(relDSOffsets);
-						}
-						if (++relDSRips->cnt > relDSRips->cap) {
-							ba_ResizeDynArr64(relDSOffsets);
-						}
+						(++relDSRips->cnt > relDSRips->cap) &&
+							ba_ResizeDynArr64(relDSRips);
 
 						// Where imm (data location) is stored; instruction ptr
 						// (Looks like dereferencing NULL, but shouldn't occur)
@@ -286,20 +228,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						*ba_TopDynArr64(relDSRips) = code->cnt + 7;
 
 						code->cnt += 7;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						code->arr[code->cnt-7] = b0;
+						code->arr[code->cnt-7] = byte0;
 						code->arr[code->cnt-6] = 0x8b;
-						code->arr[code->cnt-5] = b2;
-						code->arr[code->cnt-4] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-3] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-2] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-1] = imm & 0xff;
+						code->arr[code->cnt-5] = byte2;
+						for (u64 i = 4; i > 0; i--) {
+							code->arr[code->cnt-i] = imm & 0xff;
+							imm >>= 8;
+						}
 					}
 
 					// GPR, IMM
@@ -308,62 +245,32 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgs("MOV", 2);
 						}
 						u64 imm = im->vals[3];
+						u8 byte1 = 0xb8 | (reg0 & 7);
 
 						// 32 bits
 						if (imm < (1llu << 32)) {
-							u8 b1 = 0xb8;
-							u8 r0 = im->vals[1] - BA_IM_RAX;
+							code->cnt += 5 + (reg0 >= 8);
+							(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-							b1 |= (r0 & 7);
-
-							code->cnt += 5 + (r0 >= 8);
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
+							(reg0 >= 8) && (code->arr[code->cnt-6] = 0x41);
+							code->arr[code->cnt-5] = byte1;
+							for (u64 i = 4; i > 0; i--) {
+								code->arr[code->cnt-i] = imm & 0xff;
+								imm >>= 8;
 							}
-
-							if (r0 >= 8) {
-								code->arr[code->cnt-6] = 0x41;
-							}
-							code->arr[code->cnt-5] = b1;
-							code->arr[code->cnt-4] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-3] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-2] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-1] = imm & 0xff;
 						}
-
 						// 64 bits
 						else {
-							u8 b0 = 0x48, b1 = 0xb8;
-							u8 r0 = im->vals[1] - BA_IM_RAX;
-
-							b0 |= (r0 >= 8);
-							b1 |= (r0 & 7);
-
+							byte0 |= (reg0 >= 8);
 							code->cnt += 10;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
+							(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-							code->arr[code->cnt-10] = b0;
-							code->arr[code->cnt-9] = b1;
-							code->arr[code->cnt-8] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-7] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-6] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-5] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-4] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-3] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-2] = imm & 0xff;
-							imm >>= 8;
-							code->arr[code->cnt-1] = imm & 0xff;
+							code->arr[code->cnt-10] = byte0;
+							code->arr[code->cnt-9] = byte1;
+							for (u64 i = 8; i > 0; i--) {
+								code->arr[code->cnt-i] = imm & 0xff;
+								imm >>= 8;
+							}
 						}
 					}
 
@@ -382,21 +289,17 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						}
 						u8 imm = im->vals[3];
 
-						u8 b0 = 0x40, b1 = 0xb0;
-						u8 r0 = im->vals[1] - BA_IM_AL;
+						u8 byte0 = 0x40, byte1 = 0xb0;
+						u8 reg0 = im->vals[1] - BA_IM_AL;
 
-						b0 |= (r0 >= 8);
-						b1 |= (r0 & 7);
+						byte0 |= (reg0 >= 8);
+						byte1 |= (reg0 & 7);
 
-						code->cnt += 2 + (r0 >= 4);
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+						code->cnt += 2 + (reg0 >= 4);
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						if (r0 >= 4) {
-							code->arr[code->cnt-3] = b0;
-						}
-						code->arr[code->cnt-2] = b1;
+						(reg0 >= 4) && (code->arr[code->cnt-3] = byte0);
+						code->arr[code->cnt-2] = byte1;
 						code->arr[code->cnt-1] = imm & 0xff;
 					}
 
@@ -418,110 +321,28 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						exit(-1);
 					}
 					
-					u8 r0 = im->vals[2] - BA_IM_RAX;
+					u8 reg0 = im->vals[2] - BA_IM_RAX;
 					
 					// From GPRb
 					if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
-						u8 r1 = im->vals[3] - BA_IM_AL;
+						u8 reg1 = im->vals[3] - BA_IM_AL;
 						
-						u8 b0 = 0x40 | (r0 >= 8) | ((r1 >= 8) << 2);
-						u8 b2 = (r0 & 7) | ((r1 & 7) << 3);
-						
-						// AL, CL, DL, BL can miss an initial byte
-						if (r1 < BA_IM_SPL - BA_IM_AL) {
-							switch (im->vals[2]) {
-								case BA_IM_RAX: case BA_IM_RCX: case BA_IM_RDX: 
-								case BA_IM_RBX: case BA_IM_RSI: case BA_IM_RDI:
-									code->cnt += 2;
-									if (code->cnt > code->cap) {
-										ba_ResizeDynArr8(code);
-									}
-									code->arr[code->cnt-2] = 0x88;
-									code->arr[code->cnt-1] = b2;
-									break;
-								case BA_IM_RSP:
-									code->cnt += 3;
-									if (code->cnt > code->cap) {
-										ba_ResizeDynArr8(code);
-									}
-									code->arr[code->cnt-3] = 0x88;
-									code->arr[code->cnt-2] = b2;
-									code->arr[code->cnt-1] = 0x24;
-									break;
-								case BA_IM_RBP:
-									code->cnt += 3;
-									if (code->cnt > code->cap) {
-										ba_ResizeDynArr8(code);
-									}
-									code->arr[code->cnt-3] = 0x88;
-									code->arr[code->cnt-2] = 0x40 + b2;
-									code->arr[code->cnt-1] = 0;
-									break;
-								case BA_IM_R12:
-									code->cnt += 4;
-									if (code->cnt > code->cap) {
-										ba_ResizeDynArr8(code);
-									}
-									code->arr[code->cnt-4] = b0;
-									code->arr[code->cnt-3] = 0x88;
-									code->arr[code->cnt-2] = b2;
-									code->arr[code->cnt-1] = 0x24;
-									break;
-								case BA_IM_R13:
-									code->cnt += 4;
-									if (code->cnt > code->cap) {
-										ba_ResizeDynArr8(code);
-									}
-									code->arr[code->cnt-4] = b0;
-									code->arr[code->cnt-3] = 0x88;
-									code->arr[code->cnt-2] = 0x40 + b2;
-									code->arr[code->cnt-1] = 0;
-									break;
-								default:
-									code->cnt += 3;
-									if (code->cnt > code->cap) {
-										ba_ResizeDynArr8(code);
-									}
-									code->arr[code->cnt-3] = b0;
-									code->arr[code->cnt-2] = 0x88;
-									code->arr[code->cnt-1] = b2;
-									break;
-							}
-						}
-						else {
-							if ((r0 & 7) == 4) {
-								code->cnt += 4;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-4] = b0;
-								code->arr[code->cnt-3] = 0x88;
-								code->arr[code->cnt-2] = b2;
-								code->arr[code->cnt-1] = 0x24;
-								break;
-							}
-							else if ((r0 & 7) == 5) {
-								code->cnt += 4;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-4] = b0;
-								code->arr[code->cnt-3] = 0x88;
-								code->arr[code->cnt-2] = 0x40 + b2;
-								code->arr[code->cnt-1] = 0;
-								break;
-							}
-							else {
-								code->cnt += 3;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-3] = b0;
-								code->arr[code->cnt-2] = 0x88;
-								code->arr[code->cnt-1] = b2;
-								break;
-							}
-						}
+						u8 byte0 = 0x40 | (reg0 >= 8) | ((reg1 >= 8) << 2);
+						u8 byte2 = (reg0 & 7) | ((reg1 & 7) << 3);
+
+						u8 hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || (reg0 >= 8);
+						u8 instrSz = 2 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5) + 
+							hasByte0;
+
+						code->cnt += instrSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						hasByte0 && (code->arr[code->cnt-instrSz] = byte0);
+						code->arr[code->cnt-instrSz+hasByte0] = 0x88;
+						code->arr[code->cnt-instrSz+hasByte0+1] = 
+							byte2 + ((reg0 & 7) == 5) * 0x40;
+						((reg0 & 7) == 4) && (code->arr[code->cnt-1] = 0x24);
+						((reg0 & 7) == 5) && (code->arr[code->cnt-1] = 0);
 					}
 
 					else {
@@ -542,7 +363,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						exit(-1);
 					}
 
-					u8 r0 = im->vals[2] - BA_IM_RAX;
+					u8 reg0 = im->vals[2] - BA_IM_RAX;
 					u64 offset = im->vals[3];
 					
 					// From GPR
@@ -550,84 +371,37 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
 							im->vals[1] == BA_IM_64ADRSUB;
 
-						u8 r1 = im->vals[4] - BA_IM_RAX;
-						u8 b0, b2;
-						
-						b0 = 0x48 | (r0 >= 8) | ((r1 >= 8) << 3);
+						u8 reg1 = im->vals[4] - BA_IM_RAX;
+						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 3);
 
-						// Work out scale of the offset
-						if (offset < 0x80) {
-							// Offset byte
-							if (sub) {
-								offset = -offset;
-							}
-
-							u8 ofb0 = offset & 0xff;
-							
-							b2 = 0x40 | (r0 & 7) | ((r1 & 7) << 3);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 5;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-5] = b0;
-								code->arr[code->cnt-4] = 0x89;
-								code->arr[code->cnt-3] = b2;
-								code->arr[code->cnt-2] = 0x24;
-							}
-							else {
-								code->cnt += 4;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-4] = b0;
-								code->arr[code->cnt-3] = 0x89;
-								code->arr[code->cnt-2] = b2;
-							}
-
-							code->arr[code->cnt-1] = ofb0;
-						}
-						else if (offset < (1llu << 31)) {
-							if (sub) {
-								offset = -offset;
-							}
-
-							b2 = 0x80 | (r0 & 7) | ((r1 & 7) << 3);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 8;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-8] = b0;
-								code->arr[code->cnt-7] = 0x89;
-								code->arr[code->cnt-6] = b2;
-								code->arr[code->cnt-5] = 0x24;
-							}
-							else {
-								code->cnt += 7;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-7] = b0;
-								code->arr[code->cnt-6] = 0x89;
-								code->arr[code->cnt-5] = b2;
-							}
-
-							code->arr[code->cnt-4] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-3] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-2] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-1] = offset & 0xff;
-						}
-						else {
+						u8 isOffsetOneByte = offset < 0x80;
+						if (offset >= (1llu << 31)) {
 							printf("Error: Effective address cannot have a more "
 								"than 32 bit offset\n");
 							exit(-1);
 						}
+
+						sub && (offset = -offset);
+						u8 byte2 = (0x40 << (!isOffsetOneByte)) | (reg0 & 7) |
+							((reg1 & 7) << 3);
+
+						u8 instrSz = (4 << (!isOffsetOneByte)) + 
+							((reg0 & 7) == 4);
+						code->cnt += instrSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						code->arr[code->cnt-instrSz] = byte0;
+						code->arr[code->cnt-instrSz+1] = 0x89;
+						code->arr[code->cnt-instrSz+2] = byte2;
+						((reg0 & 7) == 4) && (code->arr[code->cnt-instrSz+3] = 0x24);
+
+						if (!isOffsetOneByte) {
+							for (u64 i = 4; i > 1; i--) {
+								code->arr[code->cnt-i] = offset & 0xff;
+								offset >>= 8;
+							}
+						}
+						code->arr[code->cnt-1] = offset & 0xff;
 					}
 
 					// From IMM
@@ -644,92 +418,39 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
 							im->vals[1] == BA_IM_64ADRSUB;
 						u64 imm = im->vals[5];
+						u8 byte0 = 0x48 | (reg0 >= 8);
 
-						u8 b0, b2;
-						b0 = 0x48 | (r0 >= 8);
-
-						code->cnt += adrAddDestSize;
-
-						// Work out scale of the offset
-						if (offset < 0x80) {
-							// Offset byte
-							if (sub) {
-								offset = -offset;
-							}
-
-							b2 = 0x40 | (r0 & 7);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 5;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-5-adrAddDestSize] = b0;
-								code->arr[code->cnt-4-adrAddDestSize] = 0xc7;
-								code->arr[code->cnt-3-adrAddDestSize] = b2;
-								code->arr[code->cnt-2-adrAddDestSize] = 0x24;
-							}
-							else {
-								code->cnt += 4;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-4-adrAddDestSize] = b0;
-								code->arr[code->cnt-3-adrAddDestSize] = 0xc7;
-								code->arr[code->cnt-2-adrAddDestSize] = b2;
-							}
-							
-							code->arr[code->cnt-1-adrAddDestSize] = offset & 0xff;
-
-							for (u64 i = adrAddDestSize; i-- > 0;) {
-								code->arr[code->cnt-1-i] = imm & 0xff;
-								imm >>= 8;
-							}
-						}
-						else if (offset < (1llu << 31)) {
-							if (sub) {
-								offset = -offset;
-							}
-
-							b2 = 0x80 | (r0 & 7);
-
-							if ((r0 & 7) == 4) {
-								code->cnt += 8;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-8-adrAddDestSize] = b0;
-								code->arr[code->cnt-7-adrAddDestSize] = 0xc7;
-								code->arr[code->cnt-6-adrAddDestSize] = b2;
-								code->arr[code->cnt-5-adrAddDestSize] = 0x24;
-							}
-							else {
-								code->cnt += 7;
-								if (code->cnt > code->cap) {
-									ba_ResizeDynArr8(code);
-								}
-								code->arr[code->cnt-7-adrAddDestSize] = b0;
-								code->arr[code->cnt-6-adrAddDestSize] = 0xc7;
-								code->arr[code->cnt-5-adrAddDestSize] = b2;
-							}
-
-							code->arr[code->cnt-4-adrAddDestSize] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-3-adrAddDestSize] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-2-adrAddDestSize] = offset & 0xff;
-							offset >>= 8;
-							code->arr[code->cnt-1-adrAddDestSize] = offset & 0xff;
-
-							for (u64 i = adrAddDestSize; i-- > 0;) {
-								code->arr[code->cnt-1-i] = imm & 0xff;
-								imm >>= 8;
-							}
-						}
-						else {
+						u8 isOffsetOneByte = offset < 0x80;
+						if (offset >= (1llu << 31)) {
 							printf("Error: Effective address cannot have a more "
 								"than 32 bit offset\n");
 							exit(-1);
+						}
+
+						u8 byte2 = (0x40 << !isOffsetOneByte) | (reg0 & 7);
+						sub && (offset = -offset);
+
+						u8 instrSz = (4 << (!isOffsetOneByte)) + 
+							adrAddDestSize + ((reg0 & 7) == 4);
+						code->cnt += instrSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						code->arr[code->cnt-instrSz] = byte0;
+						code->arr[code->cnt-instrSz+1] = 0xc7;
+						code->arr[code->cnt-instrSz+2] = byte2;
+						(reg0 & 7) && (code->arr[code->cnt-instrSz+3] = 0x24);
+						
+						if (!isOffsetOneByte) {
+							for (u64 i = 4; i > 1; i--) {
+								code->arr[code->cnt-i-adrAddDestSize] = offset & 0xff;
+								offset >>= 8;
+							}
+						}
+						code->arr[code->cnt-1-adrAddDestSize] = offset & 0xff;
+
+						for (u64 i = adrAddDestSize; i-- > 0;) {
+							code->arr[code->cnt-1-i] = imm & 0xff;
+							imm >>= 8;
 						}
 					}
 
@@ -750,21 +471,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// Addr. rel. to start of data segment
 						u64 imm = im->vals[2];
 
-						u8 r0 = im->vals[3] - BA_IM_RAX;
-						u8 b0 = 0x48, b2 = 0x5;
+						u8 reg0 = im->vals[3] - BA_IM_RAX;
+						u8 byte0 = 0x48 | ((reg0 >= 8) << 2);
+						u8 byte2 = 0x5 | ((reg0 & 7) << 3);
 
-						b0 |= (r0 >= 8) << 2;
-						b2 |= (r0 & 7) << 3;
-
-						// Make sure there is enough space in the data segment
-						// address related arrays
-						
-						if (++relDSOffsets->cnt > relDSOffsets->cap) {
+						// Ensure enough space in data sgmt addr related arrays
+						(++relDSOffsets->cnt > relDSOffsets->cap) &&
 							ba_ResizeDynArr64(relDSOffsets);
-						}
-						if (++relDSRips->cnt > relDSRips->cap) {
-							ba_ResizeDynArr64(relDSOffsets);
-						}
+						(++relDSRips->cnt > relDSRips->cap) &&
+							ba_ResizeDynArr64(relDSRips);
 
 						// Where imm (data location) is stored; instruction ptr
 						// (Looks like dereferencing NULL, but shouldn't occur)
@@ -772,20 +487,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						*ba_TopDynArr64(relDSRips) = code->cnt + 7;
 
 						code->cnt += 7;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						code->arr[code->cnt-7] = b0;
+						code->arr[code->cnt-7] = byte0;
 						code->arr[code->cnt-6] = 0x89;
-						code->arr[code->cnt-5] = b2;
-						code->arr[code->cnt-4] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-3] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-2] = imm & 0xff;
-						imm >>= 8;
-						code->arr[code->cnt-1] = imm & 0xff;
+						code->arr[code->cnt-5] = byte2;
+						for (u64 i = 4; i > 0; i--) {
+							code->arr[code->cnt-i] = imm & 0xff;
+							imm >>= 8;
+						}
 					}
 				}
 				
