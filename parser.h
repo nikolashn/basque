@@ -386,17 +386,20 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				u8 isLhsOriginallyRcx = 0;
 				u64 lhsStackPos = 0;
+				u64 regL = (u64)lhs->val;
+				
+				u8 isLhsNonLiteral = 
+					lhs->lexemeType == BA_TK_IDENTIFIER ||
+					lhs->lexemeType == BA_TK_IMREGISTER || 
+					lhs->lexemeType == BA_TK_IMRBPSUB;
+				u8 isRhsNonLiteral = 
+					rhs->lexemeType == BA_TK_IDENTIFIER ||
+					rhs->lexemeType == BA_TK_IMREGISTER || 
+					rhs->lexemeType == BA_TK_IMRBPSUB;
 
-				if (lhs->lexemeType == BA_TK_IDENTIFIER ||
-					lhs->lexemeType == BA_TK_IMREGISTER ||
-					lhs->lexemeType == BA_TK_IMRBPSUB)
-				{
-					u64 regL = (u64)lhs->val; // Return 0 means on stack
-
-					if (lhs->lexemeType == BA_TK_IDENTIFIER ||
-						lhs->lexemeType == BA_TK_IMRBPSUB) 
-					{
-						regL = ba_NextIMRegister(ctr);
+				if (isLhsNonLiteral || isRhsNonLiteral) {
+					if (lhs->lexemeType != BA_TK_IMREGISTER) {
+						regL = ba_NextIMRegister(ctr); // Return 0 means on stack
 					}
 
 					if (regL == BA_IM_RCX) {
@@ -407,7 +410,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						ctr->usedRegisters &= ~BA_CTRREG_RCX;
 					}
 
-					if (!regL) {
+					if (!regL && (lhs->lexemeType == BA_TK_IDENTIFIER || 
+						lhs->lexemeType == BA_TK_IMRBPSUB)) 
+					{
 						if (!ctr->imStackCnt) {
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 						}
@@ -427,15 +432,18 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
 							BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
 					}
-					else if (isLhsOriginallyRcx) {
-						ba_AddIM(&ctr->im, 3, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
-							BA_IM_RCX);
+					else if (lhs->lexemeType == BA_TK_IMREGISTER) {
+						if (isLhsOriginallyRcx) {
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, 
+								regL ? regL : BA_IM_RAX, BA_IM_RCX);
+						}
+					}
+					else {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL, BA_IM_IMM,
+							(u64)lhs->val);
 					}
 
-					if (rhs->lexemeType == BA_TK_IDENTIFIER ||
-						rhs->lexemeType == BA_TK_IMREGISTER || 
-						rhs->lexemeType == BA_TK_IMRBPSUB)
-					{
+					if (isRhsNonLiteral) {
 						u64 regTmp = BA_IM_RCX;
 						u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
 							(u64)rhs->val == BA_IM_RCX;
@@ -500,70 +508,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						arg->val = (void*)ctr->imStackSize;
 					}
 				}
-				else if (rhs->lexemeType == BA_TK_IDENTIFIER ||
-					rhs->lexemeType == BA_TK_IMREGISTER ||
-					rhs->lexemeType == BA_TK_IMRBPSUB)
-				{
-					u64 regL = ba_NextIMRegister(ctr);
-
-					// To avoid some unnecessary swapping of registers
-					if (regL == BA_IM_RCX) {
-						regL = ba_NextIMRegister(ctr);
-						ctr->usedRegisters &= ~BA_CTRREG_RCX;
-					}
-
-					if (!regL) {
-						// TODO: handle stack instead of throwing this err
-						printf("stack intermediates currently not supported\n");
-						exit(-1);
-					}
-
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL, BA_IM_IMM, 
-						(u64)lhs->val);
-
-					u64 regTmp = BA_IM_RCX;
-					u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
-						(u64)rhs->val == BA_IM_RCX;
-
-					if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
-						regTmp = ba_NextIMRegister(ctr);
-						if (!regTmp) {
-							// TODO: handle stack instead of throwing this err
-							printf("stack intermediates currently not supported\n");
-							exit(-1);
-						}
-						ba_AddIM(&ctr->im, 3, BA_IM_MOV, regTmp, BA_IM_RCX);
-					}
-
-					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT,
-							((struct ba_STVal*)rhs->val)->address);
-					}
-					else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
-						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RCX,
-							BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
-					}
-					else if (!rhsIsRcx) {
-						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, 
-							(u64)rhs->val);
-					}
-					ba_AddIM(&ctr->im, 3, imOp, regL, BA_IM_CL);
-
-					if (rhs->lexemeType == BA_TK_IMRBPSUB &&
-						(u64)rhs->val == ctr->imStackSize)
-					{
-						--ctr->imStackCnt;
-						ctr->imStackSize -= 8;
-						ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 8);
-					}
-
-					if (regTmp && regTmp != BA_IM_RCX) {
-						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
-					}
-					
-					arg->lexemeType = BA_TK_IMREGISTER;
-					arg->val = (void*)regL;
-				}
 				else {
 					if (op->lexemeType == BA_TK_LSHIFT) {
 						arg->val = (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f));
@@ -572,7 +516,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						arg->val = (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x7f));
 					}
 				}
-				
+
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -1149,7 +1093,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		if (ba_PExpect(';', ctr)) {
 			// Round up to nearest 0x10
 			u64 memLen = len & 0xf;
-			if (memLen) {
+			if (!len) {
+				memLen = 0x10;
+			}
+			else if (memLen) {
 				memLen ^= len;
 				memLen += 0x10;
 			}
