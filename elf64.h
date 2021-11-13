@@ -656,23 +656,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_NEG:
 			{
 				char* instrName;
-				u8 opCodeOffset;
 				u8 byte1;
+				u8 byte2Offset;
 
 				if (im->vals[0] == BA_IM_INC) {
 					instrName = "INC";
-					opCodeOffset = 0;
 					byte1 = 0xff;
+					byte2Offset = 0;
 				}
 				else if (im->vals[0] == BA_IM_NOT) {
 					instrName = "NOT";
-					opCodeOffset = 0x10;
 					byte1 = 0xf7;
+					byte2Offset = 0x10;
 				}
 				else if (im->vals[0] == BA_IM_NEG) {
 					instrName = "NEG";
-					opCodeOffset = 0x18;
 					byte1 = 0xf7;
+					byte2Offset = 0x18;
 				}
 
 				if (im->count < 2) {
@@ -683,7 +683,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					u8 reg0 = im->vals[1] - BA_IM_RAX;
 					u8 byte0 = 0x48 | (reg0 >= 8);
-					u8 byte2 = (0xc0 + opCodeOffset) | (reg0 & 7);
+					u8 byte2 = (0xc0 + byte2Offset) | (reg0 & 7);
 
 					code->cnt += 3;
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -703,9 +703,22 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			}
 
 			case BA_IM_TEST:
+			case BA_IM_AND:
 			{
+				char* instrName;
+				u8 byte1Offset;
+
+				if (im->vals[0] == BA_IM_TEST) {
+					instrName = "TEST";
+					byte1Offset = 0x64;
+				}
+				else if (im->vals[0] == BA_IM_AND) {
+					instrName = "AND";
+					byte1Offset = 0;
+				}
+
 				if (im->count < 3) {
-					return ba_ErrorIMArgs("TEST", 2);
+					return ba_ErrorIMArgs(instrName, 2);
 				}
 
 				// First arg GPR
@@ -722,13 +735,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
 						code->arr[code->cnt-3] = byte0;
-						code->arr[code->cnt-2] = 0x85;
+						code->arr[code->cnt-2] = 0x21 + byte1Offset;
 						code->arr[code->cnt-1] = byte2;
 					}
 
 					else {
-						printf("Error: invalid set of arguments to TEST "
-							"instruction\n");
+						printf("Error: invalid set of arguments to %s "
+							"instruction\n", instrName);
 						exit(-1);
 					}
 				}
@@ -748,13 +761,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 						
 						(hasByte0) && (code->arr[code->cnt-3] = byte0);
-						code->arr[code->cnt-2] = 0x84;
+						code->arr[code->cnt-2] = 0x20 + byte1Offset;
 						code->arr[code->cnt-1] = byte2;
 					}
 
 					else {
-						printf("Error: invalid set of arguments to TEST "
-							"instruction\n");
+						printf("Error: invalid set of arguments to %s "
+							"instruction\n", instrName);
 						exit(-1);
 					}
 				}
@@ -767,50 +780,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_AND:
-			{
-				if (im->count < 3) {
-					return ba_ErrorIMArgs("AND", 2);
-				}
-
-				// First arg GPR
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					// GPR, GPR
-					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-						u8 b0 = 0x48, b2 = 0xc0;
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[2] - BA_IM_RAX;
-						
-						b0 |= (r1 >= 8) << 2;
-						b0 |= (r0 >= 8);
-						
-						b2 |= (r1 & 7) << 3;
-						b2 |= (r0 & 7);
-						
-						code->cnt += 3;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-
-						code->arr[code->cnt-3] = b0;
-						code->arr[code->cnt-2] = 0x21;
-						code->arr[code->cnt-1] = b2;
-					}
-
-					else {
-						printf("Error: invalid set of arguments to AND instruction\n");
-						exit(-1);
-					}
-				}
-
-				else {
-					printf("Error: invalid set of arguments to AND instruction\n");
-					exit(-1);
-				}
-
-				break;
-
 			case BA_IM_XOR:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("XOR", 2);
 				}
@@ -917,8 +888,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				break;
+			}
 
 			case BA_IM_ROR:
+			{
 				if (im->count < 3) {
 					return ba_ErrorIMArgs("ROR", 2);
 				}
