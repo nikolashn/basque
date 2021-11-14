@@ -1186,20 +1186,17 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				// GPRb
 				if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
-					u8 r0 = im->vals[1] - BA_IM_AL;
-					u8 b2 = 0xc0 | (r0 & 7);
+					u8 reg0 = im->vals[1] - BA_IM_AL;
+					u8 byte0 = 0x40 | (reg0 >= 8);
+					u8 byte2 = 0xc0 | (reg0 & 7);
 
-					code->cnt += 3 + (r0 >= 4);
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
+					code->cnt += 3 + (reg0 >= 4);
+					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-					if (r0 >= 4) {
-						code->arr[code->cnt-4] = 0x40 | (r0 >= 8);
-					}
+					(r0 >= 4) && (code->arr[code->cnt-4] = byte0);
 					code->arr[code->cnt-3] = 0x0f;
 					code->arr[code->cnt-2] = 0x94;
-					code->arr[code->cnt-1] = b2;
+					code->arr[code->cnt-1] = byte2;
 				}
 				else {
 					printf("Error: invalid set of arguments to SETZ instruction\n");
