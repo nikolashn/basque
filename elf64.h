@@ -810,12 +810,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_ROR: case BA_IM_SHL: case BA_IM_SHR:
+			case BA_IM_ROL: case BA_IM_ROR: 
+			case BA_IM_SHL: case BA_IM_SHR: case BA_IM_SAR:
 			{
 				char* instrName = 0;
+				(im->vals[0] == BA_IM_ROL) && (instrName = "ROL");
 				(im->vals[0] == BA_IM_ROR) && (instrName = "ROR");
 				(im->vals[0] == BA_IM_SHL) && (instrName = "SHL");
 				(im->vals[0] == BA_IM_SHR) && (instrName = "SHR");
+				(im->vals[0] == BA_IM_SAR) && (instrName = "SAR");
 
 				if (im->count < 3) {
 					return ba_ErrorIMArgs(instrName, 2);
@@ -827,9 +830,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					u8 byte0 = 0x48 | (reg0 >= 8);
 					u8 byte2 = (reg0 & 7);
 
+					(im->vals[0] == BA_IM_ROL) && (byte2 |= 0xc0);
 					(im->vals[0] == BA_IM_ROR) && (byte2 |= 0xc8);
 					(im->vals[0] == BA_IM_SHL) && (byte2 |= 0xe0);
 					(im->vals[0] == BA_IM_SHR) && (byte2 |= 0xe8);
+					(im->vals[0] == BA_IM_SAR) && (byte2 |= 0xf8);
 
 					// GPR, CL
 					if (im->vals[2] == BA_IM_CL) {
