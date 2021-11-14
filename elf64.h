@@ -1150,27 +1150,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					// GPR, GPRb
 					if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
-						// Bytes to be written
-						u8 b0 = 0x48, b3 = 0xc0;
-						// Register values
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 r1 = im->vals[2] - BA_IM_AL;
+						u8 reg0 = im->vals[1] - BA_IM_RAX;
+						u8 reg1 = im->vals[2] - BA_IM_AL;
 						
-						b0 |= (r0 >= 8) << 2;
-						b0 |= (r1 >= 8);
-						
-						b3 |= (r0 & 7) << 3;
-						b3 |= (r1 & 7);
-						
-						code->cnt += 4;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
+						u8 byte0 = 0x48 | ((reg0 >= 8) << 2) | (reg1 >= 8);
+						u8 byte3 = 0xc0 | ((reg0 & 7) << 3) | (reg1 & 7);
 
-						code->arr[code->cnt-4] = b0;
-						code->arr[code->cnt-3] = 0x0f;
+						code->cnt += 4;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+						code->arr[code->cnt-4] = byte0;
+						code->arr[code->cnt-3] = 0xf;
 						code->arr[code->cnt-2] = 0xb6;
-						code->arr[code->cnt-1] = b3;
+						code->arr[code->cnt-1] = byte3;
 					}
 					
 					else {
