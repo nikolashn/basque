@@ -922,13 +922,39 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_LABELJMP: case BA_IM_LABELCALL:
+			case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_LABELJNZ:
 			{
-				u8 isInstrJmp = im->vals[0] == BA_IM_LABELJMP;
+				char* instrName = 0;
+				enum {
+					_INSTRTYPE_CALL,
+					_INSTRTYPE_JMP,
+					_INSTRTYPE_JCC,
+				}
+				instrType = _INSTRTYPE_JCC;
+				u8 opCodeShort = 0; // Doesn't exist for CALL
+				u8 opCodeNear = 0; // Not needed for Jcc, it's just short+0x10
+
+				if (im->vals[0] == BA_IM_LABELCALL) {
+					instrName = "LABELCALL";
+					instrType = _INSTRTYPE_CALL;
+					opCodeNear = 0xe8;
+				}
+				else if (im->vals[0] == BA_IM_LABELJMP) {
+					instrName = "LABELJMP";
+					instrType = _INSTRTYPE_JMP;
+					opCodeShort = 0xeb;
+					opCodeNear = 0xe9;
+				}
+				else if (im->vals[0] == BA_IM_LABELJNZ) {
+					instrName = "LABELJNZ";
+					opCodeShort = 0x75;
+				}
+
+				(instrType == _INSTRTYPE_JCC) && 
+					(opCodeNear = opCodeShort + 0x10);
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgs(
-						isInstrJmp ? "LABELJMP" : "LABELCALL", 1);
+					return ba_ErrorIMArgs(instrName, 1);
 				}
 
 				u64 labelID = im->vals[1];
@@ -947,20 +973,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					i64 relAddr = lbl->addr - (code->cnt + 2);
 					u64 instrSize = 2;
 
-					if (!isInstrJmp ||
+					if (instrType == _INSTRTYPE_CALL ||
 						!((relAddr >= 0 && relAddr < 0x80) ||
 						(relAddr < 0ll && relAddr < -0x80ll)))
 					{
-						relAddr -= 3; // Accounts for the instr being 5 bytes
-						instrSize += 3; // Ditto
+						relAddr -= 3 + (instrType == _INSTRTYPE_JCC);
+						instrSize += 3 + (instrType == _INSTRTYPE_JCC);
 					}
 
 					code->cnt += instrSize;
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-					code->arr[code->cnt-instrSize] = 
-						0xe8 + isInstrJmp * (1 + (instrSize == 2) * 2);
+					(instrType == _INSTRTYPE_JCC) && 
+						(code->arr[code->cnt-instrSize] = 0xf);
+					code->arr[code->cnt-instrSize + 
+						(instrType == _INSTRTYPE_JCC)] = 
+						(instrSize == 2) ? opCodeShort : opCodeNear;
 
-					if (instrSize == 5) {
+					if (instrSize > 2) {
 						for (u64 i = 4; i > 1; i--) {
 							code->arr[code->cnt-i] = relAddr & 0xff;
 							relAddr >>= 8;
@@ -972,14 +1001,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				else {
 					u64 labelDistance = 0; // Only used with LABELJMP
 					
-					if (isInstrJmp) {
+					if (instrType != _INSTRTYPE_CALL) {
 						struct ba_IM* tmpIM = im;
 						while (tmpIM && tmpIM->count) {
 							labelDistance += ba_PessimalInstrSize(tmpIM);
 							tmpIM = tmpIM->next;
-							if (labelDistance >= 0x80 /* 5 byte jmp */ || 
+							if (labelDistance >= 0x80 /* near jmp */ || 
 								(tmpIM->vals[0] == BA_IM_LABEL &&
-								tmpIM->vals[1] == labelID) /* 2 byte jmp*/)
+								tmpIM->vals[1] == labelID) /* short jmp*/)
 							{
 								break;
 							}
@@ -999,17 +1028,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt + 1;
 					
-					if (isInstrJmp && labelDistance < 0x80) {
+					if (instrType != _INSTRTYPE_CALL && labelDistance < 0x80) {
 						code->cnt += 2;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
-						code->arr[code->cnt-2] = 0xeb;
+						code->arr[code->cnt-2] = opCodeShort;
 					}
 					else {
-						code->cnt += 5;
+						code->cnt += 5 + (instrType == _INSTRTYPE_JCC);
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 						*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
-						code->arr[code->cnt-5] = 0xe8 + isInstrJmp;
+						code->arr[code->cnt-5-(instrType == _INSTRTYPE_JCC)] = 
+							opCodeNear;
 					}
 				}
 
@@ -1105,112 +1135,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					printf("Error: invalid set of arguments to %s "
 						"instruction\n", isInstrPop ? "POP" : "PUSH");
 					exit(-1);
-				}
-
-				break;
-			}
-
-			case BA_IM_LABELJNZ:
-			{
-				if (im->count < 2) {
-					return ba_ErrorIMArgs("LABELJNZ", 1);
-				}
-
-				u64 labelID = im->vals[1];
-				struct ba_IMLabel* lbl = &labels[labelID];
-
-				if (labelID >= ctr->labelCnt) {
-					printf("Error: cannot find intermediate label %lld\n", 
-						labelID);
-					exit(-1);
-				}
-
-				// Label appears before jnz
-				if (lbl->isFound) {
-					// Assumes this instruction will be 2 bytes initially
-					i64 relAddr = lbl->addr - (code->cnt + 2);
-
-					// 2 byte jnz
-					if ((relAddr >= 0ll && relAddr < 0x80ll) || 
-						(relAddr < 0ll && relAddr >= -0x80ll))
-					{
-						code->cnt += 2;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						code->arr[code->cnt-2] = 0x75;
-						code->arr[code->cnt-1] = (u8)(relAddr & 0xff);
-					}
-					// 6 byte jnz
-					else {
-						code->cnt += 6;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						relAddr -= 4; // Accounts for the instr. being 6 bytes
-						code->arr[code->cnt-6] = 0xf;
-						code->arr[code->cnt-5] = 0x85;
-						code->arr[code->cnt-4] = relAddr & 0xff;
-						relAddr >>= 8;
-						code->arr[code->cnt-3] = relAddr & 0xff;
-						relAddr >>= 8;
-						code->arr[code->cnt-2] = relAddr & 0xff;
-						relAddr >>= 8;
-						code->arr[code->cnt-1] = relAddr & 0xff;
-					}
-				}
-				// Label appears after jnz
-				else {
-					struct ba_IM* tmpIM = im;
-					u64 labelDistance = 0;
-					while (tmpIM && tmpIM->count) {
-						labelDistance += ba_PessimalInstrSize(tmpIM);
-						tmpIM = tmpIM->next;
-
-						// 6 byte jnz
-						if (labelDistance >= 0x80) {
-							break;
-						}
-						// 2 byte jnz
-						else if (tmpIM->vals[0] == BA_IM_LABEL && 
-							tmpIM->vals[1] == labelID)
-						{
-							break;
-						}
-					}
-
-					// Don't check for lbl->jmpOfstSizes, they are allocated together
-					if (!lbl->jmpOfsts) {
-						lbl->jmpOfsts = ba_NewDynArr64(0x100);
-						lbl->jmpOfstSizes = ba_NewDynArr8(0x100);
-					}
-
-					if (++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) {
-						ba_ResizeDynArr64(lbl->jmpOfsts);
-					}
-					if (++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) {
-						ba_ResizeDynArr8(lbl->jmpOfstSizes);
-					}
-
-					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt+1;
-					
-					if (labelDistance >= 0x80) {
-						code->cnt += 6;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
-						code->arr[code->cnt-6] = 0xf;
-						code->arr[code->cnt-5] = 0x85;
-					}
-					else {
-						code->cnt += 2;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
-						code->arr[code->cnt-2] = 0x75;
-					}
 				}
 
 				break;
