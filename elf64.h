@@ -127,7 +127,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgs("MOV", 2);
 						}
 
-						if (!(BA_IM_RAX <= im->vals[3]) || !(BA_IM_R15 >= im->vals[2])) {
+						if (!(BA_IM_RAX <= im->vals[3]) || 
+							!(BA_IM_R15 >= im->vals[2])) 
+						{
 							printf("Error: first argument for ADR must be a general"
 								"purpose register\n");
 							exit(-1);
@@ -166,9 +168,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgs("MOV", 2);
 						}
 
-						if (!(BA_IM_RAX <= im->vals[3]) || !(BA_IM_R15 >= im->vals[2])) {
-							printf("Error: first argument for ADRADD/ADRUSB must be a "
-								"general purpose register\n");
+						if (!(BA_IM_RAX <= im->vals[3]) || 
+							!(BA_IM_R15 >= im->vals[2])) 
+						{
+							printf("Error: first argument for ADRADD/ADRUSB must be "
+								"a general purpose register\n");
 							exit(-1);
 						}
 
@@ -275,7 +279,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to MOV instruction\n");
+						printf("Error: invalid set of arguments to "
+							"MOV instruction\n");
 						exit(-1);
 					}
 				}
@@ -304,7 +309,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to MOV instruction\n");
+						printf("Error: invalid set of arguments to "
+							"MOV instruction\n");
 						exit(-1);
 					}
 				}
@@ -346,7 +352,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to MOV instruction\n");
+						printf("Error: invalid set of arguments to "
+							"MOV instruction\n");
 						exit(-1);
 					}
 				}
@@ -455,7 +462,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to MOV instruction\n");
+						printf("Error: invalid set of arguments to "
+							"MOV instruction\n");
 						exit(-1);
 					}
 				}
@@ -1165,7 +1173,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 					
 					else {
-						printf("Error: invalid set of arguments to MOVZX instruction\n");
+						printf("Error: invalid set of arguments to "
+							"MOVZX instruction\n");
 						exit(-1);
 					}
 				}
