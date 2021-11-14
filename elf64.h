@@ -894,20 +894,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 				// First arg GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-					u8 b0 = 0x48, b2 = 0xe0;
-
-					b0 |= (r0 >= 8);
-					b2 |= (r0 & 7);
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+					u8 byte0 = 0x48 | (reg0 >= 8);
+					u8 byte2 = 0xe0 | (reg0 & 7);
 
 					code->cnt += 3;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
-
-					code->arr[code->cnt-3] = b0;
+					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+					code->arr[code->cnt-3] = byte0;
 					code->arr[code->cnt-2] = 0xf7;
-					code->arr[code->cnt-1] = b2;
+					code->arr[code->cnt-1] = byte2;
 				}
 
 				else {
@@ -921,13 +916,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_SYSCALL:
 			{
 				code->cnt += 2;
-				if (code->cnt > code->cap) {
-					ba_ResizeDynArr8(code);
-				}
-
+				(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 				code->arr[code->cnt-2] = 0xf;
 				code->arr[code->cnt-1] = 0x5;
-
 				break;
 			}
 
