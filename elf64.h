@@ -922,10 +922,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_LABELCALL:
+			case BA_IM_LABELJMP: case BA_IM_LABELCALL:
 			{
+				u8 isInstrJmp = im->vals[0] == BA_IM_LABELJMP;
+
 				if (im->count < 2) {
-					return ba_ErrorIMArgs("LABELCALL", 1);
+					return ba_ErrorIMArgs(
+						isInstrJmp ? "LABELJMP" : "LABELCALL", 1);
 				}
 
 				u64 labelID = im->vals[1];
@@ -937,20 +940,52 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					exit(-1);
 				}
 
-				// Label appears before call
+				// Label appears before jmp
 				if (lbl->isFound) {
-					i64 relAddr = lbl->addr - (code->cnt + 5);
+					// Assumes the instruction will be 2 bytes initially
+					// (so that the check afterwards works properly)
+					i64 relAddr = lbl->addr - (code->cnt + 2);
+					u64 instrSize = 2;
 
-					code->cnt += 5;
-					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-					code->arr[code->cnt-5] = 0xe8;
-					for (u64 i = 4; i > 0; i--) {
-						code->arr[code->cnt-i] = relAddr & 0xff;
-						relAddr >>= 8;
+					if (!isInstrJmp ||
+						!((relAddr >= 0 && relAddr < 0x80) ||
+						(relAddr < 0ll && relAddr < -0x80ll)))
+					{
+						relAddr -= 3; // Accounts for the instr being 5 bytes
+						instrSize += 3; // Ditto
 					}
+
+					code->cnt += instrSize;
+					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+					code->arr[code->cnt-instrSize] = 
+						0xe8 + isInstrJmp * (1 + (instrSize == 2) * 2);
+
+					if (instrSize == 5) {
+						for (u64 i = 4; i > 1; i--) {
+							code->arr[code->cnt-i] = relAddr & 0xff;
+							relAddr >>= 8;
+						}
+					}
+					code->arr[code->cnt-1] = relAddr & 0xff;
 				}
-				// Label appears after call
+				// Label appears after jmp
 				else {
+					u64 labelDistance = 0; // Only used with LABELJMP
+					
+					if (isInstrJmp) {
+						struct ba_IM* tmpIM = im;
+						while (tmpIM && tmpIM->count) {
+							labelDistance += ba_PessimalInstrSize(tmpIM);
+							tmpIM = tmpIM->next;
+							if (labelDistance >= 0x80 /* 5 byte jmp */ || 
+								(tmpIM->vals[0] == BA_IM_LABEL &&
+								tmpIM->vals[1] == labelID) /* 2 byte jmp*/)
+							{
+								break;
+							}
+						}
+					}
+
 					// Don't check for lbl->jmpOfstSizes, they are allocated together
 					if (!lbl->jmpOfsts) {
 						lbl->jmpOfsts = ba_NewDynArr64(0x100);
@@ -964,10 +999,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt + 1;
 					
-					code->cnt += 5;
-					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-					*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
-					code->arr[code->cnt-5] = 0xe8;
+					if (isInstrJmp && labelDistance < 0x80) {
+						code->cnt += 2;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
+						code->arr[code->cnt-2] = 0xeb;
+					}
+					else {
+						code->cnt += 5;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+						*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
+						code->arr[code->cnt-5] = 0xe8 + isInstrJmp;
+					}
 				}
 
 				break;
@@ -1062,110 +1105,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					printf("Error: invalid set of arguments to %s "
 						"instruction\n", isInstrPop ? "POP" : "PUSH");
 					exit(-1);
-				}
-
-				break;
-			}
-
-			case BA_IM_LABELJMP:
-			{
-				if (im->count < 2) {
-					return ba_ErrorIMArgs("LABELJMP", 1);
-				}
-
-				u64 labelID = im->vals[1];
-				struct ba_IMLabel* lbl = &labels[labelID];
-
-				if (labelID >= ctr->labelCnt) {
-					printf("Error: cannot find intermediate label %lld\n", 
-						labelID);
-					exit(-1);
-				}
-
-				// Label appears before jmp
-				if (lbl->isFound) {
-					// Assumes this instruction will be 2 bytes initially
-					i64 relAddr = lbl->addr - (code->cnt + 2);
-
-					// 2 byte jmp
-					if ((relAddr >= 0ll && relAddr < 0x80ll) || 
-						(relAddr < 0ll && relAddr >= -0x80ll))
-					{
-						code->cnt += 2;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						code->arr[code->cnt-2] = 0xeb;
-						code->arr[code->cnt-1] = (u8)(relAddr & 0xff);
-					}
-					// 5 byte jmp
-					else {
-						code->cnt += 5;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						relAddr -= 3; // Accounts for the instr. being 5 bytes
-						code->arr[code->cnt-5] = 0xe9;
-						code->arr[code->cnt-4] = relAddr & 0xff;
-						relAddr >>= 8;
-						code->arr[code->cnt-3] = relAddr & 0xff;
-						relAddr >>= 8;
-						code->arr[code->cnt-2] = relAddr & 0xff;
-						relAddr >>= 8;
-						code->arr[code->cnt-1] = relAddr & 0xff;
-					}
-				}
-				// Label appears after jmp
-				else {
-					struct ba_IM* tmpIM = im;
-					u64 labelDistance = 0;
-					while (tmpIM && tmpIM->count) {
-						labelDistance += ba_PessimalInstrSize(tmpIM);
-						tmpIM = tmpIM->next;
-
-						// 5 byte jmp
-						if (labelDistance >= 0x80) {
-							break;
-						}
-						// 2 byte jmp
-						else if (tmpIM->vals[0] == BA_IM_LABEL && 
-							tmpIM->vals[1] == labelID)
-						{
-							break;
-						}
-					}
-
-					// Don't check for lbl->jmpOfstSizes, they are allocated together
-					if (!lbl->jmpOfsts) {
-						lbl->jmpOfsts = ba_NewDynArr64(0x100);
-						lbl->jmpOfstSizes = ba_NewDynArr8(0x100);
-					}
-
-					if (++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) {
-						ba_ResizeDynArr64(lbl->jmpOfsts);
-					}
-					if (++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) {
-						ba_ResizeDynArr8(lbl->jmpOfstSizes);
-					}
-
-					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt+1;
-					
-					if (labelDistance >= 0x80) {
-						code->cnt += 5;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
-						code->arr[code->cnt-5] = 0xe9;
-					}
-					else {
-						code->cnt += 2;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
-						code->arr[code->cnt-2] = 0xeb;
-					}
 				}
 
 				break;
