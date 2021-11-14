@@ -1420,95 +1420,58 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				0x04 * ((im->vals[1] == BA_IM_64ADRADD) | 
 					(im->vals[1] == BA_IM_64ADRSUB));
 
-			// Into GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, GPR
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
 				}
-				// GPR, ADR GPR
 				else if (im->vals[2] == BA_IM_ADR) {
-					u8 r1 = im->vals[1] - BA_IM_RAX;
-					return 3 + ((r1 & 7) == 4);
+					u8 reg1 = im->vals[1] - BA_IM_RAX;
+					return 3 + ((reg1 & 7) == 4);
 				}
-				// GPR, ADRADD/ADRSUB GPR
 				else if (im->vals[2] == BA_IM_ADRADD || 
 					im->vals[2] == BA_IM_ADRSUB) 
 				{
 					u64 offset = im->vals[4];
-					u8 r1 = im->vals[3] - BA_IM_RAX;
+					u8 reg1 = im->vals[3] - BA_IM_RAX;
 					u64 ofstSz = 1 + (offset >= 0x80) * 3;
-					return 3 + ((r1 & 7) == 4 || (r1 & 7) == 5) + ofstSz;
+					return 3 + ((reg1 & 7) == 4 || (reg1 & 7) == 5) + ofstSz;
 				}
-				// GPR, DATASGMT
 				else if (im->vals[2] == BA_IM_DATASGMT) {
 					return 7;
 				}
-				// GPR, IMM
 				else if (im->vals[2] == BA_IM_IMM) {
 					u64 imm = im->vals[3];
-					// 32 bits
 					if (imm < (1llu << 32)) {
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						return 5 + (r0 >= 8);
+						u8 reg0 = im->vals[1] - BA_IM_RAX;
+						return 5 + (reg0 >= 8);
 					}
-					// 64 bits
-					else {
-						return 10;
-					}
+					return 10;
 				}
 			}
 			// Into ADR GPR effective address
 			else if (im->vals[1] == BA_IM_ADR) {
-				u8 r0 = im->vals[2] - BA_IM_RAX;
-				// From GPRb
+				u8 reg0 = im->vals[2] - BA_IM_RAX;
 				if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
-					u8 r1 = im->vals[3] - BA_IM_AL;
-					if (r1 < BA_IM_SPL - BA_IM_AL) {
-						switch (im->vals[2]) {
-							case BA_IM_RAX: case BA_IM_RCX: case BA_IM_RDX: 
-							case BA_IM_RBX: case BA_IM_RSI: case BA_IM_RDI:
-								return 2;
-							case BA_IM_R12:
-							case BA_IM_R13:
-								return 4;
-							default:
-								return 3;
-						}
-					}
-					else {
-						return 3 + ((r0 & 7) == 4 || (r0 & 7) == 5);
-					}
+					u8 reg1 = im->vals[3] - BA_IM_AL;
+					u8 hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || (reg0 >= 8);
+					return 2 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5) + 
+						hasByte0;
 				}
 			}
-			// Into ADRADD/ADRSUB GPR effective address
 			else if (adrAddDestSize) {
-				u8 r0 = im->vals[2] - BA_IM_RAX;
+				u8 reg0 = im->vals[2] - BA_IM_RAX;
 				u64 offset = im->vals[3];
 
-				// From GPR
 				if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
-					if (offset < 0x80) {
-						return 4 + ((r0 & 7) == 4);
-					}
-					else if (offset < (1llu << 31)) {
-						return 7 + ((r0 & 7) == 4);
-					}
+					return 4 + 3 * (offset >= 0x80) + ((reg0 & 7) == 4);
 				}
 
-				// From IMM
 				else if (im->vals[4] == BA_IM_IMM) {
-					if (offset < 0x80) {
-						return adrAddDestSize + 4 + ((r0 & 7) == 4);
-					}
-					else if (offset < (1llu << 31)) {
-						return adrAddDestSize + 7 + ((r0 & 7) == 4);
-					}
+					return adrAddDestSize + 4 + 3 * (offset >= 0x80) + 
+						((reg0 & 7) == 4);
 				}
 			}
-			// Into DATASGMT
 			else if (im->vals[1] == BA_IM_DATASGMT) {
-				// DATASGMT, GPR
 				if ((BA_IM_RAX <= im->vals[3]) && (BA_IM_R15 >= im->vals[3])) {
 					return 7;
 				}
@@ -1516,39 +1479,25 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 			break;
 		}
-		case BA_IM_ADD:
-		case BA_IM_SUB:
-			// First arg GPR
+		case BA_IM_ADD: case BA_IM_SUB: case BA_IM_AND: case BA_IM_XOR:
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, GPR
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
 				}
-				// GPR, IMM
 				else if (im->vals[2] == BA_IM_IMM) {
 					return 4 + (im->vals[3] >= 0x80) * 2;
 				}
 			}
-			// Into ADRADD/ADRSUB GPR effective address
 			else if ((im->vals[1] == BA_IM_ADRADD) || (im->vals[1] == BA_IM_ADRSUB)) {
-				// From GPR
 				if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-					if (im->vals[3] < 0x80) {
-						return 4 + ((r0 & 7) == 4);
-					}
-					else if (im->vals[3] < (1llu << 31)) {
-						return 7 + ((r0 & 7) == 4);
-					}
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+					return 4 + 3 * (im->vals[3] >= 0x80) + ((reg0 & 7) == 4);
 				}
 			}
 
 			break;
 
-		case BA_IM_INC:
-		case BA_IM_NOT:
-		case BA_IM_NEG:
-			// GPR
+		case BA_IM_INC: case BA_IM_NOT: case BA_IM_NEG:
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				return 3;
 			}
@@ -1556,16 +1505,12 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			break;
 
 		case BA_IM_TEST:
-			// First arg GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, GPR
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
 				}
 			}
-			// First arg GPRb
 			else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
-				// GPRb, GPRb
 				if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
 					return 2 + ((BA_IM_SPL <= im->vals[1]) | 
 						(BA_IM_SPL <= im->vals[2]));
@@ -1574,79 +1519,17 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 			break;
 
-		case BA_IM_AND:
-			// First arg GPR
+		case BA_IM_ROL: case BA_IM_ROR: 
+		case BA_IM_SHL: case BA_IM_SHR: case BA_IM_SAR:
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, GPR
-				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-					return 3;
-				}
-			}
-
-			break;
-
-		case BA_IM_XOR:
-			// First arg GPR
-			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, GPR
-				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
-					return 3;
-				}
-
-				// GPR, IMM
-				else if (im->vals[2] == BA_IM_IMM) {
-					return 4 + (im->vals[3] >= 0x80) * 2;
-				}
-			}
-
-			break;
-
-		case BA_IM_ROR:
-			// First arg GPR
-			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, CL
 				if (im->vals[2] == BA_IM_CL) {
 					return 3;
 				}
-			}
-
-			break;
-
-		case BA_IM_SHL:
-			// First arg GPR
-			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, IMM
-				if (im->vals[2] == BA_IM_IMM) {
-					// Shift of 1
-					if (im->vals[3] == 1) {
-						return 3;
-					}
-					// 8 bits
-					else if (im->vals[3] < 0x100) {
-						return 4;
-					}
-				}
-			}
-
-			break;
-
-		case BA_IM_SHR:
-			// First arg GPR
-			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				// GPR, CL
-				if (im->vals[2] == BA_IM_CL) {
-					return 3;
-				}
-				// GPR, IMM
 				else if (im->vals[2] == BA_IM_IMM) {
-					// Shift of 1
 					if (im->vals[3] == 1) {
 						return 3;
 					}
-					// 8 bits
-					else if (im->vals[3] < 0x100) {
-						return 4;
-					}
+					return 4;
 				}
 			}
 
@@ -1666,13 +1549,12 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		case BA_IM_RET:
 			return 1;
 
-		case BA_IM_PUSH:
-		case BA_IM_POP:
+		case BA_IM_PUSH: case BA_IM_POP:
 		{
 			// GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-				u8 r0 = im->vals[1] - BA_IM_RAX;
-				return 1 + (r0 >= 8);
+				u8 reg0 = im->vals[1] - BA_IM_RAX;
+				return 1 + (reg0 >= 8);
 			}
 			// DATASGMT
 			else if (im->vals[1] == BA_IM_DATASGMT) {
@@ -1688,11 +1570,8 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		}
 
 		// JMP/Jcc instructions are all calculated pessimally
-
-		case BA_IM_LABELCALL:
-		case BA_IM_LABELJMP:
+		case BA_IM_LABELCALL: case BA_IM_LABELJMP:
 			return 5;
-
 		case BA_IM_LABELJNZ:
 			return 6;
 		
@@ -1703,8 +1582,8 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		{
 			// GPRb
 			if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
-				u8 r0 = im->vals[1] - BA_IM_AL;
-				return 3 + (r0 >= 4);
+				u8 reg0 = im->vals[1] - BA_IM_AL;
+				return 3 + (reg0 >= 4);
 			}
 		}
 
