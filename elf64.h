@@ -1193,7 +1193,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					code->cnt += 3 + (reg0 >= 4);
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-					(r0 >= 4) && (code->arr[code->cnt-4] = byte0);
+					(reg0 >= 4) && (code->arr[code->cnt-4] = byte0);
 					code->arr[code->cnt-3] = 0x0f;
 					code->arr[code->cnt-2] = 0x94;
 					code->arr[code->cnt-1] = byte2;
@@ -1228,16 +1228,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	for (u64 i = 0; i < relDSRips->cnt; i++) {
 		u64 codeLoc = relDSOffsets->arr[i];
 		// Subtract 0x1000 because code starts at file byte 0x1000
-		tmp = dataSgmtAddr - relDSRips->arr[i] - 0x1000 + 
+		u64 ripRelAddr = dataSgmtAddr - relDSRips->arr[i] - 0x1000 + 
 			code->arr[codeLoc] + (code->arr[codeLoc+1] << 8) +
 			(code->arr[codeLoc+2] << 16) + (code->arr[codeLoc+3] << 24);
-		code->arr[codeLoc] = tmp & 0xff;
-		tmp >>= 8;
-		code->arr[codeLoc+1] = tmp & 0xff;
-		tmp >>= 8;
-		code->arr[codeLoc+2] = tmp & 0xff;
-		tmp >>= 8;
-		code->arr[codeLoc+3] = tmp & 0xff;
+		for (u64 loc = codeLoc; loc < codeLoc+4; loc++) {
+			code->arr[loc] = ripRelAddr & 0xff;
+			ripRelAddr >>= 8;
+		}
 	}
 
 	// Generate file header
