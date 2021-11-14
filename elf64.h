@@ -810,11 +810,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_ROR: case BA_IM_SHL:
+			case BA_IM_ROR: case BA_IM_SHL: case BA_IM_SHR:
 			{
 				char* instrName = 0;
 				(im->vals[0] == BA_IM_ROR) && (instrName = "ROR");
 				(im->vals[0] == BA_IM_SHL) && (instrName = "SHL");
+				(im->vals[0] == BA_IM_SHR) && (instrName = "SHR");
 
 				if (im->count < 3) {
 					return ba_ErrorIMArgs(instrName, 2);
@@ -828,6 +829,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					(im->vals[0] == BA_IM_ROR) && (byte2 |= 0xc8);
 					(im->vals[0] == BA_IM_SHL) && (byte2 |= 0xe0);
+					(im->vals[0] == BA_IM_SHR) && (byte2 |= 0xe8);
 
 					// GPR, CL
 					if (im->vals[2] == BA_IM_CL) {
@@ -873,88 +875,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				else {
 					printf("Error: invalid set of arguments to %s instruction\n",
 						instrName);
-					exit(-1);
-				}
-
-				break;
-			}
-
-			case BA_IM_SHR:
-			{
-				if (im->count < 3) {
-					return ba_ErrorIMArgs("SHR", 2);
-				}
-
-				// First arg GPR
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					// GPR, CL
-					if (im->vals[2] == BA_IM_CL) {
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 b0 = 0x48, b2 = 0xe8;
-
-						b0 |= (r0 >= 8);
-						b2 |= (r0 & 7);
-
-						code->cnt += 3;
-						if (code->cnt > code->cap) {
-							ba_ResizeDynArr8(code);
-						}
-
-						code->arr[code->cnt-3] = b0;
-						code->arr[code->cnt-2] = 0xd3;
-						code->arr[code->cnt-1] = b2;
-					}
-					// GPR, IMM
-					else if (im->vals[2] == BA_IM_IMM) {
-						if (im->count < 4) {
-							return ba_ErrorIMArgs("SHR", 2);
-						}
-						u64 imm = im->vals[3];
-						u8 r0 = im->vals[1] - BA_IM_RAX;
-						u8 b0 = 0x48, b2 = 0xe8;
-
-						b0 |= (r0 >= 8);
-						b2 |= (r0 & 7);
-
-						// Shift of 1
-						if (imm == 1) {
-							code->cnt += 3;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							code->arr[code->cnt-3] = b0;
-							code->arr[code->cnt-2] = 0xd1;
-							code->arr[code->cnt-1] = b2;
-						}
-						// 8 bits
-						else if (imm < 0x100) {
-							code->cnt += 4;
-							if (code->cnt > code->cap) {
-								ba_ResizeDynArr8(code);
-							}
-
-							u8 b3 = imm & 0xff;
-
-							code->arr[code->cnt-4] = b0;
-							code->arr[code->cnt-3] = 0xc1;
-							code->arr[code->cnt-2] = b2;
-							code->arr[code->cnt-1] = b3;
-						}
-						else {
-							printf("Error: Cannot SHR a register by more than 8 bits\n");
-							exit(-1);
-						}
-					}
-
-					else {
-						printf("Error: invalid set of arguments to SHR instruction\n");
-						exit(-1);
-					}
-				}
-
-				else {
-					printf("Error: invalid set of arguments to SHR instruction\n");
 					exit(-1);
 				}
 
