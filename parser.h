@@ -85,7 +85,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 
 			str = realloc(str, len);
 			if (!str) {
-				ba_ErrorMallocNoMem();
+				return ba_ErrorMallocNoMem();
 			}
 			strcpy(str+oldLen, ctr->lex->val); // TODO: zero termination??
 		} while (ba_PAccept(BA_TK_LITSTR, ctr));
@@ -158,27 +158,22 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			{
 				return 3;
 			}
-			else if (op->lexemeType == '&')
-			{
+			else if (op->lexemeType == '&') {
 				return 4;
 			}
-			else if (op->lexemeType == '^')
-			{
+			else if (op->lexemeType == '^') {
 				return 5;
 			}
-			else if (op->lexemeType == '|')
-			{
+			else if (op->lexemeType == '|') {
 				return 6;
 			}
 			else if (op->lexemeType == '+' || op->lexemeType == '-') {
 				return 7;
 			}
-			else if (op->lexemeType == BA_TK_DBAMPD)
-			{
+			else if (op->lexemeType == BA_TK_DBAMPD) {
 				return 8;
 			}
-			else if (op->lexemeType == BA_TK_DBBAR)
-			{
+			else if (op->lexemeType == BA_TK_DBBAR) {
 				return 9;
 			}
 			break;
@@ -878,10 +873,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				ba_PAccept('(', ctr))
 			{
 				// Left grouping parenthesis
-				if (lexType == '(') {
-					++paren;
-				}
-
+				(lexType == '(') && ++paren;
 				ba_POpStkPush(ctr, line, col, lexType, BA_OP_PREFIX);
 			}
 			// Atom: note that ba_PAtom pushes the atom to pTkStk
@@ -979,7 +971,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		BA_LBL_PEXP_LOOPEND:;
 		
 		if (paren < 0) {
-			ba_ExitMsg(BA_EXIT_ERR, "unmatched ')' on", line, col);
+			return ba_ExitMsg(BA_EXIT_ERR, "unmatched ')' on", line, col);
 		}
 
 		line = ctr->lex->line;
@@ -1006,6 +998,59 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 	ctr->imStackSize = 0;
 
 	return 1;
+}
+
+// Auxiliary for ba_PStmt
+void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
+	// Round up to nearest 0x10
+	u64 memLen = len & 0xf;
+	if (!len) {
+		memLen = 0x10;
+	}
+	else if (memLen) {
+		memLen ^= len;
+		memLen += 0x10;
+	}
+	else {
+		memLen = len;
+	}
+	
+	// Allocate stack memory
+	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	ba_AddIM(&ctr->im, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
+
+	u64 val = 0;
+	u64 strIter = 0;
+	u64 adrSub = memLen;
+	
+	// Store the string on the stack
+	while (1) {
+		if ((strIter && !(strIter & 7)) || (strIter >= len)) {
+			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
+			ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+				adrSub, BA_IM_RAX);
+			
+			if (!(strIter & 7)) {
+				adrSub -= 8;
+				val = 0;
+			}
+			if (strIter >= len) {
+				break;
+			}
+		}
+		val |= (u64)str[strIter] << ((strIter & 7) << 3);
+		++strIter;
+	}
+	
+	// write
+	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
+	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
+	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
+	ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
+	
+	// deallocate stack memory
+	ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
 }
 
 /* stmt = "write" exp ";" 
@@ -1091,60 +1136,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		// ... ";"
 		// Generates IM code
 		if (ba_PExpect(';', ctr)) {
-			// Round up to nearest 0x10
-			u64 memLen = len & 0xf;
-			if (!len) {
-				memLen = 0x10;
-			}
-			else if (memLen) {
-				memLen ^= len;
-				memLen += 0x10;
-			}
-			else {
-				memLen = len;
-			}
-			
-			// Allocate stack memory
-			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-			ba_AddIM(&ctr->im, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
-
-			u64 val = 0;
-			u64 strIter = 0;
-			u64 adrSub = memLen;
-			
-			// Store the string on the stack
-			while (1) {
-				if ((strIter && !(strIter & 7)) || (strIter >= len)) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-						adrSub, BA_IM_RAX);
-					
-					if (!(strIter & 7)) {
-						adrSub -= 8;
-						val = 0;
-					}
-					if (strIter >= len) {
-						break;
-					}
-				}
-				val |= (u64)str[strIter] << ((strIter & 7) << 3);
-				++strIter;
-			}
-			
-			// write
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
-			ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
-			
-			// deallocate stack memory
-			ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
-			
-			// Memory leak bad
+			ba_PStmtWrite(ctr, len, str);
 			free(str);
 			free(stkItem);
-
 			return 1;
 		}
 	}
@@ -1244,62 +1238,11 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		// String literals by themselves in statements are written to standard output
 		if (expItem->lexemeType == BA_TK_LITSTR) {
-			// Copy pasted from "write", TODO: remove this notice once write is removed
 			char* str = ((struct ba_Str*)expItem->val)->str;
-			u64 len = ((struct ba_Str*)expItem->val)->len;
-
-			// Generates IM code
-			if (ba_PExpect(';', ctr)) {
-				// Round up to nearest 0x10
-				u64 memLen = len & 0xf;
-				if (memLen) {
-					memLen ^= len;
-					memLen += 0x10;
-				}
-				else {
-					memLen = len;
-				}
-				
-				// Allocate stack memory
-				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-				ba_AddIM(&ctr->im, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
-
-				u64 val = 0;
-				u64 strIter = 0;
-				u64 adrSub = memLen;
-				
-				// Store the string on the stack
-				while (1) {
-					if ((strIter && !(strIter & 7)) || (strIter >= len)) {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
-						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-							adrSub, BA_IM_RAX);
-						
-						if (!(strIter & 7)) {
-							adrSub -= 8;
-							val = 0;
-						}
-						if (strIter >= len) {
-							break;
-						}
-					}
-					val |= (u64)str[strIter] << ((strIter & 7) << 3);
-					++strIter;
-				}
-				
-				// write
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
-				ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
-				
-				// deallocate stack memory
-				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
-				free(str);
-
-				return 1;
-			}
+			ba_PStmtWrite(ctr, ((struct ba_Str*)expItem->val)->len, str);
+			free(str);
+			free(expItem);
+			return 1;
 		}
 
 		// TODO
