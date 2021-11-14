@@ -942,17 +942,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					i64 relAddr = lbl->addr - (code->cnt + 5);
 
 					code->cnt += 5;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
+					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 					code->arr[code->cnt-5] = 0xe8;
-					code->arr[code->cnt-4] = relAddr & 0xff;
-					relAddr >>= 8;
-					code->arr[code->cnt-3] = relAddr & 0xff;
-					relAddr >>= 8;
-					code->arr[code->cnt-2] = relAddr & 0xff;
-					relAddr >>= 8;
-					code->arr[code->cnt-1] = relAddr & 0xff;
+					for (u64 i = 4; i > 0; i--) {
+						code->arr[code->cnt-i] = relAddr & 0xff;
+						relAddr >>= 8;
+					}
 				}
 				// Label appears after call
 				else {
@@ -962,19 +957,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						lbl->jmpOfstSizes = ba_NewDynArr8(0x100);
 					}
 
-					if (++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) {
+					(++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) &&
 						ba_ResizeDynArr64(lbl->jmpOfsts);
-					}
-					if (++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) {
+					(++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) &&
 						ba_ResizeDynArr8(lbl->jmpOfstSizes);
-					}
 
-					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt+1;
+					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt + 1;
 					
 					code->cnt += 5;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
+					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 					*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
 					code->arr[code->cnt-5] = 0xe8;
 				}
