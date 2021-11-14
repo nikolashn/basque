@@ -981,16 +981,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_PUSH:
+			case BA_IM_POP: case BA_IM_PUSH: 
 			{
+				u8 isInstrPop = im->vals[0] == BA_IM_POP;
+
 				if (im->count < 2) {
-					return ba_ErrorIMArgs("PUSH", 1);
+					return ba_ErrorIMArgs(isInstrPop ? "POP" : "PUSH", 1);
 				}
 
 				// GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					u8 reg0 = im->vals[1] - BA_IM_RAX;
-					u8 byte2 = 0x50 | (reg0 & 7);
+					u8 byte2 = 0x50 | (isInstrPop * 8) | (reg0 & 7);
 
 					code->cnt += 1 + (reg0 >= 8);
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -1020,15 +1022,22 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					code->cnt += 6;
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-					code->arr[code->cnt-6] = 0xff;
-					code->arr[code->cnt-5] = 0x35;
+					if (isInstrPop) {
+						code->arr[code->cnt-6] = 0x8f;
+						code->arr[code->cnt-5] = 0x05;
+					}
+					else {
+						code->arr[code->cnt-6] = 0xff;
+						code->arr[code->cnt-5] = 0x35;
+					}
+
 					for (u64 i = 4; i > 0; i--) {
 						code->arr[code->cnt-i] = imm & 0xff;
 						imm >>= 8;
 					}
 				}
 				// IMM
-				else if (im->vals[1] == BA_IM_IMM) {
+				else if ((!isInstrPop) && (im->vals[1] == BA_IM_IMM)) {
 					if (im->count < 3) {
 						return ba_ErrorIMArgs("PUSH", 1);
 					}
@@ -1050,74 +1059,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					code->arr[code->cnt-1] = imm & 0xff;
 				}
 				else {
-					printf("Error: invalid set of arguments to PUSH instruction\n");
-					exit(-1);
-				}
-
-				break;
-			}
-
-			case BA_IM_POP:
-			{
-				if (im->count < 2) {
-					return ba_ErrorIMArgs("POP", 1);
-				}
-
-				// GPR
-				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
-					u8 r0 = im->vals[1] - BA_IM_RAX;
-					u8 b2 = 0x58 | (r0 & 7);
-
-					code->cnt += 1 + (r0 >= 8);
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
-
-					if (r0 >= 8) {
-						code->arr[code->cnt-2] = 0x41;
-					}
-					code->arr[code->cnt-1] = b2;
-				}
-				// DATASGMT
-				else if (im->vals[1] == BA_IM_DATASGMT) {
-					if (im->count < 3) {
-						return ba_ErrorIMArgs("POP", 1);
-					}
-
-					// Addr. rel. to start of data segment
-					u64 imm = im->vals[2];
-
-					// Make sure there is enough space in the data segment
-					// address related arrays
-					if (++relDSOffsets->cnt > relDSOffsets->cap) {
-						ba_ResizeDynArr64(relDSOffsets);
-					}
-					if (++relDSRips->cnt > relDSRips->cap) {
-						ba_ResizeDynArr64(relDSOffsets);
-					}
-
-					// Where imm (data location) is stored; instruction ptr
-					// (Looks like dereferencing NULL, but shouldn't occur)
-					*ba_TopDynArr64(relDSOffsets) = code->cnt + 2;
-					*ba_TopDynArr64(relDSRips) = code->cnt + 6;
-
-					code->cnt += 6;
-					if (code->cnt > code->cap) {
-						ba_ResizeDynArr8(code);
-					}
-
-					code->arr[code->cnt-6] = 0x8f;
-					code->arr[code->cnt-5] = 0x05;
-					code->arr[code->cnt-4] = imm & 0xff;
-					imm >>= 8;
-					code->arr[code->cnt-3] = imm & 0xff;
-					imm >>= 8;
-					code->arr[code->cnt-2] = imm & 0xff;
-					imm >>= 8;
-					code->arr[code->cnt-1] = imm & 0xff;
-				}
-				else {
-					printf("Error: invalid set of arguments to POP instruction\n");
+					printf("Error: invalid set of arguments to %s "
+						"instruction\n", isInstrPop ? "POP" : "PUSH");
 					exit(-1);
 				}
 
