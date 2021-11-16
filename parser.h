@@ -71,6 +71,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		strcpy(str, lexVal);
 		
+		// do-while prevents 1 more str literal from being consumed than needed
 		do {
 			if (ctr->lex->type != BA_TK_LITSTR) {
 				break;
@@ -88,7 +89,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 				return ba_ErrorMallocNoMem();
 			}
 			strcpy(str+oldLen, ctr->lex->val); // TODO: zero termination??
-		} while (ba_PAccept(BA_TK_LITSTR, ctr));
+		}
+		while (ba_PAccept(BA_TK_LITSTR, ctr));
 		
 		struct ba_Str* stkStr = malloc(sizeof(struct ba_Str));
 		if (!stkStr) {
@@ -109,9 +111,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		else {
 			num = ba_StrToU64(lexVal, lexLine, lexColStart);
-			if (num < (1llu << 63)) {
-				type = BA_TYPE_I64;
-			}
+			(num < (1llu << 63)) && (type = BA_TYPE_I64);
 		}
 		ba_PTkStkPush(ctr, (void*)num, type, BA_TK_LITINT);
 	}
@@ -202,28 +202,27 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 			if (op->lexemeType == '+') {
-				if (ba_IsTypeUnsigned(arg->type)) {
-					arg->type = BA_TYPE_U64;
-				}
-				else if (ba_IsTypeSigned(arg->type)) {
-					arg->type = BA_TYPE_I64;
-				}
-				else {
+				if (!ba_IsTypeNumeric(arg->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "unary '+' used with non numeric "
 						"operand on", op->line, op->col);
 				}
+
+				ba_IsTypeUnsigned(arg->type) && (arg->type = BA_TYPE_U64);
+				ba_IsTypeSigned(arg->type) && (arg->type = BA_TYPE_I64);
+
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
 			else if (op->lexemeType == '-') {
-				if (ba_IsTypeIntegral(arg->type)) {
-					if (ba_IsTypeUnsigned(arg->type)) {
-						arg->type = BA_TYPE_U64;
-					}
-					else {
-						arg->type = BA_TYPE_I64;
-					}
+				if (!ba_IsTypeNumeric(arg->type)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "unary '-' used with "
+						"non numeric operand on", op->line, op->col);
+				}
 
+				ba_IsTypeUnsigned(arg->type) && (arg->type = BA_TYPE_U64);
+				ba_IsTypeSigned(arg->type) && (arg->type = BA_TYPE_I64);
+
+				if (ba_IsTypeIntegral(arg->type)) {
 					if (arg->lexemeType == BA_TK_IDENTIFIER) {
 						u64 reg = ba_NextIMRegister(ctr);
 						if (!reg) {
@@ -246,10 +245,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						arg->val = (void*)(-(u64)arg->val);
 					}
 				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "unary '-' used with "
-						"non numeric operand on", op->line, op->col);
-				}
+
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -425,7 +421,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
-							BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+							BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
 					}
 					else if (lhs->lexemeType == BA_TK_IMREGISTER) {
 						if (isLhsOriginallyRcx) {
@@ -496,7 +492,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 					else {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-							lhsStackPos, BA_IM_RAX);
+							lhsStackPos-8, BA_IM_RAX);
 						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 
 						arg->lexemeType = BA_TK_IMRBPSUB;
