@@ -213,29 +213,63 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
-			else if (op->lexemeType == '-') {
+			else if (op->lexemeType == '-' || op->lexemeType == '~') {
+				char opName = op->lexemeType == '-' ? '-' : '~';
+				u64 imOp = op->lexemeType == '-' ? BA_IM_NEG : BA_IM_NOT;
+
 				if (!ba_IsTypeNumeric(arg->type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "unary '-' used with "
-						"non numeric operand on", op->line, op->col);
+					printf("Error: unary '%c' used with non numeric operand on "
+						"line %llu:%llu", opName, op->line, op->col);
+					exit(-1);
 				}
 
 				ba_IsTypeUnsigned(arg->type) && (arg->type = BA_TYPE_U64);
 				ba_IsTypeSigned(arg->type) && (arg->type = BA_TYPE_I64);
 
 				if (ba_IsTypeIntegral(arg->type)) {
-					if (arg->lexemeType == BA_TK_IDENTIFIER) {
+					if (arg->lexemeType == BA_TK_IDENTIFIER ||
+						arg->lexemeType == BA_TK_IMRBPSUB)
+					{
+						u64 stackPos = 0;
 						u64 reg = ba_NextIMRegister(ctr);
+
 						if (!reg) {
-							// TODO: handle stack instead of throwing this err
-							printf("stack intermediates currently not supported\n");
-							exit(-1);
+							if (!ctr->imStackCnt) {
+								ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
+									BA_IM_RSP);
+							}
+							++ctr->imStackCnt;
+							ctr->imStackSize += 8;
+							stackPos = ctr->imStackSize+8;
+							// First: result location, second: preserve rax
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 						}
 
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg, BA_IM_DATASGMT,
-							((struct ba_STVal*)arg->val)->address);
-						ba_AddIM(&ctr->im, 2, BA_IM_NEG, reg);
-						arg->lexemeType = BA_TK_IMREGISTER;
-						arg->val = (void*)reg;
+						if (arg->lexemeType == BA_TK_IDENTIFIER) {
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, 
+								reg ? reg : BA_IM_RAX, BA_IM_DATASGMT, 
+								((struct ba_STVal*)arg->val)->address);
+						}
+						else {
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX, 
+								BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
+						}
+
+						ba_AddIM(&ctr->im, 2, imOp, reg ? reg : BA_IM_RAX);
+
+						if (reg) {
+							arg->lexemeType = BA_TK_IMREGISTER;
+							arg->val = (void*)reg;
+						}
+						else {
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+								stackPos, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+							arg->lexemeType = BA_TK_IMRBPSUB;
+							arg->val = (void*)ctr->imStackSize;
+						}
 					}
 					else if (arg->lexemeType == BA_TK_IMREGISTER) {
 						ba_AddIM(&ctr->im, 2, BA_IM_NEG, (u64)arg->val);
@@ -253,9 +287,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				arg->type = BA_TYPE_U8;
 
 				if (ba_IsTypeIntegral(arg->type)) {
-					if (arg->lexemeType == BA_TK_IDENTIFIER ||
-						arg->lexemeType == BA_TK_IMREGISTER)
-					{
+					if (arg->lexemeType == BA_TK_IDENTIFIER) {
 						u64 reg = (u64)arg->val;
 						if (arg->lexemeType == BA_TK_IDENTIFIER) {
 							reg = ba_NextIMRegister(ctr);
@@ -281,43 +313,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "unary '!' used with "
-						"non numeric operand on", op->line, op->col);
-				}
-				ba_StkPush(arg, ctr->pTkStk);
-				return 1;
-			}
-			else if (op->lexemeType == '~') {
-				if (ba_IsTypeIntegral(arg->type)) {
-					if (ba_IsTypeUnsigned(arg->type)) {
-						arg->type = BA_TYPE_U64;
-					}
-					else {
-						arg->type = BA_TYPE_I64;
-					}
-
-					if (arg->lexemeType == BA_TK_IDENTIFIER) {
-						u64 reg = ba_NextIMRegister(ctr);
-						if (!reg) {
-							// TODO: handle stack instead of throwing this err
-							printf("stack intermediates currently not supported\n");
-							exit(-1);
-						}
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg, BA_IM_DATASGMT,
-							((struct ba_STVal*)arg->val)->address);
-						ba_AddIM(&ctr->im, 2, BA_IM_NOT, reg);
-						arg->lexemeType = BA_TK_IMREGISTER;
-						arg->val = (void*)reg;
-					}
-					else if (arg->lexemeType == BA_TK_IMREGISTER) {
-						ba_AddIM(&ctr->im, 2, BA_IM_NOT, arg->val);
-						arg->lexemeType = BA_TK_IMREGISTER;
-					}
-					else {
-						arg->val = (void*)(~(u64)arg->val);
-					}
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "unary '~' used with "
 						"non numeric operand on", op->line, op->col);
 				}
 				ba_StkPush(arg, ctr->pTkStk);
@@ -388,7 +383,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					rhs->lexemeType == BA_TK_IMREGISTER || 
 					rhs->lexemeType == BA_TK_IMRBPSUB;
 
-				if (isLhsNonLiteral || isRhsNonLiteral) {
+				if (!isLhsNonLiteral && !isRhsNonLiteral) {
+					// If both are literals
+					if (op->lexemeType == BA_TK_LSHIFT) {
+						arg->val = (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f));
+					}
+					else {
+						arg->val = (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x7f));
+					}
+				}
+				else {
 					if (lhs->lexemeType != BA_TK_IMREGISTER) {
 						regL = ba_NextIMRegister(ctr); // Return 0 means on stack
 					}
@@ -497,14 +501,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 						arg->lexemeType = BA_TK_IMRBPSUB;
 						arg->val = (void*)ctr->imStackSize;
-					}
-				}
-				else {
-					if (op->lexemeType == BA_TK_LSHIFT) {
-						arg->val = (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f));
-					}
-					else {
-						arg->val = (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x7f));
 					}
 				}
 
