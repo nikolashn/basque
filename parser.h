@@ -213,108 +213,106 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
-			else if (op->lexemeType == '-' || op->lexemeType == '~') {
-				char opName = op->lexemeType == '-' ? '-' : '~';
-				u64 imOp = op->lexemeType == '-' ? BA_IM_NEG : BA_IM_NOT;
-
-				if (!ba_IsTypeNumeric(arg->type)) {
-					printf("Error: unary '%c' used with non numeric operand on "
-						"line %llu:%llu", opName, op->line, op->col);
+			else if (op->lexemeType == '-' || op->lexemeType == '~' ||
+				op->lexemeType == '!')
+			{
+				if ((op->lexemeType == '~' && !ba_IsTypeIntegral(arg->type)) ||
+					!ba_IsTypeNumeric(arg->type))
+				{
+					printf("Error: unary '%s' used with non %s operand on "
+						"line %llu:%llu", ba_GetLexemeStr(op->lexemeType), 
+						op->lexemeType == '~' ? "integral" : "numeric", 
+						op->line, op->col);
 					exit(-1);
 				}
 
-				ba_IsTypeUnsigned(arg->type) && (arg->type = BA_TYPE_U64);
-				ba_IsTypeSigned(arg->type) && (arg->type = BA_TYPE_I64);
+				u64 imOp;
+				(op->lexemeType == '-') && (imOp = BA_IM_NEG);
+				(op->lexemeType == '~') && (imOp = BA_IM_NOT);
+
+				if (op->lexemeType == '!') {
+					arg->type = BA_TYPE_U8;
+				}
+				else if (ba_IsTypeUnsigned(arg->type)) {
+					arg->type = BA_TYPE_U64;
+				}
+				else if (ba_IsTypeSigned(arg->type)) {
+					arg->type = BA_TYPE_I64;
+				}
 
 				if (ba_IsTypeIntegral(arg->type)) {
-					if (arg->lexemeType == BA_TK_IDENTIFIER ||
-						arg->lexemeType == BA_TK_IMRBPSUB)
-					{
-						u64 stackPos = 0;
-						u64 reg = ba_NextIMRegister(ctr);
+					u8 isArgLiteral = 
+						arg->lexemeType != BA_TK_IDENTIFIER && 
+						arg->lexemeType != BA_TK_IMRBPSUB && 
+						arg->lexemeType != BA_TK_IMREGISTER;
 
-						if (!reg) {
+					if (isArgLiteral) {
+						(op->lexemeType == '-') && 
+							(arg->val = (void*)(-(u64)arg->val));
+						(op->lexemeType == '~') &&
+							(arg->val = (void*)(~(u64)arg->val));
+						(op->lexemeType == '!') &&
+							(arg->val = (void*)((u64)!arg->val));
+					}
+					else {
+						u64 stackPos = 0;
+						u64 reg = (u64)arg->val; // Kept only if arg is a register
+
+						if (arg->lexemeType != BA_TK_IMREGISTER) {
+							reg = ba_NextIMRegister(ctr);
+						}
+
+						if (!reg && arg->lexemeType != BA_TK_IMREGISTER) {
 							if (!ctr->imStackCnt) {
 								ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
 									BA_IM_RSP);
 							}
 							++ctr->imStackCnt;
 							ctr->imStackSize += 8;
-							stackPos = ctr->imStackSize+8;
+							stackPos = ctr->imStackSize;
 							// First: result location, second: preserve rax
 							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 						}
 
+						u64 realReg = reg ? reg : BA_IM_RAX;
+
 						if (arg->lexemeType == BA_TK_IDENTIFIER) {
-							ba_AddIM(&ctr->im, 4, BA_IM_MOV, 
-								reg ? reg : BA_IM_RAX, BA_IM_DATASGMT, 
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, 
+								BA_IM_DATASGMT, 
 								((struct ba_STVal*)arg->val)->address);
 						}
-						else {
-							ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX, 
+						else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
 								BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
 						}
 
-						ba_AddIM(&ctr->im, 2, imOp, reg ? reg : BA_IM_RAX);
+						if (op->lexemeType == '!') {
+							ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
+							ba_AddIM(&ctr->im, 2, BA_IM_SETZ, 
+								realReg - BA_IM_RAX + BA_IM_AL);
+							ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realReg, 
+								realReg - BA_IM_RAX + BA_IM_AL);
+						}
+						else {
+							ba_AddIM(&ctr->im, 2, imOp, realReg);
+						}
 
 						if (reg) {
 							arg->lexemeType = BA_TK_IMREGISTER;
 							arg->val = (void*)reg;
 						}
 						else {
-							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-								stackPos, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, 
+								BA_IM_RBP, stackPos, BA_IM_RAX);
 							ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 
 							arg->lexemeType = BA_TK_IMRBPSUB;
 							arg->val = (void*)ctr->imStackSize;
 						}
 					}
-					else if (arg->lexemeType == BA_TK_IMREGISTER) {
-						ba_AddIM(&ctr->im, 2, BA_IM_NEG, (u64)arg->val);
-						arg->lexemeType = BA_TK_IMREGISTER;
-					}
-					else {
-						arg->val = (void*)(-(u64)arg->val);
-					}
 				}
 
-				ba_StkPush(arg, ctr->pTkStk);
-				return 1;
-			}
-			else if (op->lexemeType == '!') {
-				arg->type = BA_TYPE_U8;
-
-				if (ba_IsTypeIntegral(arg->type)) {
-					if (arg->lexemeType == BA_TK_IDENTIFIER) {
-						u64 reg = (u64)arg->val;
-						if (arg->lexemeType == BA_TK_IDENTIFIER) {
-							reg = ba_NextIMRegister(ctr);
-							if (!reg) {
-								// TODO: handle stack instead of throwing this err
-								printf("stack intermediates currently not supported\n");
-								exit(-1);
-							}
-							ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg, BA_IM_DATASGMT,
-								((struct ba_STVal*)arg->val)->address);
-						}
-						ba_AddIM(&ctr->im, 3, BA_IM_TEST, reg, reg);
-						ba_AddIM(&ctr->im, 2, BA_IM_SETZ, 
-							reg - BA_IM_RAX + BA_IM_AL);
-						ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, reg, 
-							reg - BA_IM_RAX + BA_IM_AL);
-						arg->lexemeType = BA_TK_IMREGISTER;
-						arg->val = (void*)reg;
-					}
-					else {
-						arg->val = (void*)((u64)!arg->val);
-					}
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "unary '!' used with "
-						"non numeric operand on", op->line, op->col);
-				}
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -374,16 +372,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				u64 lhsStackPos = 0;
 				u64 regL = (u64)lhs->val;
 				
-				u8 isLhsNonLiteral = 
-					lhs->lexemeType == BA_TK_IDENTIFIER ||
-					lhs->lexemeType == BA_TK_IMREGISTER || 
-					lhs->lexemeType == BA_TK_IMRBPSUB;
-				u8 isRhsNonLiteral = 
-					rhs->lexemeType == BA_TK_IDENTIFIER ||
-					rhs->lexemeType == BA_TK_IMREGISTER || 
-					rhs->lexemeType == BA_TK_IMRBPSUB;
+				u8 isLhsLiteral = 
+					lhs->lexemeType != BA_TK_IDENTIFIER &&
+					lhs->lexemeType != BA_TK_IMREGISTER && 
+					lhs->lexemeType != BA_TK_IMRBPSUB;
+				u8 isRhsLiteral = 
+					rhs->lexemeType != BA_TK_IDENTIFIER &&
+					rhs->lexemeType != BA_TK_IMREGISTER && 
+					rhs->lexemeType != BA_TK_IMRBPSUB;
 
-				if (!isLhsNonLiteral && !isRhsNonLiteral) {
+				if (isLhsLiteral && isRhsLiteral) {
 					// If both are literals
 					if (op->lexemeType == BA_TK_LSHIFT) {
 						arg->val = (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f));
@@ -405,15 +403,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						ctr->usedRegisters &= ~BA_CTRREG_RCX;
 					}
 
-					if (!regL && (lhs->lexemeType == BA_TK_IDENTIFIER || 
-						lhs->lexemeType == BA_TK_IMRBPSUB)) 
-					{
+					if (!regL) {
 						if (!ctr->imStackCnt) {
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 						}
 						++ctr->imStackCnt;
 						ctr->imStackSize += 8;
-						lhsStackPos = ctr->imStackSize+8;
+						lhsStackPos = ctr->imStackSize;
 						// First: result location, second: preserve rax
 						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
@@ -438,7 +434,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							(u64)lhs->val);
 					}
 
-					if (isRhsNonLiteral) {
+					if (!isRhsLiteral) {
 						u64 regTmp = BA_IM_RCX;
 						u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
 							(u64)rhs->val == BA_IM_RCX;
@@ -454,7 +450,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						}
 
 						if (rhs->lexemeType == BA_TK_IDENTIFIER) {
-							ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT,
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RCX, 
+								BA_IM_DATASGMT,
 								((struct ba_STVal*)rhs->val)->address);
 						}
 						else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
@@ -496,7 +493,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 					else {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-							lhsStackPos-8, BA_IM_RAX);
+							lhsStackPos, BA_IM_RAX);
 						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 
 						arg->lexemeType = BA_TK_IMRBPSUB;

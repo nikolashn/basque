@@ -96,10 +96,4 @@ u8 ba_ErrorVarRedef(char* var, u64 line, u64 col) {
 	return 0;
 }
 
-u8 ba_ErrorIMArgs(char* instr, u64 args) {
-	printf("Error: %s instruction requires %llu valid arguments\n", instr, args);
-	exit(-1);
-	return 0;
-}
-
 #endif

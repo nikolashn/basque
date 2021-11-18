@@ -57,7 +57,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_LABEL:
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgs("LABEL", 1);
+					return ba_ErrorIMArgCount(1, im);
 				}
 				
 				u64 labelID = im->vals[1];
@@ -91,7 +91,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_MOV:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgs("MOV", 2);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				u8 adrAddDestSize = 
@@ -124,15 +124,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPR, ADR GPR
 					else if (im->vals[2] == BA_IM_ADR) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs("MOV", 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 
 						if (!(BA_IM_RAX <= im->vals[3]) || 
 							!(BA_IM_R15 >= im->vals[2])) 
 						{
-							printf("Error: first argument for ADR must be a general"
-								"purpose register\n");
-							exit(-1);
+							return ba_ErrorIMArgInvalid(im);
 						}
 					
 						u8 byte2 = 0;
@@ -165,15 +163,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						im->vals[2] == BA_IM_ADRSUB) 
 					{
 						if (im->count < 5) {
-							return ba_ErrorIMArgs("MOV", 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 
 						if (!(BA_IM_RAX <= im->vals[3]) || 
 							!(BA_IM_R15 >= im->vals[2])) 
 						{
-							printf("Error: first argument for ADRADD/ADRUSB must be "
-								"a general purpose register\n");
-							exit(-1);
+							return ba_ErrorIMArgInvalid(im);
 						}
 
 						u8 sub = im->vals[2] == BA_IM_ADRSUB;
@@ -212,7 +208,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPR, DATASGMT
 					else if (im->vals[2] == BA_IM_DATASGMT) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs("MOV", 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 
 						// Addr. rel. to start of data segment
@@ -246,7 +242,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs("MOV", 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 						u64 imm = im->vals[3];
 						u8 byte1 = 0xb8 | (reg0 & 7);
@@ -279,9 +275,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to "
-							"MOV instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
@@ -290,7 +284,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPRb, IMM
 					if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs("MOV", 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 						u8 imm = im->vals[3];
 
@@ -309,22 +303,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to "
-							"MOV instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 				
 				// Into ADR GPR effective address
 				else if (im->vals[1] == BA_IM_ADR) {
 					if (im->count < 4) {
-						return ba_ErrorIMArgs("MOV", 2);
+						return ba_ErrorIMArgCount(2, im);
 					}
 
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
-						printf("Error: first argument for ADR must be a "
-							"general purpose register\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 					
 					u8 reg0 = im->vals[2] - BA_IM_RAX;
@@ -352,22 +342,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to "
-							"MOV instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
 				// Into ADRADD/ADRSUB GPR effective address
 				else if (adrAddDestSize) {
 					if (im->count < 5) {
-						return ba_ErrorIMArgs("MOV", 2);
+						return ba_ErrorIMArgCount(2, im);
 					}
 
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
-						printf("Error: first argument for ADRADD/ADRSUB must be a "
-							"general purpose register\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 
 					u8 reg0 = im->vals[2] - BA_IM_RAX;
@@ -384,7 +370,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
 							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset\n");
+								"than 32 bit offset in instruction %s\n",
+								ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -414,12 +401,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// From IMM
 					else if (im->vals[4] == BA_IM_IMM) {
 						if (adrAddDestSize == 0xff) {
-							printf("Error: no size specified for MOV");
+							printf("Error: no size specified for MOV in "
+								"instruction %s\n", ba_IMToStr(im));
 							exit(-1);
 						}
 
 						if (im->count < 6) {
-							return ba_ErrorIMArgs("MOV", 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 
 						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
@@ -430,7 +418,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
 							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset\n");
+								"than 32 bit offset in instruction %s\n", 
+								ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -462,16 +451,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to "
-							"MOV instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
 				// Into DATASGMT
 				else if (im->vals[1] == BA_IM_DATASGMT) {
 					if (im->count < 4) {
-						return ba_ErrorIMArgs("MOV", 2);
+						return ba_ErrorIMArgCount(2, im);
 					}
 
 					// DATASGMT, GPR
@@ -508,8 +495,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 				
 				else {
-					printf("Error: invalid set of arguments to MOV instruction\n");
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -524,7 +510,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				(im->vals[0] == BA_IM_XOR) && (instrName = "XOR");
 
 				if (im->count < 3) {
-					return ba_ErrorIMArgs(instrName, 2);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				u8 byte1Offset = 0;
@@ -555,7 +541,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs(instrName, 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 
 						u64 imm = im->vals[3];
@@ -565,7 +551,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						// >31 bits
 						if (imm >= (1llu << 31)) {
 							printf("Error: Cannot %s more than 31 bits "
-								"to a register", instrName);
+								"to a register in instruction %s\n", 
+								instrName, ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -600,9 +587,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to %s "
-							"instruction\n", instrName);
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
@@ -627,9 +612,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to %s "
-							"instruction\n", instrName);
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
@@ -638,12 +621,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					(im->vals[1] == BA_IM_ADRSUB))
 				{
 					if (im->count < 5) {
-						return ba_ErrorIMArgs(instrName, 2);
+						return ba_ErrorIMArgCount(2, im);
 					}
 					
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
 						printf("Error: first argument for ADRADD/ADRSUB must be a "
-							"general purpose register\n");
+							"general purpose register in instruction %s\n",
+							ba_IMToStr(im));
 						exit(-1);
 					}
 					
@@ -659,7 +643,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
 							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset\n");
+								"than 32 bit offset in instruction %s\n", 
+								ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -687,16 +672,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to %s "
-							"instruction\n", instrName);
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
 				else {
-					printf("Error: invalid set of arguments to %s "
-						"instruction\n", instrName);
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -704,28 +685,24 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_INC: case BA_IM_NOT: case BA_IM_NEG:
 			{
-				char* instrName = 0;
 				u8 byte1;
 				u8 byte2Offset;
 
 				if (im->vals[0] == BA_IM_INC) {
-					instrName = "INC";
 					byte1 = 0xff;
 					byte2Offset = 0;
 				}
 				else if (im->vals[0] == BA_IM_NOT) {
-					instrName = "NOT";
 					byte1 = 0xf7;
 					byte2Offset = 0x10;
 				}
 				else if (im->vals[0] == BA_IM_NEG) {
-					instrName = "NEG";
 					byte1 = 0xf7;
 					byte2Offset = 0x18;
 				}
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgs(instrName, 1);
+					return ba_ErrorIMArgCount(1, im);
 				}
 
 				// GPR
@@ -743,9 +720,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				else {
-					printf("Error: invalid set of arguments to %s "
-						"instruction\n", instrName);
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -754,7 +729,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_TEST:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgs("TEST", 2);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// First arg GPR
@@ -777,9 +752,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to TEST "
-							"instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 				// First arg GPRb
@@ -803,16 +776,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					else {
-						printf("Error: invalid set of arguments to TEST "
-							"instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
 				else {
-					printf("Error: invalid set of arguments to TEST "
-						"instruction\n");
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -829,7 +798,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				(im->vals[0] == BA_IM_SAR) && (instrName = "SAR");
 
 				if (im->count < 3) {
-					return ba_ErrorIMArgs(instrName, 2);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// First arg GPR
@@ -856,17 +825,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgs(instrName, 2);
+							return ba_ErrorIMArgCount(2, im);
 						}
 
 						u64 imm = im->vals[3];
 						if (imm >= 0x40) {
 							printf("Error: Cannot SHL a register by more "
-								"than 6 bits\n");
+								"than 6 bits in instruction %s\n", 
+								ba_IMToStr(im));
 							exit(-1);
 						}
 
-						u64 instrSize = 3 + (imm > 1);
+						u64 instrSize = 3 + (imm != 1);
 						code->cnt += instrSize;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
@@ -875,20 +845,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							(imm == 1) * 0x10;
 						code->arr[code->cnt-instrSize+2] = byte2;
 
-						(imm > 1) && (code->arr[code->cnt-1] = imm & 0xff);
+						(imm != 1) && (code->arr[code->cnt-1] = imm & 0xff);
 					}
 
 					else {
-						printf("Error: invalid set of arguments to %s "
-							"instruction\n", instrName);
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 
 				else {
-					printf("Error: invalid set of arguments to %s instruction\n",
-						instrName);
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -897,7 +863,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_MUL:
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgs("MUL", 1);
+					return ba_ErrorIMArgCount(1, im);
 				}
 
 				// First arg GPR
@@ -914,8 +880,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 
 				else {
-					printf("Error: invalid set of arguments to MUL instruction\n");
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -932,7 +897,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_LABELJNZ:
 			{
-				char* instrName = 0;
 				enum {
 					_INSTRTYPE_CALL,
 					_INSTRTYPE_JMP,
@@ -943,18 +907,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				u8 opCodeNear = 0; // Not needed for Jcc, it's just short+0x10
 
 				if (im->vals[0] == BA_IM_LABELCALL) {
-					instrName = "LABELCALL";
 					instrType = _INSTRTYPE_CALL;
 					opCodeNear = 0xe8;
 				}
 				else if (im->vals[0] == BA_IM_LABELJMP) {
-					instrName = "LABELJMP";
 					instrType = _INSTRTYPE_JMP;
 					opCodeShort = 0xeb;
 					opCodeNear = 0xe9;
 				}
 				else if (im->vals[0] == BA_IM_LABELJNZ) {
-					instrName = "LABELJNZ";
 					opCodeShort = 0x75;
 				}
 
@@ -962,15 +923,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					(opCodeNear = opCodeShort + 0x10);
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgs(instrName, 1);
+					return ba_ErrorIMArgCount(1, im);
 				}
 
 				u64 labelID = im->vals[1];
 				struct ba_IMLabel* lbl = &labels[labelID];
 
 				if (labelID >= ctr->labelCnt) {
-					printf("Error: cannot find intermediate label %lld\n", 
-						labelID);
+					printf("Error: cannot find intermediate label %lld "
+						"in instruction %s\n", labelID, ba_IMToStr(im));
 					exit(-1);
 				}
 
@@ -1067,7 +1028,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				u8 isInstrPop = im->vals[0] == BA_IM_POP;
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgs(isInstrPop ? "POP" : "PUSH", 1);
+					return ba_ErrorIMArgCount(1, im);
 				}
 
 				// GPR
@@ -1083,7 +1044,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				// DATASGMT
 				else if (im->vals[1] == BA_IM_DATASGMT) {
 					if (im->count < 3) {
-						return ba_ErrorIMArgs("PUSH", 1);
+						return ba_ErrorIMArgCount(1, im);
 					}
 
 					// Addr. rel. to start of data segment
@@ -1120,7 +1081,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				// IMM
 				else if ((!isInstrPop) && (im->vals[1] == BA_IM_IMM)) {
 					if (im->count < 3) {
-						return ba_ErrorIMArgs("PUSH", 1);
+						return ba_ErrorIMArgCount(1, im);
 					}
 
 					u64 imm = im->vals[2];
@@ -1140,9 +1101,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					code->arr[code->cnt-1] = imm & 0xff;
 				}
 				else {
-					printf("Error: invalid set of arguments to %s "
-						"instruction\n", isInstrPop ? "POP" : "PUSH");
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -1151,7 +1110,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_MOVZX:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgs("MOVZX", 2);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// Into GPR
@@ -1173,15 +1132,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 					
 					else {
-						printf("Error: invalid set of arguments to "
-							"MOVZX instruction\n");
-						exit(-1);
+						return ba_ErrorIMArgInvalid(im);
 					}
 				}
 				
 				else {
-					printf("Error: invalid set of arguments to MOVZX instruction\n");
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;
@@ -1190,7 +1146,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_SETZ:
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgs("SETZ", 1);
+					return ba_ErrorIMArgCount(1, im);
 				}
 
 				// GPRb
@@ -1208,8 +1164,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					code->arr[code->cnt-1] = byte2;
 				}
 				else {
-					printf("Error: invalid set of arguments to SETZ instruction\n");
-					exit(-1);
+					return ba_ErrorIMArgInvalid(im);
 				}
 
 				break;

@@ -23,16 +23,16 @@ enum {
 	BA_IM_SUB          = 0x12,
 	BA_IM_INC          = 0x13,
 	BA_IM_NOT          = 0x14,
-	BA_IM_TEST         = 0x15,
-	BA_IM_AND          = 0x16,
-	BA_IM_XOR          = 0x17,
-	BA_IM_ROL          = 0x18,
-	BA_IM_ROR          = 0x19,
-	BA_IM_SHL          = 0x1a,
-	BA_IM_SHR          = 0x1b,
-	BA_IM_SAR          = 0x1c,
-	BA_IM_MUL          = 0x1d,
-	BA_IM_NEG          = 0x1e,
+	BA_IM_NEG          = 0x15,
+	BA_IM_TEST         = 0x16,
+	BA_IM_AND          = 0x17,
+	BA_IM_XOR          = 0x18,
+	BA_IM_ROL          = 0x19,
+	BA_IM_ROR          = 0x1a,
+	BA_IM_SHL          = 0x1b,
+	BA_IM_SHR          = 0x1c,
+	BA_IM_SAR          = 0x1d,
+	BA_IM_MUL          = 0x1e,
 	
 	BA_IM_SYSCALL      = 0x40,
 	BA_IM_LABELCALL    = 0x41,
@@ -200,11 +200,20 @@ char* ba_IMToStr(struct ba_IM* im) {
 				strcat(str, "LABELJNZ ");
 				isImm = 1;
 				break;
+			case BA_IM_MOVZX:
+				strcat(str, "MOVZX ");
+				break;
+			case BA_IM_SETZ:
+				strcat(str, "SETZ ");
+				break;
 			case BA_IM_INC:
 				strcat(str, "INC ");
 				break;
 			case BA_IM_NOT:
 				strcat(str, "NOT ");
+				break;
+			case BA_IM_NEG:
+				strcat(str, "NEG ");
 				break;
 			case BA_IM_TEST:
 				strcat(str, "TEST ");
@@ -277,6 +286,54 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_R15:
 				strcat(str, "R15 ");
+				break;
+			case BA_IM_AL:
+				strcat(str, "AL ");
+				break;
+			case BA_IM_BL:
+				strcat(str, "BL ");
+				break;
+			case BA_IM_CL:
+				strcat(str, "CL ");
+				break;
+			case BA_IM_DL:
+				strcat(str, "DL ");
+				break;
+			case BA_IM_SIL:
+				strcat(str, "SIL ");
+				break;
+			case BA_IM_DIL:
+				strcat(str, "DIL ");
+				break;
+			case BA_IM_SPL:
+				strcat(str, "SPL ");
+				break;
+			case BA_IM_BPL:
+				strcat(str, "BPL ");
+				break;
+			case BA_IM_R8B:
+				strcat(str, "R8B ");
+				break;
+			case BA_IM_R9B:
+				strcat(str, "R9B ");
+				break;
+			case BA_IM_R10B:
+				strcat(str, "R10B ");
+				break;
+			case BA_IM_R11B:
+				strcat(str, "R11B ");
+				break;
+			case BA_IM_R12B:
+				strcat(str, "R12B ");
+				break;
+			case BA_IM_R13B:
+				strcat(str, "R13B ");
+				break;
+			case BA_IM_R14B:
+				strcat(str, "R14B ");
+				break;
+			case BA_IM_R15B:
+				strcat(str, "R15B ");
 				break;
 			default:
 				sprintf(str+strlen(str), "%llu ", val);
