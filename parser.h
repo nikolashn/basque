@@ -111,7 +111,9 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		else {
 			num = ba_StrToU64(lexVal, lexLine, lexColStart);
-			(num < (1llu << 63)) && (type = BA_TYPE_I64);
+			if (num < (1llu << 63)) {
+				type = BA_TYPE_I64;
+			}
 		}
 		ba_PTkStkPush(ctr, (void*)num, type, BA_TK_LITINT);
 	}
@@ -207,8 +209,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						"operand on", op->line, op->col);
 				}
 
-				ba_IsTypeUnsigned(arg->type) && (arg->type = BA_TYPE_U64);
-				ba_IsTypeSigned(arg->type) && (arg->type = BA_TYPE_I64);
+				if (ba_IsTypeUnsigned(arg->type)) {
+					arg->type = BA_TYPE_U64;
+				}
+				else if (ba_IsTypeSigned(arg->type)) {
+					arg->type = BA_TYPE_I64;
+				}
 
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
@@ -341,36 +347,17 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			if (op->lexemeType == BA_TK_LSHIFT || 
 				op->lexemeType == BA_TK_RSHIFT) 
 			{
-				if (ba_IsTypeSigned(rhs->type)) {
-					if ((i64)(rhs->val) < 0) {
-						return ba_ExitMsg(BA_EXIT_ERR, "negative rhs operand of "
-							"bit shift on", op->line, op->col);
-					}
-				}
-				else if (!ba_IsTypeUnsigned(rhs->type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "bit shift used with non integral "
-						"rhs operand on", op->line, op->col);
-				}
-				
-				if (ba_IsTypeUnsigned(lhs->type)) {
-					arg->type = BA_TYPE_U64;
-				}
-				else if (ba_IsTypeSigned(lhs->type)) {
-					arg->type = BA_TYPE_I64;
-				}
-				else {
+				if (!ba_IsTypeIntegral(lhs->type) || !ba_IsTypeIntegral(rhs->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "bit shift used with "
-						"non integral lhs operand on", op->line, op->col);
-				}
-				
-				u64 imOp = BA_IM_SHL;
-				if (op->lexemeType == BA_TK_RSHIFT) {
-					imOp = BA_IM_SHR;
+						"non integral operand(s) on", op->line, op->col);
 				}
 
-				u8 isLhsOriginallyRcx = 0;
-				u64 lhsStackPos = 0;
-				u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+				if (ba_IsTypeSigned(rhs->type) && ((i64)(rhs->val) < 0)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "negative rhs operand of "
+						"bit shift on", op->line, op->col);
+				}
+
+				arg->type = ba_IsTypeUnsigned(lhs->type) ? BA_TYPE_U64 : BA_TYPE_I64;
 				
 				u8 isLhsLiteral = 
 					lhs->lexemeType != BA_TK_IDENTIFIER &&
@@ -381,6 +368,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					rhs->lexemeType != BA_TK_IMREGISTER && 
 					rhs->lexemeType != BA_TK_IMRBPSUB;
 
+				// If rhs is 0, there is no change in in lhs
 				if (isRhsLiteral && !rhs->val) {
 					ba_StkPush(lhs, ctr->pTkStk);
 					return 1;
@@ -388,22 +376,25 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				if (isLhsLiteral && isRhsLiteral) {
 					// If both are literals
-					if (op->lexemeType == BA_TK_LSHIFT) {
-						arg->val = (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f));
-					}
-					else {
-						arg->val = (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x7f));
-					}
+					arg->val = (op->lexemeType == BA_TK_LSHIFT)
+						? (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f))
+						: (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x7f));
 				}
 				else {
-					if (lhs->lexemeType != BA_TK_IMREGISTER) {
-						regL = ba_NextIMRegister(ctr); // Return 0 means on stack
-					}
+					u64 imOp = (op->lexemeType == BA_TK_LSHIFT) 
+						? BA_IM_SHL : BA_IM_SAR;
+
+					u8 isLhsOriginallyRcx = 0;
+					u64 lhsStackPos = 0;
+					u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+				
+					// Return 0 means on the stack
+					(lhs->lexemeType != BA_TK_IMREGISTER) &&
+						(regL = ba_NextIMRegister(ctr));
 
 					if (regL == BA_IM_RCX) {
-						if (lhs->lexemeType == BA_TK_IMREGISTER) {
-							isLhsOriginallyRcx = 1;
-						}
+						(lhs->lexemeType == BA_TK_IMREGISTER) &&
+							(isLhsOriginallyRcx = 1);
 						regL = ba_NextIMRegister(ctr);
 						ctr->usedRegisters &= ~BA_CTRREG_RCX;
 					}
@@ -434,7 +425,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 								regL ? regL : BA_IM_RAX, BA_IM_RCX);
 						}
 					}
-					else {
+					else { // Literal (immediate) lhs
 						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL, BA_IM_IMM,
 							(u64)lhs->val);
 					}
@@ -451,7 +442,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
 							regTmp = ba_NextIMRegister(ctr);
 							if (!regTmp) {
-								// Don't need to store rhs
+								// Don't need to store rhs, only preserve rax
 								ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 							}
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, 
@@ -467,7 +458,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RCX,
 								BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
 						}
-						else if (!rhsIsRcx) {
+						else if (!rhsIsRcx) { // Register that isn't rcx
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, 
 								(u64)rhs->val);
 							ctr->usedRegisters &= ~ba_IMToCtrRegister((u64)rhs->val);
