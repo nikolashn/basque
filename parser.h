@@ -370,7 +370,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				u8 isLhsOriginallyRcx = 0;
 				u64 lhsStackPos = 0;
-				u64 regL = (u64)lhs->val;
+				u64 regL = (u64)lhs->val; // Kept only if lhs is a register
 				
 				u8 isLhsLiteral = 
 					lhs->lexemeType != BA_TK_IDENTIFIER &&
@@ -380,6 +380,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					rhs->lexemeType != BA_TK_IDENTIFIER &&
 					rhs->lexemeType != BA_TK_IMREGISTER && 
 					rhs->lexemeType != BA_TK_IMRBPSUB;
+
+				if (isRhsLiteral && !rhs->val) {
+					ba_StkPush(lhs, ctr->pTkStk);
+					return 1;
+				}
 
 				if (isLhsLiteral && isRhsLiteral) {
 					// If both are literals
@@ -434,7 +439,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							(u64)lhs->val);
 					}
 
-					if (!isRhsLiteral) {
+					if (isRhsLiteral) {
+						ba_AddIM(&ctr->im, 4, imOp, regL ? regL : BA_IM_RAX, 
+							BA_IM_IMM, (u64)rhs->val & 0x7f);
+					}
+					else {
 						u64 regTmp = BA_IM_RCX;
 						u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
 							(u64)rhs->val == BA_IM_RCX;
@@ -481,10 +490,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
 							ctr->usedRegisters &= ~ba_IMToCtrRegister(regTmp);
 						}
-					}
-					else {
-						ba_AddIM(&ctr->im, 4, imOp, regL ? regL : BA_IM_RAX, 
-							BA_IM_IMM, (u64)rhs->val & 0x7f);
 					}
 
 					if (regL) {
