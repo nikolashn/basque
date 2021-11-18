@@ -504,52 +504,47 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			// Multiplication, division, modulo
 			
 			else if (op->lexemeType == '*') {
-				if (ba_IsTypeUnsigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						arg->type = BA_TYPE_U64;
-						arg->val = (void*)(((u64)lhs->val) * ((u64)rhs->val));
-					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted lhs to i64";
-						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "multiplying integers "
-							"of different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) * ((i64)rhs->val));
-					}
-					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "multiplication with "
-							"non numeric rhs operand on", op->line, op->col);
-					}
+				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "multiplication with "
+						"non numeric operand(s) on", op->line, op->col);
 				}
-				else if (ba_IsTypeSigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted rhs to i64";
-						}
+
+				if (ba_IsTypeIntegral(lhs->type) && ba_IsTypeIntegral(rhs->type)) {
+					arg->type = BA_TYPE_I64; // Default, most likely type
+					if (ba_IsTypeUnsigned(lhs->type) ^ ba_IsTypeUnsigned(rhs->type)) {
+						// Different signedness
+						char* msgAfter = ba_IsWarningsAsErrors ? ""
+							: ", implicitly converted lhs to i64";
 						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "multiplying integers of "
 							"different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) * ((i64)rhs->val));
 					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) * ((i64)rhs->val));
+					else if (ba_IsTypeUnsigned(lhs->type)) {
+						arg->type = BA_TYPE_U64;
+					}
+				}
+
+				u8 isLhsLiteral = 
+					lhs->lexemeType != BA_TK_IDENTIFIER &&
+					lhs->lexemeType != BA_TK_IMREGISTER && 
+					lhs->lexemeType != BA_TK_IMRBPSUB;
+				u8 isRhsLiteral = 
+					rhs->lexemeType != BA_TK_IDENTIFIER &&
+					rhs->lexemeType != BA_TK_IMREGISTER && 
+					rhs->lexemeType != BA_TK_IMRBPSUB;
+
+				if (isLhsLiteral && isRhsLiteral) {
+					if (ba_IsTypeUnsigned(rhs->type)) {
+						arg->val = (void*)(((u64)lhs->val) * ((u64)rhs->val));
 					}
 					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "multiplication with "
-							"non numeric rhs operand on", op->line, op->col);
+						arg->val = (void*)(((i64)lhs->val) * ((i64)rhs->val));
 					}
 				}
 				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "multiplication with "
-						"non numeric lhs operand on", op->line, op->col);
+					printf("non literal multiplication not implemented yet\n");
+					exit(-1);
 				}
+
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
