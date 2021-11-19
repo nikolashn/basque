@@ -439,6 +439,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						arg->val = nonLitArg->val;
 						arg->lexemeType = nonLitArg->lexemeType;
 					}
+					// TODO: x * 2 -> x + x
 					// If literal arg is a power of 2, generate a bit shift instead
 					else if (!((u64)litArg->val & ((u64)litArg->val - 1))) {
 						// NOTE: builtin may break outside of gcc

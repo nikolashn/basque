@@ -886,6 +886,44 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
+			case BA_IM_IMUL:
+			{
+				if (im->count < 2) {
+					return ba_ErrorIMArgCount(1, im);
+				}
+
+				// First arg GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+
+					// GPR, GPR
+					if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+						u8 reg1 = im->vals[2] - BA_IM_RAX;
+
+						u8 byte0 = 0x48 | ((reg0 >= 8) << 2) | (reg1 >= 8);
+						u8 byte2 = 0xc0 | ((reg0 & 7) << 3) | (reg1 & 7);
+						
+						code->cnt += 4;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						code->arr[code->cnt-4] = byte0;
+						code->arr[code->cnt-3] = 0x0f;
+						code->arr[code->cnt-2] = 0xaf;
+						code->arr[code->cnt-1] = byte2;
+					}
+
+					else {
+						return ba_ErrorIMArgInvalid(im);
+					}
+				}
+
+				else {
+					return ba_ErrorIMArgInvalid(im);
+				}
+
+				break;
+			}
+
 			case BA_IM_SYSCALL:
 			{
 				code->cnt += 2;
@@ -1504,7 +1542,16 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				return 3;
 			}
+			break;
 
+		case BA_IM_IMUL:
+			// First arg GPR
+			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+				// GPR, GPR
+				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
+					return 4;
+				}
+			}
 			break;
 
 		case BA_IM_SYSCALL:
