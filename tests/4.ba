@@ -18,4 +18,10 @@ write a * (1 << 40); "\n"; # 3298534883328
 write (1 << 40) * a; "\n"; # 3298534883328
 
 u64 c = 5;
-#write a * c;
+write a * c; "\n"; # 15
+write a * c * c; "\n"; # 75
+write a * 9; "\n"; # 27
+write 9 * a; "\n"; # 27
+write a * c * (a * c * (a * c * (a * c * (a * c * (a * c))))); "\n"; # 11390625
+write a * c * (a * c * (a * c * (a * c * (a * c * (a * c * (a * c * (a * c * (a * c * (a * c * 2))))))))); "\n"; # 1153300781250
+

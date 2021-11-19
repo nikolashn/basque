@@ -58,8 +58,8 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 		}
 	}
 	else { // Literal (immediate) lhs
-		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL, BA_IM_IMM,
-			(u64)lhs->val);
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
+			BA_IM_IMM, (u64)lhs->val);
 	}
 
 	if (isRhsLiteral) {
