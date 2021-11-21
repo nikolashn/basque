@@ -337,8 +337,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-instrSz+hasByte0] = 0x88;
 						code->arr[code->cnt-instrSz+hasByte0+1] = 
 							byte2 + ((reg0 & 7) == 5) * 0x40;
-						((reg0 & 7) == 4) && (code->arr[code->cnt-1] = 0x24);
-						((reg0 & 7) == 5) && (code->arr[code->cnt-1] = 0);
+						(((reg0 & 7) == 4) && (code->arr[code->cnt-1] = 0x24)) ||
+						(((reg0 & 7) == 5) && (code->arr[code->cnt-1] = 0));
 					}
 
 					else {
@@ -504,20 +504,20 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_ADD: case BA_IM_SUB: case BA_IM_AND: case BA_IM_XOR:
 			{
 				char* instrName = 0;
-				(im->vals[0] == BA_IM_ADD) && (instrName = "ADD");
-				(im->vals[0] == BA_IM_SUB) && (instrName = "SUB");
-				(im->vals[0] == BA_IM_AND) && (instrName = "AND");
-				(im->vals[0] == BA_IM_XOR) && (instrName = "XOR");
+				((im->vals[0] == BA_IM_ADD) && (instrName = "ADD")) ||
+				((im->vals[0] == BA_IM_SUB) && (instrName = "SUB")) ||
+				((im->vals[0] == BA_IM_AND) && (instrName = "AND")) ||
+				((im->vals[0] == BA_IM_XOR) && (instrName = "XOR"));
 
 				if (im->count < 3) {
 					return ba_ErrorIMArgCount(2, im);
 				}
 
 				u8 byte1Offset = 0;
-				(im->vals[0] == BA_IM_ADD) && (byte1Offset = 0);
-				(im->vals[0] == BA_IM_SUB) && (byte1Offset = 0x28);
-				(im->vals[0] == BA_IM_AND) && (byte1Offset = 0x20);
-				(im->vals[0] == BA_IM_XOR) && (byte1Offset = 0x30);
+				((im->vals[0] == BA_IM_ADD) && (byte1Offset = 0)) || 
+				((im->vals[0] == BA_IM_SUB) && (byte1Offset = 0x28)) || 
+				((im->vals[0] == BA_IM_AND) && (byte1Offset = 0x20)) || 
+				((im->vals[0] == BA_IM_XOR) && (byte1Offset = 0x30));
 
 				// First arg GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
@@ -791,11 +791,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			case BA_IM_SHL: case BA_IM_SHR: case BA_IM_SAR:
 			{
 				char* instrName = 0;
-				(im->vals[0] == BA_IM_ROL) && (instrName = "ROL");
-				(im->vals[0] == BA_IM_ROR) && (instrName = "ROR");
-				(im->vals[0] == BA_IM_SHL) && (instrName = "SHL");
-				(im->vals[0] == BA_IM_SHR) && (instrName = "SHR");
-				(im->vals[0] == BA_IM_SAR) && (instrName = "SAR");
+				((im->vals[0] == BA_IM_ROL) && (instrName = "ROL")) ||
+				((im->vals[0] == BA_IM_ROR) && (instrName = "ROR")) ||
+				((im->vals[0] == BA_IM_SHL) && (instrName = "SHL")) ||
+				((im->vals[0] == BA_IM_SHR) && (instrName = "SHR")) ||
+				((im->vals[0] == BA_IM_SAR) && (instrName = "SAR"));
 
 				if (im->count < 3) {
 					return ba_ErrorIMArgCount(2, im);
@@ -807,11 +807,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					u8 byte0 = 0x48 | (reg0 >= 8);
 					u8 byte2 = (reg0 & 7);
 
-					(im->vals[0] == BA_IM_ROL) && (byte2 |= 0xc0);
-					(im->vals[0] == BA_IM_ROR) && (byte2 |= 0xc8);
-					(im->vals[0] == BA_IM_SHL) && (byte2 |= 0xe0);
-					(im->vals[0] == BA_IM_SHR) && (byte2 |= 0xe8);
-					(im->vals[0] == BA_IM_SAR) && (byte2 |= 0xf8);
+					((im->vals[0] == BA_IM_ROL) && (byte2 |= 0xc0)) ||
+					((im->vals[0] == BA_IM_ROR) && (byte2 |= 0xc8)) ||
+					((im->vals[0] == BA_IM_SHL) && (byte2 |= 0xe0)) ||
+					((im->vals[0] == BA_IM_SHR) && (byte2 |= 0xe8)) ||
+					((im->vals[0] == BA_IM_SAR) && (byte2 |= 0xf8));
 
 					// GPR, CL
 					if (im->vals[2] == BA_IM_CL) {
@@ -860,7 +860,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_MUL:
+			case BA_IM_MUL: case BA_IM_DIV: case BA_IM_IDIV:
 			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgCount(1, im);
@@ -870,7 +870,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					u8 reg0 = im->vals[1] - BA_IM_RAX;
 					u8 byte0 = 0x48 | (reg0 >= 8);
-					u8 byte2 = 0xe0 | (reg0 & 7);
+					u8 byte2 = (reg0 & 7);
+
+					((im->vals[0] == BA_IM_MUL) && (byte2 |= 0xe0)) ||
+					((im->vals[0] == BA_IM_DIV) && (byte2 |= 0xf0)) ||
+					((im->vals[0] == BA_IM_IDIV) && (byte2 |= 0xf8));
 
 					code->cnt += 3;
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -1537,7 +1541,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 			break;
 
-		case BA_IM_MUL:
+		case BA_IM_MUL: case BA_IM_DIV: case BA_IM_IDIV:
 			// First arg GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				return 3;
