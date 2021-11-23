@@ -299,11 +299,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						"non integral operand(s) on", op->line, op->col);
 				}
 
-				if (ba_IsTypeSigned(rhs->type) && ((i64)(rhs->val) < 0)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "negative rhs operand of "
-						"bit shift on", op->line, op->col);
-				}
-
 				arg->type = ba_IsTypeUnsigned(lhs->type) ? BA_TYPE_U64 : BA_TYPE_I64;
 				
 				u8 isLhsLiteral = 

@@ -30,7 +30,7 @@ Does nothing generally, unless the expression is made up of string literals, in 
 
 `<type> <identifier>` [` = <expression>`] `;`
 
-Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Currently only puts these in a data segment and stores their position relative to the start of the segment.
+Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores.
 ```
 u64 col = 0xfcf4d0u;
 i64 _1234567;
@@ -43,6 +43,8 @@ Does nothing.
 
 ## Expressions
 An expression consists of atoms and operators (or just an atom on its own).
+
+### Operator precedence
 Operators are the following (each line is ordered from high to low precedence.
 - unary prefixes `+ - ! ~` and grouping `()`
 - bit shift operators `<< >>`
@@ -53,6 +55,9 @@ Operators are the following (each line is ordered from high to low precedence.
 - add `+`, subtract `-`
 - logical and `&&`
 - logical or `||`
+
+### Notes about specific operators
+Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << (1 << 64 - 1)` is the same as `a << 63`.
 
 ## Atoms
 An atom is one of the following:
