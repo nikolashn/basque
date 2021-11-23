@@ -136,7 +136,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 
 	if (isRhsLiteral) {
 		ba_AddIM(&ctr->im, 4, imOp, regL ? regL : BA_IM_RAX, 
-			BA_IM_IMM, (u64)rhs->val & 0x7f);
+			BA_IM_IMM, (u64)rhs->val & 0x3f);
 	}
 	else {
 		u64 regTmp = BA_IM_RCX;

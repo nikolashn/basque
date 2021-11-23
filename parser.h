@@ -319,8 +319,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				if (isLhsLiteral && isRhsLiteral) {
 					// If both are literals
 					arg->val = (op->lexemeType == BA_TK_LSHIFT)
-						? (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x7f))
-						: (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x7f));
+						? (void*)(((u64)lhs->val) << ((u64)rhs->val & 0x3f))
+						: (void*)(((u64)lhs->val) >> ((u64)rhs->val & 0x3f));
 				}
 				else {
 					// Handle non literal bit shifts
