@@ -11,6 +11,78 @@
  * exit messages.
  */
 
+// Handle unary operators with a non literal operand
+void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
+	struct ba_Controller* ctr)
+{
+	u64 imOp = 0;
+	((opLexType == '-') && (imOp = BA_IM_NEG)) ||
+	((opLexType == '~') && (imOp = BA_IM_NOT)) ||
+	((opLexType == '!') && (imOp = 1));
+
+	if (!imOp) {
+		printf("Error: Unary lexeme type %llx passed to ba_POpNonLitUnary "
+			"not recognized.\n", opLexType);
+		exit(-1);
+	}
+
+	u64 stackPos = 0;
+	u64 reg = (u64)arg->val; // Kept only if arg is a register
+
+	if (arg->lexemeType != BA_TK_IMREGISTER) {
+		reg = ba_NextIMRegister(ctr);
+	}
+
+	if (!reg && arg->lexemeType != BA_TK_IMREGISTER) {
+		if (!ctr->imStackCnt) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
+				BA_IM_RSP);
+		}
+		++ctr->imStackCnt;
+		ctr->imStackSize += 8;
+		stackPos = ctr->imStackSize;
+		// First: result location, second: preserve rax
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	}
+
+	u64 realReg = reg ? reg : BA_IM_RAX;
+
+	if (arg->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, 
+			BA_IM_DATASGMT, 
+			((struct ba_STVal*)arg->val)->address);
+	}
+	else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
+	}
+
+	if (opLexType == '!') {
+		ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
+		ba_AddIM(&ctr->im, 2, BA_IM_SETZ, 
+			realReg - BA_IM_RAX + BA_IM_AL);
+		ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realReg, 
+			realReg - BA_IM_RAX + BA_IM_AL);
+	}
+	else {
+		ba_AddIM(&ctr->im, 2, imOp, realReg);
+	}
+
+	if (reg) {
+		arg->lexemeType = BA_TK_IMREGISTER;
+		arg->val = (void*)reg;
+	}
+	else {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, 
+			BA_IM_RBP, stackPos, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->val = (void*)ctr->imStackSize;
+	}
+}
+
 // Handle bit shifts with at least one non literal operand
 void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
@@ -123,7 +195,6 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
 			lhsStackPos, BA_IM_RAX);
 		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
-
 		arg->lexemeType = BA_TK_IMRBPSUB;
 		arg->val = (void*)ctr->imStackSize;
 	}

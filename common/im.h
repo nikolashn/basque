@@ -48,6 +48,7 @@ enum {
 
 	BA_IM_MOVZX        = 0x60,
 	BA_IM_SETZ         = 0x61,
+	BA_IM_CQO          = 0x62,
 
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
@@ -208,6 +209,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SETZ:
 				strcat(str, "SETZ ");
+				break;
+			case BA_IM_CQO:
+				strcat(str, "CQO ");
 				break;
 			case BA_IM_INC:
 				strcat(str, "INC ");

@@ -1212,6 +1212,17 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
+			case BA_IM_CQO:
+			{
+				if (im->count < 1) {
+					return ba_ErrorIMArgCount(0, im);
+				}
+				code->cnt += 2;
+				(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+				code->arr[code->cnt-2] = 0x48;
+				code->arr[code->cnt-1] = 0x99;
+				break;
+			}
 			default:
 				printf("Error: unrecognized intermediate instruction: %#llx\n",
 					im->vals[0]);
@@ -1601,6 +1612,9 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				return 3 + (reg0 >= 4);
 			}
 		}
+
+		case BA_IM_CQO:
+			return 2;
 
 		default:
 			printf("Error: unrecognized intermediate instruction: %#llx\n",

@@ -235,8 +235,27 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				u64 imOp;
-				(op->lexemeType == '-') && (imOp = BA_IM_NEG);
-				(op->lexemeType == '~') && (imOp = BA_IM_NOT);
+				((op->lexemeType == '-') && (imOp = BA_IM_NEG)) ||
+				((op->lexemeType == '~') && (imOp = BA_IM_NOT));
+
+				if (ba_IsTypeIntegral(arg->type)) {
+					u8 isArgLiteral = 
+						arg->lexemeType != BA_TK_IDENTIFIER && 
+						arg->lexemeType != BA_TK_IMRBPSUB && 
+						arg->lexemeType != BA_TK_IMREGISTER;
+
+					if (isArgLiteral) {
+						((op->lexemeType == '-') && 
+							(arg->val = (void*)(-(u64)arg->val))) ||
+						((op->lexemeType == '~') &&
+							(arg->val = (void*)(~(u64)arg->val))) ||
+						((op->lexemeType == '!') &&
+							(arg->val = (void*)((u64)!arg->val)));
+					}
+					else {
+						ba_POpNonLitUnary(op->lexemeType, arg, ctr);
+					}
+				}
 
 				if (op->lexemeType == '!') {
 					arg->type = BA_TYPE_U8;
@@ -246,79 +265,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 				else if (ba_IsTypeSigned(arg->type)) {
 					arg->type = BA_TYPE_I64;
-				}
-
-				if (ba_IsTypeIntegral(arg->type)) {
-					u8 isArgLiteral = 
-						arg->lexemeType != BA_TK_IDENTIFIER && 
-						arg->lexemeType != BA_TK_IMRBPSUB && 
-						arg->lexemeType != BA_TK_IMREGISTER;
-
-					if (isArgLiteral) {
-						(op->lexemeType == '-') && 
-							(arg->val = (void*)(-(u64)arg->val));
-						(op->lexemeType == '~') &&
-							(arg->val = (void*)(~(u64)arg->val));
-						(op->lexemeType == '!') &&
-							(arg->val = (void*)((u64)!arg->val));
-					}
-					else {
-						u64 stackPos = 0;
-						u64 reg = (u64)arg->val; // Kept only if arg is a register
-
-						if (arg->lexemeType != BA_TK_IMREGISTER) {
-							reg = ba_NextIMRegister(ctr);
-						}
-
-						if (!reg && arg->lexemeType != BA_TK_IMREGISTER) {
-							if (!ctr->imStackCnt) {
-								ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
-									BA_IM_RSP);
-							}
-							++ctr->imStackCnt;
-							ctr->imStackSize += 8;
-							stackPos = ctr->imStackSize;
-							// First: result location, second: preserve rax
-							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
-							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
-						}
-
-						u64 realReg = reg ? reg : BA_IM_RAX;
-
-						if (arg->lexemeType == BA_TK_IDENTIFIER) {
-							ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, 
-								BA_IM_DATASGMT, 
-								((struct ba_STVal*)arg->val)->address);
-						}
-						else if (arg->lexemeType == BA_TK_IMRBPSUB) {
-							ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
-								BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
-						}
-
-						if (op->lexemeType == '!') {
-							ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
-							ba_AddIM(&ctr->im, 2, BA_IM_SETZ, 
-								realReg - BA_IM_RAX + BA_IM_AL);
-							ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realReg, 
-								realReg - BA_IM_RAX + BA_IM_AL);
-						}
-						else {
-							ba_AddIM(&ctr->im, 2, imOp, realReg);
-						}
-
-						if (reg) {
-							arg->lexemeType = BA_TK_IMREGISTER;
-							arg->val = (void*)reg;
-						}
-						else {
-							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, 
-								BA_IM_RBP, stackPos, BA_IM_RAX);
-							ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
-
-							arg->lexemeType = BA_TK_IMRBPSUB;
-							arg->val = (void*)ctr->imStackSize;
-						}
-					}
 				}
 
 				ba_StkPush(arg, ctr->pTkStk);
@@ -400,7 +346,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				if (ba_IsTypeIntegral(lhs->type) && ba_IsTypeIntegral(rhs->type)) {
-					arg->type = BA_TYPE_I64; // Default, most likely type
+					u64 argType = BA_TYPE_I64; // Default, most likely type
 					if (ba_IsTypeUnsigned(lhs->type) ^ ba_IsTypeUnsigned(rhs->type)) {
 						// Different signedness
 						char* msgAfter = ba_IsWarningsAsErrors ? ""
@@ -409,8 +355,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							"different signedness on", op->line, op->col, msgAfter);
 					}
 					else if (ba_IsTypeUnsigned(lhs->type)) {
-						arg->type = BA_TYPE_U64;
+						argType = BA_TYPE_U64;
 					}
+					arg->type = argType;
 				}
 
 				u8 isLhsLiteral = 
@@ -557,52 +504,216 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				return 1;
 			}
 			else if (op->lexemeType == BA_TK_DBSLASH) {
-				if (ba_IsTypeUnsigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						arg->type = BA_TYPE_U64;
-						arg->val = (void*)(((u64)lhs->val) / ((u64)rhs->val));
-					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted lhs to i64";
-						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "dividing integers "
-							"of different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) / ((i64)rhs->val));
-					}
-					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "integer division with "
-							"non numeric rhs operand on", op->line, op->col);
-					}
+				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "integer division with "
+						"non numeric operand(s) on", op->line, op->col);
 				}
-				else if (ba_IsTypeSigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted rhs to i64";
+
+				u64 argType = BA_TYPE_I64; // Default, most likely type
+				u64 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+					ba_IsTypeUnsigned(rhs->type);
+
+				if (areBothUnsigned) {
+					argType = BA_TYPE_U64;
+				}
+				else if (ba_IsTypeUnsigned(lhs->type) ^ 
+					ba_IsTypeUnsigned(rhs->type)) 
+				{
+					// Different signedness
+					char* msgAfter = ba_IsWarningsAsErrors ? ""
+						: ", implicitly converted lhs to i64";
+					ba_ExitMsg2(BA_EXIT_EXTRAWARN, "integer division of numbers of "
+						"different signedness on", op->line, op->col, msgAfter);
+				}
+
+				arg->type = argType;
+
+				u8 isLhsLiteral = 
+					lhs->lexemeType != BA_TK_IDENTIFIER &&
+					lhs->lexemeType != BA_TK_IMREGISTER && 
+					lhs->lexemeType != BA_TK_IMRBPSUB;
+				u8 isRhsLiteral = 
+					rhs->lexemeType != BA_TK_IDENTIFIER &&
+					rhs->lexemeType != BA_TK_IMREGISTER && 
+					rhs->lexemeType != BA_TK_IMRBPSUB;
+
+				if (isLhsLiteral && isRhsLiteral) {
+					arg->val = areBothUnsigned 
+						? (void*)(((u64)lhs->val) / ((u64)rhs->val))
+						: (void*)(((i64)lhs->val) / ((i64)rhs->val));
+				}
+				else if (isRhsLiteral) {
+					if (!rhs->val) {
+						return ba_ExitMsg(BA_EXIT_ERR, "division by zero on", 
+							op->line, op->col);
+					}
+
+					u8 isRhsNeg = ba_IsTypeSigned(rhs->type) && (i64)rhs->val < 0;
+
+					if (isRhsNeg) {
+						ba_POpNonLitUnary('-', lhs, ctr);
+						rhs->val = (void*)-(i64)rhs->val;
+					}
+
+					if ((u64)rhs->val == 1) {
+						arg->val = lhs->val;
+						arg->lexemeType = lhs->lexemeType;
+					}
+					/* TODO: complete this optimization:
+					 * if lhs is negative, then the following optimization is only 
+					 * correct if (lhs & ((1 << shift) - 1)) == 0
+					// If literal arg is a power of 2, generate a bit shift instead
+					else if (!((u64)rhs->val & ((u64)rhs->val - 1))) {
+						// NOTE: builtin may break outside of gcc
+						// TODO: Replace with use of inline assembly TZCNT
+						u64 shift = __builtin_ctzll((u64)rhs->val);
+
+						struct ba_PTkStkItem* newRhs = malloc(sizeof(*newRhs));
+						if (!newRhs) {
+							return ba_ErrorMallocNoMem();
 						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "dividing integers of "
-							"different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) / ((i64)rhs->val));
+						newRhs->val = (void*)shift;
+						newRhs->type = BA_TYPE_U64;
+						newRhs->lexemeType = BA_TK_LITINT;
+
+						ba_POpNonLitBitShift(BA_IM_SAR, arg, lhs, newRhs, 
+							/ * isRhsLiteral = * / 1, ctr);
 					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) / ((i64)rhs->val));
-					}
+					*/
 					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "integer division with "
-							"non numeric rhs operand on", op->line, op->col);
+						goto BA_LBL_POPHANDLE_INTDIV_NONLIT;
 					}
 				}
 				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "integer division with "
-						"non numeric lhs operand on", op->line, op->col);
+					BA_LBL_POPHANDLE_INTDIV_NONLIT:
+					
+					u64 lhsStackPos = 0;
+					u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+					u64 regR = (u64)rhs->val; // Kept only if rhs is a register
+
+					// Return 0 means on the stack
+					if (lhs->lexemeType != BA_TK_IMREGISTER) {
+						regL = ba_NextIMRegister(ctr);
+					}
+
+					if (!regL) {
+						if (!ctr->imStackCnt) {
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+						}
+						++ctr->imStackCnt;
+						ctr->imStackSize += 8;
+						lhsStackPos = ctr->imStackSize;
+						
+						// Result location
+						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					}
+
+					u64 originalUsedRaxRdx = ctr->usedRegisters & 
+						(BA_CTRREG_RAX | BA_CTRREG_RDX);
+					ctr->usedRegisters |= BA_CTRREG_RAX | BA_CTRREG_RDX;
+
+					if (rhs->lexemeType != BA_TK_IMREGISTER || 
+						(u64)rhs->val == BA_IM_RAX || (u64)rhs->val == BA_IM_RDX)
+					{
+						regR = ba_NextIMRegister(ctr);
+					}
+
+					ctr->usedRegisters &= 
+						(ctr->usedRegisters & ~BA_CTRREG_RAX & ~BA_CTRREG_RDX) | 
+						originalUsedRaxRdx;
+
+					if ((ctr->usedRegisters & BA_CTRREG_RAX) && (regL != BA_IM_RAX)) {
+						if (rhs->lexemeType == BA_TK_IMREGISTER && 
+							(u64)rhs->val == BA_IM_RAX) 
+						{
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, regR, BA_IM_RAX);
+						}
+						else {
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+						}
+					}
+
+					if ((ctr->usedRegisters & BA_CTRREG_RDX) && (regL != BA_IM_RDX)) {
+						if (rhs->lexemeType == BA_TK_IMREGISTER && 
+							(u64)rhs->val == BA_IM_RAX) 
+						{
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, regR, BA_IM_RDX);
+						}
+						else {
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RDX);
+						}
+					}
+
+					if (regR) {
+						ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+					}
+					else {
+						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
+					}
+
+					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX,
+							BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+					}
+					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX,
+							BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
+					}
+					else if (isLhsLiteral) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX,
+							BA_IM_IMM, (u64)lhs->val);
+					}
+
+					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
+							BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+					}
+					else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX,
+							BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+					}
+					else if (isRhsLiteral) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
+							BA_IM_IMM, (u64)rhs->val);
+					}
+
+					ba_AddIM(&ctr->im, 1, BA_IM_CQO);
+
+					u64 imOp = areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV;
+					ba_AddIM(&ctr->im, 2, imOp, regR ? regR : BA_IM_RCX);
+
+					if (regL) {
+						if (regL != BA_IM_RAX) {
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, regL, BA_IM_RAX);
+						}
+						arg->lexemeType = BA_TK_IMREGISTER;
+						arg->val = (void*)regL;
+					}
+					else {
+						ba_AddIM(&ctr->im, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+							lhsStackPos, BA_IM_RAX);
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+						arg->lexemeType = BA_TK_IMRBPSUB;
+						arg->val = (void*)ctr->imStackSize;
+					}
+
+					if ((ctr->usedRegisters & BA_CTRREG_RDX) && (regL != BA_IM_RDX)) {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RDX);
+					}
+
+					if (lhs->lexemeType == BA_TK_IMREGISTER) {
+						ctr->usedRegisters &= ~BA_CTRREG_RDX;
+					}
+
+					if (!regR) {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RCX);
+					}
+
+					if ((ctr->usedRegisters & BA_CTRREG_RAX) && (regL != BA_IM_RAX)) {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+					}
 				}
+
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
