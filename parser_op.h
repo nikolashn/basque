@@ -83,6 +83,99 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 	}
 }
 
+// Handle binary operators with a non literal operand
+void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
+	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
+	u8 isLhsLiteral, u8 isRhsLiteral, struct ba_Controller* ctr)
+{
+	u64 lhsStackPos = 0;
+	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+	u64 regR = (u64)rhs->val; // Kept only if rhs is a register
+
+	// Return 0 means on the stack
+	(lhs->lexemeType != BA_TK_IMREGISTER) &&
+		(regL = ba_NextIMRegister(ctr));
+	(rhs->lexemeType != BA_TK_IMREGISTER) &&
+		(regR = ba_NextIMRegister(ctr));
+
+	if (!regL) {
+		if (!ctr->imStackCnt) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+		}
+		++ctr->imStackCnt;
+		ctr->imStackSize += 8;
+		lhsStackPos = ctr->imStackSize;
+	}
+	
+	/* regR is replaced with rdx normally, but if regL is 
+	 * already rdx, regR will be set to rcx. */
+	u64 rhsReplacement = regL == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX;
+
+	if (!regL) {
+		// First: result location, second: preserve rax
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	}
+
+	if (!regR) {
+		// Only once to preserve rdx/rcx
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, rhsReplacement);
+	}
+
+	if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+	}
+	else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
+	}
+	else if (isLhsLiteral) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_IMM, (u64)lhs->val);
+	}
+
+	if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, 
+			regR ? regR : rhsReplacement,
+			BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+	}
+	else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, 
+			regR ? regR : rhsReplacement,
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+	}
+	else if (isRhsLiteral) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, 
+			regR ? regR : rhsReplacement,
+			BA_IM_IMM, (u64)rhs->val);
+	}
+
+	ba_AddIM(&ctr->im, 3, imOp, regL ? regL : BA_IM_RAX, 
+		regR ? regR : rhsReplacement);
+
+	if (regR) {
+		ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+	}
+	else {
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, rhsReplacement);
+	}
+
+	if (regL) {
+		arg->lexemeType = BA_TK_IMREGISTER;
+		arg->val = (void*)regL;
+	}
+	else {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+			lhsStackPos, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->val = (void*)ctr->imStackSize;
+	}
+}
+
 // Handle bit shifts with at least one non literal operand
 void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
