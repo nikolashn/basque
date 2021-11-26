@@ -27,15 +27,16 @@ enum {
 	BA_IM_TEST         = 0x16,
 	BA_IM_AND          = 0x17,
 	BA_IM_XOR          = 0x18,
-	BA_IM_ROL          = 0x19,
-	BA_IM_ROR          = 0x1a,
-	BA_IM_SHL          = 0x1b,
-	BA_IM_SHR          = 0x1c,
-	BA_IM_SAR          = 0x1d,
-	BA_IM_MUL          = 0x1e,
-	BA_IM_IMUL         = 0x1f,
-	BA_IM_DIV          = 0x20,
-	BA_IM_IDIV         = 0x21,
+	BA_IM_OR           = 0x19,
+	BA_IM_ROL          = 0x1a,
+	BA_IM_ROR          = 0x1b,
+	BA_IM_SHL          = 0x1c,
+	BA_IM_SHR          = 0x1d,
+	BA_IM_SAR          = 0x1e,
+	BA_IM_MUL          = 0x1f,
+	BA_IM_IMUL         = 0x20,
+	BA_IM_DIV          = 0x21,
+	BA_IM_IDIV         = 0x22,
 	
 	BA_IM_SYSCALL      = 0x40,
 	BA_IM_LABELCALL    = 0x41,
@@ -238,6 +239,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_XOR:
 				strcat(str, "XOR ");
+				break;
+			case BA_IM_OR:
+				strcat(str, "OR ");
 				break;
 			case BA_IM_ROL:
 				strcat(str, "ROL ");

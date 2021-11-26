@@ -289,6 +289,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			}
 			struct ba_PTkStkItem* rhs = arg;
 			
+			u8 isLhsLiteral = 
+				lhs->lexemeType != BA_TK_IDENTIFIER &&
+				lhs->lexemeType != BA_TK_IMREGISTER && 
+				lhs->lexemeType != BA_TK_IMRBPSUB;
+			u8 isRhsLiteral = 
+				rhs->lexemeType != BA_TK_IDENTIFIER &&
+				rhs->lexemeType != BA_TK_IMREGISTER && 
+				rhs->lexemeType != BA_TK_IMRBPSUB;
+
 			// Bit shifts
 
 			if (op->lexemeType == BA_TK_LSHIFT || 
@@ -301,15 +310,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				arg->type = ba_IsTypeUnsigned(lhs->type) ? BA_TYPE_U64 : BA_TYPE_I64;
 				
-				u8 isLhsLiteral = 
-					lhs->lexemeType != BA_TK_IDENTIFIER &&
-					lhs->lexemeType != BA_TK_IMREGISTER && 
-					lhs->lexemeType != BA_TK_IMRBPSUB;
-				u8 isRhsLiteral = 
-					rhs->lexemeType != BA_TK_IDENTIFIER &&
-					rhs->lexemeType != BA_TK_IMREGISTER && 
-					rhs->lexemeType != BA_TK_IMRBPSUB;
-
 				// If rhs is 0, there is no change in in lhs
 				if (isRhsLiteral && !rhs->val) {
 					ba_StkPush(lhs, ctr->pTkStk);
@@ -354,15 +354,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 					arg->type = argType;
 				}
-
-				u8 isLhsLiteral = 
-					lhs->lexemeType != BA_TK_IDENTIFIER &&
-					lhs->lexemeType != BA_TK_IMREGISTER && 
-					lhs->lexemeType != BA_TK_IMRBPSUB;
-				u8 isRhsLiteral = 
-					rhs->lexemeType != BA_TK_IDENTIFIER &&
-					rhs->lexemeType != BA_TK_IMREGISTER && 
-					rhs->lexemeType != BA_TK_IMRBPSUB;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					arg->val = ba_IsTypeUnsigned(rhs->type)
@@ -436,15 +427,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				arg->type = argType;
-
-				u8 isLhsLiteral = 
-					lhs->lexemeType != BA_TK_IDENTIFIER &&
-					lhs->lexemeType != BA_TK_IMREGISTER && 
-					lhs->lexemeType != BA_TK_IMRBPSUB;
-				u8 isRhsLiteral = 
-					rhs->lexemeType != BA_TK_IDENTIFIER &&
-					rhs->lexemeType != BA_TK_IMREGISTER && 
-					rhs->lexemeType != BA_TK_IMRBPSUB;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					arg->val = areBothUnsigned 
@@ -652,15 +634,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				arg->type = argType;
 
-				u8 isLhsLiteral = 
-					lhs->lexemeType != BA_TK_IDENTIFIER &&
-					lhs->lexemeType != BA_TK_IMREGISTER && 
-					lhs->lexemeType != BA_TK_IMRBPSUB;
-				u8 isRhsLiteral = 
-					rhs->lexemeType != BA_TK_IDENTIFIER &&
-					rhs->lexemeType != BA_TK_IMREGISTER && 
-					rhs->lexemeType != BA_TK_IMRBPSUB;
-
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 modVal = areBothUnsigned 
 						? (u64)lhs->val % (u64)rhs->val
@@ -865,30 +838,33 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			else if (op->lexemeType == '&' || op->lexemeType == '^' ||
 				op->lexemeType == '|')
 			{
-				if (!ba_IsTypeIntegral(rhs->type)) {
+				if (!ba_IsTypeIntegral(lhs->type) && !ba_IsTypeIntegral(rhs->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "bit shift used with non integral "
-						"rhs operand on", op->line, op->col);
-				}
-				
-				if (ba_IsTypeUnsigned(lhs->type)) {
-					arg->type = BA_TYPE_U64;
-				}
-				else if (ba_IsTypeSigned(lhs->type)) {
-					arg->type = BA_TYPE_I64;
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "bit shift used with "
-						"non integral lhs operand on", op->line, op->col);
+						"operand(s) on", op->line, op->col);
 				}
 
-				if (op->lexemeType == '&') {
-					arg->val = (void*)(((u64)lhs->val) & ((u64)rhs->val));
+				u64 argType = BA_TYPE_I64; // Default, most likely type
+				ba_IsTypeUnsigned(lhs->type) && ba_IsTypeUnsigned(rhs->type) &&
+					(argType = BA_TYPE_U64);
+				arg->type = argType;
+
+				if (isLhsLiteral && isRhsLiteral) {
+					u64 argVal = 0;
+					((op->lexemeType == '&') && 
+						(argVal = (u64)lhs->val & (u64)rhs->val)) ||
+					((op->lexemeType == '^') && 
+						(argVal = (u64)lhs->val ^ (u64)rhs->val)) ||
+					((op->lexemeType == '|') && 
+						(argVal = (u64)lhs->val | (u64)rhs->val));
+					arg->val = (void*)argVal;
 				}
-				else if (op->lexemeType == '^') {
-					arg->val = (void*)(((u64)lhs->val) ^ ((u64)rhs->val));
-				}
-				else if (op->lexemeType == '|') {
-					arg->val = (void*)(((u64)lhs->val) | ((u64)rhs->val));
+				else {
+					u64 imOp = 0;
+					((op->lexemeType == '&') && (imOp = BA_IM_AND)) ||
+					((op->lexemeType == '^') && (imOp = BA_IM_XOR)) ||
+					((op->lexemeType == '|') && (imOp = BA_IM_OR));
+					ba_POpNonLitBinary(imOp, arg, lhs, rhs, 
+						isLhsLiteral, isRhsLiteral, ctr);
 				}
 				
 				ba_StkPush(arg, ctr->pTkStk);
