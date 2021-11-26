@@ -1187,7 +1187,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_SETZ:
+			case BA_IM_SETS: case BA_IM_SETZ:
 			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgCount(1, im);
@@ -1199,12 +1199,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					u8 byte0 = 0x40 | (reg0 >= 8);
 					u8 byte2 = 0xc0 | (reg0 & 7);
 
+					u8 byte1 = 0;
+					((im->vals[0] == BA_IM_SETS) && (byte1 = 0x98)) ||
+					((im->vals[0] == BA_IM_SETZ) && (byte1 = 0x94));
+
 					code->cnt += 3 + (reg0 >= 4);
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
 					(reg0 >= 4) && (code->arr[code->cnt-4] = byte0);
 					code->arr[code->cnt-3] = 0x0f;
-					code->arr[code->cnt-2] = 0x94;
+					code->arr[code->cnt-2] = byte1;
 					code->arr[code->cnt-1] = byte2;
 				}
 				else {
@@ -1606,7 +1610,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		case BA_IM_MOVZX:
 			return 4;
 
-		case BA_IM_SETZ:
+		case BA_IM_SETS: case BA_IM_SETZ:
 		{
 			// GPRb
 			if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
