@@ -700,17 +700,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						ba_POpNonLitBitShift(BA_IM_AND, arg, lhs, newRhs, 
 							/* isRhsLiteral = */ 1, ctr);
 
-						// This makes it the correct remainder from floored division
-						if (!areBothUnsigned) {
-							// TODO: test lhs for sign and complete the test
-							if (0/* isRhsNeg ^ isLhsNeg */) {
-								newRhs->val = rhs->val;
-								newRhs->type = BA_TYPE_I64;
-								newRhs->lexemeType = BA_TK_LITINT;
-								ba_POpNonLitBinary(BA_IM_ADD, arg, arg, newRhs,
-									/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 1,
-									ctr);
-							}
+						if (isRhsNeg) {
+							newRhs->val = (void*)rhsAbs;
+							newRhs->type = BA_TYPE_I64;
+							newRhs->lexemeType = BA_TK_LITINT;
+							ba_POpNonLitBinary(BA_IM_SUB, arg, arg, newRhs,
+								/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 1,
+								ctr);
 						}
 					}
 					else {
@@ -814,7 +810,20 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 					u64 imOp = areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV;
 					ba_AddIM(&ctr->im, 2, imOp, regR ? regR : BA_IM_RCX);
-					// TODO: make correct for modulo by negative number
+
+					if (!areBothUnsigned) {
+						// Test result for sign: if negative, then they had opposite
+						// signs and so the rhs needs to be added
+						
+						// Sign stored in rax
+						ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+						ba_AddIM(&ctr->im, 2, BA_IM_SETS, BA_IM_AL);
+						ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
+
+						ba_AddIM(&ctr->im, 3, BA_IM_IMUL, BA_IM_RAX, 
+							regR ? regR : BA_IM_RCX);
+						ba_AddIM(&ctr->im, 3, BA_IM_ADD, BA_IM_RDX, BA_IM_RAX);
+					}
 
 					if (regL) {
 						if (regL != BA_IM_RDX) {
