@@ -1,0 +1,20 @@
+i64 a = 14221;
+i64 b = 59088;
+
+write a+80000; ",";
+write 80000+a; ",";
+write b+40000; ",";
+write 40000+b; "\n";
+
+write a+a; ",";
+write a+b; ",";
+write b+a; ",";
+write b+b; ",";
+write a-a; ",";
+write a-b; ",";
+write b-a; ",";
+write b-b; "\n";
+
+u64 c = (a-b) + (b-a);
+write c + (c + (c + c + 1 + (c + c + (c + c + (c + c + 1))))); "\n";
+

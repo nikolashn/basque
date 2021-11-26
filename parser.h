@@ -332,22 +332,45 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				return 1;
 			}
 			
-			// Multiplication, division, modulo
+			// Multiplication/addition/subtraction
 			
-			else if (op->lexemeType == '*') {
+			else if (op->lexemeType == '*' || op->lexemeType == '+' || 
+				op->lexemeType == '-') 
+			{
+				char* opName = 0;
+				u64 imOp = 0;
+
+				if (op->lexemeType == '*') {
+					opName = "multiplication";
+					imOp = BA_IM_IMUL;
+				}
+				else if (op->lexemeType == '+') {
+					opName = "addition";
+					imOp = BA_IM_ADD;
+				}
+				else if (op->lexemeType == '-') {
+					opName = "subtraction";
+					imOp = BA_IM_SUB;
+				}
+
 				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "multiplication with "
-						"non numeric operand(s) on", op->line, op->col);
+					char msg[128];
+					strcat(msg, opName);
+					strcat(msg, " with non numeric operand(s) on");
+					return ba_ExitMsg(BA_EXIT_ERR, msg, op->line, op->col);
 				}
 
 				if (ba_IsTypeIntegral(lhs->type) && ba_IsTypeIntegral(rhs->type)) {
 					u64 argType = BA_TYPE_I64; // Default, most likely type
 					if (ba_IsTypeUnsigned(lhs->type) ^ ba_IsTypeUnsigned(rhs->type)) {
 						// Different signedness
+						char msg[128];
+						strcat(msg, opName);
+						strcat(msg, " of integers of different signedness on");
 						char* msgAfter = ba_IsWarningsAsErrors ? ""
 							: ", implicitly converted lhs to i64";
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "multiplying integers of "
-							"different signedness on", op->line, op->col, msgAfter);
+						ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, 
+							op->line, op->col, msgAfter);
 					}
 					else if (ba_IsTypeUnsigned(lhs->type)) {
 						argType = BA_TYPE_U64;
@@ -356,11 +379,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				if (isLhsLiteral && isRhsLiteral) {
-					arg->val = ba_IsTypeUnsigned(rhs->type)
-						? (void*)(((u64)lhs->val) * ((u64)rhs->val))
-						: (void*)(((i64)lhs->val) * ((i64)rhs->val));
+					u64 argVal = 0;
+					((op->lexemeType == '*') && 
+						(argVal = (u64)lhs->val * (u64)rhs->val)) ||
+					((op->lexemeType == '+') && 
+						(argVal = (u64)lhs->val + (u64)rhs->val)) ||
+					((op->lexemeType == '-') && 
+						(argVal = (u64)lhs->val - (u64)rhs->val));
 				}
-				else if (isLhsLiteral || isRhsLiteral) {
+				// Multiplication optimizations
+				else if ((op->lexemeType == '*') && (isLhsLiteral || isRhsLiteral)) {
 					// Since multiplication is commutative
 					struct ba_PTkStkItem* litArg = isLhsLiteral ? lhs : rhs;
 					struct ba_PTkStkItem* nonLitArg = isLhsLiteral ? rhs : lhs;
@@ -372,7 +400,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						arg->val = nonLitArg->val;
 						arg->lexemeType = nonLitArg->lexemeType;
 					}
-					// TODO: x * 2 -> x + x
+					else if ((u64)litArg->val == 2) {
+						ba_POpNonLitBinary(BA_IM_ADD, arg, nonLitArg, nonLitArg, 
+							0, 0, ctr);
+					}
 					// If literal arg is a power of 2, generate a bit shift instead
 					else if (!((u64)litArg->val & ((u64)litArg->val - 1))) {
 						// NOTE: builtin may break outside of gcc
@@ -391,18 +422,21 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							/* isRhsLiteral = */ 1, ctr);
 					}
 					else {
-						goto BA_LBL_POPHANDLE_MUL_NONLIT;
+						goto BA_LBL_POPHANDLE_MULADDSUB_NONLIT;
 					}
 				}
 				else {
-					BA_LBL_POPHANDLE_MUL_NONLIT:
-					ba_POpNonLitBinary(BA_IM_IMUL, arg, lhs, rhs, 
+					BA_LBL_POPHANDLE_MULADDSUB_NONLIT:
+					ba_POpNonLitBinary(imOp, arg, lhs, rhs, 
 						isLhsLiteral, isRhsLiteral, ctr);
 				}
 
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
+
+			// Division
+
 			else if (op->lexemeType == BA_TK_DBSLASH) {
 				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "integer division with "
@@ -607,6 +641,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
+
+			// Modulo
+
 			else if (op->lexemeType == '%') {
 				/* Modulo in Basque is from floored divison (like in Python) */
 
@@ -867,109 +904,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						isLhsLiteral, isRhsLiteral, ctr);
 				}
 				
-				ba_StkPush(arg, ctr->pTkStk);
-				return 1;
-			}
-
-			// Addition, subtraction
-
-			else if (op->lexemeType == '+') {
-				if (ba_IsTypeUnsigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						arg->type = BA_TYPE_U64;
-						arg->val = (void*)(((u64)lhs->val) + ((u64)rhs->val));
-					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted lhs to i64";
-						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "adding integers "
-							"of different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) + ((i64)rhs->val));
-					}
-					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "addition with "
-							"non numeric rhs operand on", op->line, op->col);
-					}
-				}
-				else if (ba_IsTypeSigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted rhs to i64";
-						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "adding integers of "
-							"different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) + ((i64)rhs->val));
-					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) + ((i64)rhs->val));
-					}
-					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "addition with "
-							"non numeric rhs operand on", op->line, op->col);
-					}
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "addition with "
-						"non numeric lhs operand on", op->line, op->col);
-				}
-				ba_StkPush(arg, ctr->pTkStk);
-				return 1;
-			}
-			else if (op->lexemeType == '-') {
-				if (ba_IsTypeUnsigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						arg->type = BA_TYPE_U64;
-						arg->val = (void*)(((u64)lhs->val) - ((u64)rhs->val));
-					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted lhs to i64";
-						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "subtracting integers "
-							"of different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) - ((i64)rhs->val));
-					}
-					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "subtraction with "
-							"non numeric rhs operand on", op->line, op->col);
-					}
-				}
-				else if (ba_IsTypeSigned(lhs->type)) {
-					if (ba_IsTypeUnsigned(rhs->type)) {
-						char* msgAfter = "";
-						if (!ba_IsWarningsAsErrors) {
-							msgAfter = ", implicitly converted rhs to i64";
-						}
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, "subtracting integers of "
-							"different signedness on", op->line, op->col, msgAfter);
-						
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) - ((i64)rhs->val));
-					}
-					else if (ba_IsTypeSigned(rhs->type)) {
-						arg->type = BA_TYPE_I64;
-						arg->val = (void*)(((i64)lhs->val) - ((i64)rhs->val));
-					}
-					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "subtraction with "
-							"non numeric rhs operand on", op->line, op->col);
-					}
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "subtraction with "
-						"non numeric lhs operand on", op->line, op->col);
-				}
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
