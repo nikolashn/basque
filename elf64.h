@@ -530,10 +530,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte0 = 0x48 | ((reg1 >= 8) << 2) | (reg0 >= 8);
 						u8 byte2 = 0xc0 | ((reg1 & 7) << 3) | (reg0 & 7);
 						
-						code->cnt += 3;
+						u8 hasRexW = (im->vals[0] != BA_IM_XOR) | 
+							(reg0 != reg1) | (reg0 >= 8);
+						code->cnt += 2 + hasRexW;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						code->arr[code->cnt-3] = byte0;
+						hasRexW && (code->arr[code->cnt-3] = byte0);
 						code->arr[code->cnt-2] = 0x1 + byte1Offset;
 						code->arr[code->cnt-1] = byte2;
 					}
