@@ -85,11 +85,12 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 					ctr->lex->colStart, " too large to fit on the stack");
 			}
 
-			str = realloc(str, len);
+			str = realloc(str, len+1);
 			if (!str) {
 				return ba_ErrorMallocNoMem();
 			}
-			strcpy(str+oldLen, ctr->lex->val); // TODO: zero termination??
+			strcpy(str+oldLen, ctr->lex->val);
+			str[len] = 0;
 		}
 		while (ba_PAccept(BA_TK_LITSTR, ctr));
 		
