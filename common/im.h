@@ -46,6 +46,7 @@ enum {
 	
 	BA_IM_LABELJMP     = 0x50,
 	BA_IM_LABELJNZ     = 0x51,
+	BA_IM_LABELJZ      = 0x52,
 
 	BA_IM_MOVZX        = 0x60,
 	BA_IM_CQO          = 0x61,
@@ -205,6 +206,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_LABELJNZ:
 				strcat(str, "LABELJNZ ");
+				isImm = 1;
+				break;
+			case BA_IM_LABELJZ:
+				strcat(str, "LABELJZ ");
 				isImm = 1;
 				break;
 			case BA_IM_MOVZX:

@@ -943,6 +943,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			}
 
 			case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_LABELJNZ:
+			case BA_IM_LABELJZ:
 			{
 				enum {
 					_INSTRTYPE_CALL,
@@ -962,8 +963,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					opCodeShort = 0xeb;
 					opCodeNear = 0xe9;
 				}
-				else if (im->vals[0] == BA_IM_LABELJNZ) {
-					opCodeShort = 0x75;
+				else {
+					(im->vals[0] == BA_IM_LABELJNZ && (opCodeShort = 0x75)) ||
+					(im->vals[0] == BA_IM_LABELJZ && (opCodeShort = 0x74));
 				}
 
 				(instrType == _INSTRTYPE_JCC) && 
@@ -1609,7 +1611,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		// JMP/Jcc instructions are all calculated pessimally
 		case BA_IM_LABELCALL: case BA_IM_LABELJMP:
 			return 5;
-		case BA_IM_LABELJNZ:
+		case BA_IM_LABELJNZ: case BA_IM_LABELJZ:
 			return 6;
 		
 		case BA_IM_MOVZX:
