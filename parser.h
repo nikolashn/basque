@@ -403,7 +403,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 					else if ((u64)litArg->val == 2) {
 						ba_POpNonLitBinary(BA_IM_ADD, arg, nonLitArg, nonLitArg, 
-							0, 0, ctr);
+							/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 0, 
+							/* isShortCirc = */ 0, ctr);
 					}
 					// If literal arg is a power of 2, generate a bit shift instead
 					else if (!((u64)litArg->val & ((u64)litArg->val - 1))) {
@@ -428,8 +429,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 				else {
 					BA_LBL_POPHANDLE_MULADDSUB_NONLIT:
-					ba_POpNonLitBinary(imOp, arg, lhs, rhs, 
-						isLhsLiteral, isRhsLiteral, ctr);
+					ba_POpNonLitBinary(imOp, arg, lhs, rhs, isLhsLiteral, 
+						isRhsLiteral, /* isShortCirc = */ 0, ctr);
 				}
 
 				ba_StkPush(arg, ctr->pTkStk);
@@ -717,7 +718,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 							newRhs->lexemeType = BA_TK_LITINT;
 							ba_POpNonLitBinary(BA_IM_SUB, arg, arg, newRhs,
 								/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 1,
-								ctr);
+								/* isShortCirc = */ 0, ctr);
 						}
 					}
 					else {
@@ -901,41 +902,35 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					((op->lexemeType == '&') && (imOp = BA_IM_AND)) ||
 					((op->lexemeType == '^') && (imOp = BA_IM_XOR)) ||
 					((op->lexemeType == '|') && (imOp = BA_IM_OR));
-					ba_POpNonLitBinary(imOp, arg, lhs, rhs, 
-						isLhsLiteral, isRhsLiteral, ctr);
+					ba_POpNonLitBinary(imOp, arg, lhs, rhs, isLhsLiteral,
+						isRhsLiteral, /* isShortCirc = */ 0, ctr);
 				}
 				
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
 			
-			// Logical operators
-			// TODO: short circuiting
-			else if (op->lexemeType == BA_TK_DBAMPD) {
-				if (ba_IsTypeNumeric(lhs->type) && 
-					ba_IsTypeNumeric(rhs->type))
+			// Logical short-circuiting operators
+			else if (op->lexemeType == BA_TK_DBAMPD || 
+				op->lexemeType == BA_TK_DBBAR) 
+			{
+				if (!ba_IsTypeNumeric(lhs->type) ||
+					!ba_IsTypeNumeric(rhs->type))
 				{
-						arg->type = BA_TYPE_U8;
-						arg->val = (void*)(u64)(lhs->val && rhs->val);
+					return ba_ExitMsg(BA_EXIT_ERR, "logical short-circuiting "
+						"operation with non numeric operand(s) on", 
+						op->line, op->col);
 				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "logical AND with "
-						"non numeric operand(s) on", op->line, op->col);
-				}
-				ba_StkPush(arg, ctr->pTkStk);
-				return 1;
-			}
-			else if (op->lexemeType == BA_TK_DBBAR) {
-				if (ba_IsTypeNumeric(lhs->type) || 
-					ba_IsTypeNumeric(rhs->type))
-				{
-						arg->type = BA_TYPE_U8;
-						arg->val = (void*)(u64)(lhs->val && rhs->val);
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "logical OR with "
-						"non numeric operand(s) on", op->line, op->col);
-				}
+
+				u64 imOp = op->lexemeType == BA_TK_DBAMPD
+					? BA_IM_AND : BA_IM_OR;
+
+				// Although it is called "NonLit", it does work with literals 
+				// as well. The reason for the name is that it isn't generally 
+				// used for that.
+				ba_POpNonLitBinary(imOp, arg, lhs, rhs, isLhsLiteral, 
+					isRhsLiteral, /* isShortCirc = */ 1, ctr);
+				
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -966,7 +961,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		u64 lexType = ctr->lex->type;
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
-		
+
 		// Start of an expression or after an operator
 		if (!afterAtom) {
 			// Prefix operator
@@ -1017,10 +1012,53 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 
 			// Right grouping parenthesis
-			if (lexType == ')') {
-				--paren;
+			(lexType == ')') && --paren;
+
+			// Short circuiting: jmp ahead if right-hand side operand is unnecessary
+			if (lexType == BA_TK_DBAMPD || lexType == BA_TK_DBBAR) {
+				struct ba_PTkStkItem* lhs = ba_StkTop(ctr->pTkStk);
+				ba_StkPush((void*)ctr->labelCnt, ctr->shortCircLblStk);
+
+				u64 reg = (u64)lhs->val; // Kept only if lhs is a register
+				
+				if (lhs->lexemeType != BA_TK_IMREGISTER) {
+					reg = ba_NextIMRegister(ctr);
+				}
+
+				if (!reg) { // Preserve rax
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+				}
+				
+				u64 realReg = reg ? reg : BA_IM_RAX;
+				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, BA_IM_DATASGMT,
+						((struct ba_STVal*)lhs->val)->address);
+				}
+				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, BA_IM_ADRSUB,
+						BA_IM_RBP, (u64)lhs->val);
+				}
+				else if (lhs->lexemeType != BA_TK_IMREGISTER) {
+					// Literal
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, BA_IM_IMM, 
+						(u64)lhs->val);
+				}
+
+				ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
+				if (!reg) {
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+				}
+				ba_AddIM(&ctr->im, 2, 
+					lexType == BA_TK_DBAMPD ? BA_IM_LABELJZ : BA_IM_LABELJNZ,
+						ctr->labelCnt);
+
+				if (reg && lhs->lexemeType != BA_TK_IMREGISTER) {
+					ctr->usedRegisters &= ~ba_IMToCtrRegister(reg);
+				}
+
+				++ctr->labelCnt;
 			}
-			
+
 			if (ctr->pOpStk->count) {
 				do {
 					if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=

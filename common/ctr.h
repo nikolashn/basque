@@ -16,6 +16,10 @@ struct ba_Controller {
 	struct ba_SymTable* globalST;
 	struct ba_SymTable* currScope;
 
+	// Takes u64 (label IDs) as items.
+	// Stores labels used in short circuiting (&& and || operators)
+	struct ba_Stk* shortCircLblStk;
+
 	// Code generation
 	struct ba_IM* startIM;
 	struct ba_IM* im;
@@ -64,6 +68,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->lex = ctr->startLex;
 	ctr->pTkStk = ba_NewStk();
 	ctr->pOpStk = ba_NewStk();
+	ctr->shortCircLblStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
@@ -87,6 +92,10 @@ void ba_DelController(struct ba_Controller* ctr) {
 	ba_DelStk(ctr->pTkStk);
 	for (u64 i = 0; i < ctr->pOpStk->cap; i++) {
 		free(ctr->pOpStk->items[i]);
+	}
+	ba_DelStk(ctr->shortCircLblStk);
+	for (u64 i = 0; i < ctr->shortCircLblStk->cap; i++) {
+		free(ctr->shortCircLblStk->items[i]);
 	}
 	ba_DelStk(ctr->pOpStk);
 

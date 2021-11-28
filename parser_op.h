@@ -86,7 +86,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 // Handle binary operators with a non literal operand
 void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
-	u8 isLhsLiteral, u8 isRhsLiteral, struct ba_Controller* ctr)
+	u8 isLhsLiteral, u8 isRhsLiteral, u8 isShortCirc, struct ba_Controller* ctr)
 {
 	u64 lhsStackPos = 0;
 	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
@@ -153,6 +153,15 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 
 	ba_AddIM(&ctr->im, 3, imOp, regL ? regL : BA_IM_RAX, 
 		regR ? regR : rhsReplacement);
+
+	if (isShortCirc) {
+		u64 realRegL = regL ? regL : BA_IM_RAX;
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, ba_StkPop(ctr->shortCircLblStk));
+		ba_AddIM(&ctr->im, 3, BA_IM_TEST, realRegL, realRegL);
+		ba_AddIM(&ctr->im, 2, BA_IM_SETNZ, realRegL - BA_IM_RAX + BA_IM_AL);
+		ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realRegL,
+			realRegL - BA_IM_RAX + BA_IM_AL);
+	}
 
 	if (regR) {
 		ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
