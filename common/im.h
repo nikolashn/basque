@@ -53,6 +53,7 @@ enum {
 	BA_IM_SETS         = 0x62,
 	BA_IM_SETNS        = 0x63,
 	BA_IM_SETZ         = 0x64,
+	BA_IM_SETNZ        = 0x65,
 
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
@@ -226,6 +227,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SETZ:
 				strcat(str, "SETZ ");
+				break;
+			case BA_IM_SETNZ:
+				strcat(str, "SETNZ ");
 				break;
 			case BA_IM_INC:
 				strcat(str, "INC ");
