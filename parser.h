@@ -386,6 +386,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						(argVal = (u64)lhs->val + (u64)rhs->val)) ||
 					((op->lexemeType == '-') && 
 						(argVal = (u64)lhs->val - (u64)rhs->val));
+					arg->val = (void*)argVal;
 				}
 				// Multiplication optimizations
 				else if ((op->lexemeType == '*') && (isLhsLiteral || isRhsLiteral)) {
@@ -956,7 +957,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 // Any type of expression
 u8 ba_PExp(struct ba_Controller* ctr) {
 	// Parse as if following an operator or parse as if following an atom?
-	u8 afterAtom = 0;	
+	u8 afterAtom = 0;
 
 	// Counts grouping parentheses to make sure they are balanced
 	i64 paren = 0;
@@ -987,85 +988,63 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		}
 		// After an atom, postfix or grouped expression
 		else {
-			struct ba_POpStkItem* op = 
-				malloc(sizeof(struct ba_POpStkItem));
+			struct ba_POpStkItem* op = malloc(sizeof(*op));
 			if (!op) {
 				return ba_ErrorMallocNoMem();
 			}
+
 			op->line = line;
 			op->col = col;
 			op->lexemeType = lexType;
+			op->syntax = 0;
 
-			// Postfix operator
 			if (ba_PAccept(')', ctr)) {
-				// Right grouping parenthesis
-				if (lexType == ')') {
-					--paren;
-				}
-				
 				op->syntax = BA_OP_POSTFIX;
-
-				if (ctr->pOpStk->count) {
-					do {
-						if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=
-							ba_POpPrecedence(op))
-						{
-							u8 handle = ba_POpHandle(ctr);
-							if (!handle) {
-								return 0;
-							}
-							// Left grouping parenthesis
-							else if (handle == 2) {
-								goto BA_LBL_PEXP_LOOPEND;
-							}
-						}
-						else {
-							break;
-						}
-					}
-					while (ctr->pOpStk->count);
-				}
-
-				ba_StkPush(op, ctr->pOpStk);
 			}
-			// Infix operator
 			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 
 				ba_PAccept(BA_TK_RSHIFT, ctr) || ba_PAccept('*', ctr) ||
 				ba_PAccept(BA_TK_DBSLASH, ctr) || ba_PAccept('%', ctr) ||
 				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
 				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
-				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_DBAMPD, ctr) ||
+				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_DBAMPD, ctr) || 
 				ba_PAccept(BA_TK_DBBAR, ctr))
 			{
 				op->syntax = BA_OP_INFIX;
-
-				if (ctr->pOpStk->count) {
-					do {
-						if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=
-							ba_POpPrecedence(op))
-						{
-							u8 handle = ba_POpHandle(ctr);
-							if (!handle) {
-								return 0;
-							}
-							// Left grouping parenthesis
-							else if (handle == 2) {
-								goto BA_LBL_PEXP_LOOPEND;
-							}
-						}
-						else {
-							break;
-						}
-					}
-					while (ctr->pOpStk->count);
-				}
-
-				ba_StkPush(op, ctr->pOpStk);
-				afterAtom = 0;
 			}
-			// Other tokens
 			else {
 				goto BA_LBL_PEXP_END;
+			}
+
+			// Right grouping parenthesis
+			if (lexType == ')') {
+				--paren;
+			}
+			
+			if (ctr->pOpStk->count) {
+				do {
+					if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=
+						ba_POpPrecedence(op))
+					{
+						u8 handle = ba_POpHandle(ctr);
+						if (!handle) {
+							return 0;
+						}
+						// Left grouping parenthesis
+						else if (handle == 2) {
+							goto BA_LBL_PEXP_LOOPEND;
+						}
+					}
+					else {
+						break;
+					}
+				}
+				while (ctr->pOpStk->count);
+			}
+
+			ba_StkPush(op, ctr->pOpStk);
+
+			if (op->syntax == BA_OP_INFIX) {
+				afterAtom = 0;
 			}
 		}
 

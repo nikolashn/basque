@@ -1,20 +1,20 @@
 i64 a = 14221;
 i64 b = 59088;
 
-write a+80000; ",";
-write 80000+a; ",";
-write b+40000; ",";
-write 40000+b; "\n";
+write a+80000; ","; # 94211
+write 80000+a; ","; # 94211
+write b+40000; ","; # 99088
+write 40000+b; "\n"; # 99088
 
-write a+a; ",";
-write a+b; ",";
-write b+a; ",";
-write b+b; ",";
-write a-a; ",";
-write a-b; ",";
-write b-a; ",";
-write b-b; "\n";
+write a+a; ","; # 28442
+write a+b; ","; # 73309
+write b+a; ","; # 73309
+write b+b; ","; # 118176
+write a-a; ","; # 0
+write a-b; ","; # 18446744073709506749
+write b-a; ","; # 44867
+write b-b; "\n"; # 0
 
 u64 c = (a-b) + (b-a);
-write c + (c + (c + c + 1 + (c + c + (c + c + (c + c + 1))))); "\n";
+write c + (c + (c + c + 1 + (c + c + (c + c + (c + c + 1))))); "\n"; # 2
 
