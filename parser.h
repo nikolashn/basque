@@ -998,12 +998,13 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			op->lexemeType = lexType;
 			op->syntax = 0;
 
+			// Set syntax type
 			if (ba_PAccept(')', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
 			}
 			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 
-				ba_PAccept(BA_TK_RSHIFT, ctr) || ba_PAccept('*', ctr) ||
-				ba_PAccept(BA_TK_DBSLASH, ctr) || ba_PAccept('%', ctr) ||
+				ba_PAccept(BA_TK_RSHIFT, ctr) || ba_PAccept('*', ctr) || 
+				ba_PAccept(BA_TK_DBSLASH, ctr) || ba_PAccept('%', ctr) || 
 				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
 				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
 				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_DBAMPD, ctr) || 
