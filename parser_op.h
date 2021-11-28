@@ -33,7 +33,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 		reg = ba_NextIMRegister(ctr);
 	}
 
-	if (!reg && arg->lexemeType != BA_TK_IMREGISTER) {
+	if (!reg) {
 		if (!ctr->imStackCnt) {
 			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
 				BA_IM_RSP);
