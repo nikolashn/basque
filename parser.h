@@ -126,6 +126,10 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		if (!id) {
 			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart);
 		}
+		if (!id->isInited) {
+			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
+				lexLine, lexColStart);
+		}
 		ba_PTkStkPush(ctr, (void*)id, id->type, BA_TK_IDENTIFIER);
 	}
 	// Other
