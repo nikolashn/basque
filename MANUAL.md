@@ -1,5 +1,10 @@
-# Current features of the Basque programming language
-## Comments
+# The Basque Programming Language and Basque Compiler Manual
+
+## Types
+Currently only string (string literal), `i64` (64-bit signed integer) and `u64` (64-bit unsigned integer) exist. The string type will eventually be removed once pointers are added, and more types will be added like `u8` (unsigned byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
+
+## Syntax
+### Comments
 Single-line comments use a `#` symbol; multi-line comments begin and end with `##`, and do not nest.
 ```
 # Single line comment
@@ -9,14 +14,41 @@ Multiline
 comment
 ##
 ```
-## Types
-Currently only string (string literal), i64 (64-bit signed integer) and u64 (64-bit unsigned integer) exist.
-## Statements
+### Atoms
+An atom is one of the following:
+- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape characters (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character).
+- A series of string literals (which then combine together into 1 string).
+- An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). The suffix `u` can be added to a literal to make it unsigned. Integer literals with no suffix are of type `i64` unless they represent a value larger than 2^63, in which case they are `u64`.
+- An identifier (variable). `write <identifier>;` converts the identifier's data to a string and outputs it.
+
+### Expressions
+An expression consists of atoms and operators (or just an atom on its own).
+
+#### Operator precedence
+Operators are the following (each line is ordered from high to low precedence.
+- unary prefixes `+ - ! ~` and grouping `()`
+- bit shift operators `<< >>`
+- multiplication `*`, integer division `//`, modulo `%`
+- bitwise and `&`
+- bitwise xor `^`
+- bitwise or `|`
+- add `+`, subtract `-`
+- logical and `&&`
+- logical or `||`
+
+#### Notes about specific operators
+Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
+
+Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
+
+The `&&` and `||` operators are short-circuiting.
+### Statements
 `write <expression>;`
 
-Outputs an expression to standard output (converting numeric expressions 64 bit unsigned integers and then to decimal strings of numbers)
+Outputs an expression to standard output (converting numeric expressions to `u64` and then to decimal strings of numbers)
 ```
 write "Hello world!\n"; # Hello world!
+write 7*12; # 84
 write -1; # 18446744073709551615
 ```
 
@@ -41,33 +73,9 @@ u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 
 Does nothing.
 
-## Expressions
-An expression consists of atoms and operators (or just an atom on its own).
+## The Basque compiler
+Basque compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
-### Operator precedence
-Operators are the following (each line is ordered from high to low precedence.
-- unary prefixes `+ - ! ~` and grouping `()`
-- bit shift operators `<< >>`
-- multiplication `*`, integer division `//`, modulo `%`
-- bitwise and `&`
-- bitwise xor `^`
-- bitwise or `|`
-- add `+`, subtract `-`
-- logical and `&&`
-- logical or `||`
-
-### Notes about specific operators
-Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << (1 << 64 - 1)` is the same as `a << 63`.
-
-Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
-
-## Atoms
-An atom is one of the following:
-- A string literal beginning and ending with `"` characters. String literals can contain line breaks and escape characters (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character).
-- A series of string literals (combined together into 1 string)
-- An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). The suffix `u` can be added to a literal to make it u64. Integer literals with no prefix are of type i64 unless they represent a value larger than 2^63 in which case they are u64.
-- An identifier (variable). `write <identifier>;` converts the identifier's data to a string and outputs it.
-
-# Future
-Much more is planned for Basque and all of the above will heavily change in the future.
+### Calling convention
+The Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. RBX is used to store the return location of a call. RSP, RBP, and R8 - R15 must be preserved by functions. Return values, like arguments, are stored first in RAX, then on the stack.
 
