@@ -1369,16 +1369,24 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// String this together into a file
 	
 	// Create the initial file
-	FILE* file = fopen(fileName, "wb");
-	if (!file) {
-		return 0;
-	}
-	fclose(file);
+	FILE* file;
+	u8 isFileStdout = !strcmp(fileName, "-");
 
-	// Create the file for appending
-	file = fopen(fileName, "ab");
-	if (!file) {
-		return 0;
+	if (isFileStdout) {
+		file = stdout;
+	}
+	else {
+		file = fopen(fileName, "wb");
+		if (!file) {
+			return 0;
+		}
+		fclose(file);
+
+		// Create the file for appending
+		file = fopen(fileName, "ab");
+		if (!file) {
+			return 0;
+		}
 	}
 	
 	// Write headers and code
@@ -1417,9 +1425,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			BA_FILE_BUF_SIZE : dataSgmt->cnt, file);
 	}
 
-	fclose(file);
-	
-	chmod(fileName, 0755);
+	if (isFileStdout) {
+		fclose(file);
+		chmod(fileName, 0755);
+	}
 
 	ba_DelDynArr8(dataSgmt);
 	ba_DelDynArr64(relDSOffsets);

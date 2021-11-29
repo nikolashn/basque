@@ -7,10 +7,11 @@
 
 char usageStr[] = 
 	"Usage: basque [options] file\n"
+	"Use \"-\" for file to read from stdin.\n"
 	"Options:\n"
 	"  -h,--help               Displays this text.\n"
 	"  -v,--version            Display the current version of Basque.\n"
-	"  -o <FILE>               Output compiled code into <FILE>.\n"
+	"  -o <FILE>               Output compiled code into <FILE>. Use - for stdout.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
 	"  -w,--extra-warnings     Show extra warnings.\n"
 	"  -W,--warnings-as-errors Treat warnings as errors.\n"
@@ -99,7 +100,12 @@ int main(int argc, char* argv[]) {
 			return -1;
 		}
 		else if (!srcFile) {
-			srcFile = fopen(argv[i], "r");
+			if (!strcmp(argv[i], "-")) {
+				srcFile = stdin;
+			}
+			else {
+				srcFile = fopen(argv[i], "r");
+			}
 			if (!srcFile) {
 				printf("Cannot find %s: no such file\n", argv[i]);
 				return -1;
