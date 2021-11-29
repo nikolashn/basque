@@ -10,7 +10,7 @@ char usageStr[] =
 	"Use \"-\" for file to read from stdin.\n"
 	"Options:\n"
 	"  -h,--help               Displays this text.\n"
-	"  -v,--version            Display the current version of Basque.\n"
+	"  -v,--version            Display the current version of the C Basque compiler.\n"
 	"  -o <FILE>               Output compiled code into <FILE>. Use - for stdout.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
 	"  -w,--extra-warnings     Show extra warnings.\n"
@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
 			return 0;
 		}
 		else if (isCLOVersion || !strcmp(argv[i], "--version")) {
-			printf("Basque " BA_VERSION "\n");
+			printf("basque " BA_VERSION "\n");
 			return 0;
 		}
 		else if (isHandledCLO) {
