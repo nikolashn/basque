@@ -43,6 +43,8 @@ Integer division gives the quotient from truncated division (`16 // 3 == 5 == -1
 
 The `&&` and `||` operators are short-circuiting.
 ### Statements
+Statements are combinations of expressions that together form a program. In this section, square brackets `[]` signify optionality, and words in angle brackets `<>` represent that one of multiple different expressions or tokens can be used.
+
 `write <expression>;`
 
 Outputs an expression to standard output (converting numeric expressions to `u64` and then to decimal strings of numbers)
