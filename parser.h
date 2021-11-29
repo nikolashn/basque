@@ -927,6 +927,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						op->line, op->col);
 				}
 
+				arg->type = BA_TYPE_U8;
+
 				u64 imOp = op->lexemeType == BA_TK_DBAMPD
 					? BA_IM_AND : BA_IM_OR;
 
