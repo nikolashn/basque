@@ -30,7 +30,7 @@ Does nothing generally, unless the expression is made up of string literals, in 
 
 `<type> <identifier>` [` = <expression>`] `;`
 
-Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores.
+Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Identifiers are always initialized to 0.
 ```
 u64 col = 0xfcf4d0u;
 i64 _1234567;
