@@ -70,6 +70,10 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 
 					c = fileBuf[++fileIter];
 
+					while (c == '_') {
+						c = fileBuf[++fileIter];
+					}
+
 					if ((c == EOF) || (c == 0)) {
 						break;
 					}
@@ -536,6 +540,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 
 					litBuf[litIter++] = c;
 				}
+				else if (c == '_') {
+					// Ignore
+				}
 				else {
 					if ((c == 'u') || (c == 'U')) {
 						litBuf[litIter++] = 'u';
@@ -576,6 +583,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 
 					litBuf[litIter++] = c;
 				}
+				else if (c == '_') {
+					// Ignore
+				}
 				else {
 					if ((c == 'u') || (c == 'U')) {
 						litBuf[litIter++] = 'u';
@@ -612,6 +622,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					}
 
 					litBuf[litIter++] = c;
+				}
+				else if (c == '_') {
+					// Ignore
 				}
 				else if ((c >= '8') && (c <= '9')) {
 					return ba_ErrorIntLitChar(line, col);
@@ -652,6 +665,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					}
 
 					litBuf[litIter++] = c;
+				}
+				else if (c == '_') {
+					// Ignore
 				}
 				else if ((c >= '2') && (c <= '9')) {
 					return ba_ErrorIntLitChar(line, col);
