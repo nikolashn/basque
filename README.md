@@ -1,5 +1,5 @@
 # Basque
-Basque is a programming language that aims to be similar to C, with some improvements. The Basque compiler currently only statically compiles for Linux x86\_64 ELF, ahead of time, and takes ASCII input.
+Basque is a programming language that aims to be similar to C, with some improvements. The C Basque compiler currently only statically compiles for Linux x86\_64 ELF, ahead of time, and takes ASCII input.
 
 ## Installation
 You will need a C compiler and GNU make. Edit config.mk to set compiler and other compilation options.

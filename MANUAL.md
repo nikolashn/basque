@@ -1,4 +1,4 @@
-# The Basque Programming Language and Basque Compiler Manual
+# The Basque Programming Language and C Basque Compiler Manual
 
 ## Types
 Currently only string (string literal), `i64` (64-bit signed integer) and `u64` (64-bit unsigned integer) exist. The string type will eventually be removed once pointers are added, and more types will be added like `u8` (unsigned byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
@@ -75,9 +75,9 @@ u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 
 Does nothing.
 
-## The Basque compiler
-Basque compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
+## The C Basque compiler
+The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
 ### Calling convention
-The Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. RBX is used to store the return location of a call. RSP, RBP, and R8 - R15 must be preserved by functions. Return values, like arguments, are stored first in RAX, then on the stack.
+The C Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. RBX is used to store the return location of a call. RSP, RBP, and R8 - R15 must be preserved by functions. Return values, like arguments, are stored first in RAX, then on the stack.
 
