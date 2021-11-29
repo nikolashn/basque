@@ -1425,7 +1425,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			BA_FILE_BUF_SIZE : dataSgmt->cnt, file);
 	}
 
-	if (isFileStdout) {
+	if (!isFileStdout) {
 		fclose(file);
 		chmod(fileName, 0755);
 	}
