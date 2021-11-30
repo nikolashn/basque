@@ -146,38 +146,11 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						++fileIter;
 						continue;
 					}
-					else if (c == ';') {
-						nextLex->type = ';';
-					}
-					else if (c == '+') {
-						nextLex->type = '+';
-					}
-					else if (c == '-') {
-						nextLex->type = '-';
-					}
-					else if (c == '!') {
-						nextLex->type = '!';
-					}
-					else if (c == '~') {
-						nextLex->type = '~';
-					}
-					else if (c == '(') {
-						nextLex->type = '(';
-					}
-					else if (c == ')') {
-						nextLex->type = ')';
-					}
-					else if (c == '*') {
-						nextLex->type = '*';
-					}
-					else if (c == '%') {
-						nextLex->type = '%';
-					}
-					else if (c == '^') {
-						nextLex->type = '^';
-					}
-					else if (c == '=') {
-						nextLex->type = '=';
+					else if (c == ';' || c == '+' || c == '-' || c == '!' || 
+						c == '~' || c == '(' || c == ')' || c == '*' || 
+						c == '%' || c == '^' || c == '=')
+					{
+						nextLex->type = c;
 					}
 					else if (c == '&') {
 						colStart = col++;
