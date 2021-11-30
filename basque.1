@@ -1,0 +1,43 @@
+.TH BASQUE 1
+.SH NAME
+basque \- the C Basque compiler
+.SH SYNOPSIS
+.B basque
+[ options ] sourcefile [ options ]
+.P
+.B basque
+[
+.B \-h
+|
+.B \-v
+]
+.SH DESCRIPTION
+Basque intends to be a general-purpose statically-typed procedural programming language, similar to C, but with some differences and improvements.
+The C Basque compiler currently statically compiles for Linux x86_64 ELF, ahead of time, and takes ASCII input.
+.PP
+When the C Basque compiler is invoked with an source file argument, it will compile and assemble the source code into an executable file (there is no linker).
+.PP
+A single dash "\-" can be used as the source file argument to read source code from standard input.
+.SH OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Write a list of options to standard output, then exit.
+.TP
+.BR \-v ", " \-\-version
+Write the current version of the C Basque compiler to standard output, then exit.
+.TP
+.BR \-o " file"
+Output compiled code into an executable file at the specified path. To write to standard output, use a dash "\-" as the "file" argument.
+.TP
+.BR \-s ", " \-\-silence\-warnings
+Silence all compiler warnings.
+.TP
+.BR \-w ", " \-\-extra-warnings
+Show extra warnings that are not enabled by default.
+.TP
+.BR \-W ", " \-\-warnings-as-errors
+Treat warnings as errors
+.SH COPYRIGHT
+Copyright (C) 2021 nikolashn.
+.PP
+The C Basque compiler is distributed under the terms of the GNU General Public License version 3, as published by the Free Software Foundation.

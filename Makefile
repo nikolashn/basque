@@ -12,12 +12,14 @@ clean:
 	rm -f basque
 
 install: all
-	mkdir -p ${DESTDIR}${PPATH}/bin
-	cp -f basque ${DESTDIR}${PPATH}/bin
-	chmod 755 ${DESTDIR}${PPATH}/bin/basque
+	mkdir -p ${PPATH}/bin
+	cp -f basque $${PPATH}/bin
+	chmod 755 ${PPATH}/bin/basque
+	cp basque.1 ${PPATH}/share/man/man1/basque.1
 
 uninstall:
-	rm -f ${DESTDIR}${PPATH}/bin/basque
+	rm -f ${PPATH}/bin/basque
+	rm -f ${PPATH}/share/man/man1/basque.1
 
 
 .PHONY: all clean install uninstall
