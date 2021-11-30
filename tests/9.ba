@@ -9,3 +9,8 @@ write nuane; "\n"; # 9
 # nuane = "yo"; # Gives an error
 # "nuane" = 5; # Gives an error
 
+u64 x = 0;
+x && (nuane = 9_000); # My favourite way of writing if statements
+write nuane; "\n"; # 9
+!x && (nuane = 0xd00d);
+write nuane; "\n"; # 53261

@@ -1112,6 +1112,27 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			// Right grouping parenthesis
 			(lexType == ')') && --paren;
 
+			if (ctr->pOpStk->count) {
+				do {
+					if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=
+						ba_POpPrecedence(op))
+					{
+						u8 handle = ba_POpHandle(ctr);
+						if (!handle) {
+							return 0;
+						}
+						// Left grouping parenthesis
+						else if (handle == 2) {
+							goto BA_LBL_PEXP_LOOPEND;
+						}
+					}
+					else {
+						break;
+					}
+				}
+				while (ctr->pOpStk->count);
+			}
+
 			// Short circuiting: jmp ahead if right-hand side operand is unnecessary
 			if (lexType == BA_TK_DBAMPD || lexType == BA_TK_DBBAR) {
 				struct ba_PTkStkItem* lhs = ba_StkTop(ctr->pTkStk);
@@ -1155,27 +1176,6 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				}
 
 				++ctr->labelCnt;
-			}
-
-			if (ctr->pOpStk->count) {
-				do {
-					if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=
-						ba_POpPrecedence(op))
-					{
-						u8 handle = ba_POpHandle(ctr);
-						if (!handle) {
-							return 0;
-						}
-						// Left grouping parenthesis
-						else if (handle == 2) {
-							goto BA_LBL_PEXP_LOOPEND;
-						}
-					}
-					else {
-						break;
-					}
-				}
-				while (ctr->pOpStk->count);
 			}
 
 			ba_StkPush(op, ctr->pOpStk);
