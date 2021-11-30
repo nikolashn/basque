@@ -68,6 +68,7 @@ struct ba_PTkStkItem {
 	void* val;
 	u64 type;
 	u64 lexemeType;
+	u8 isLValue;
 };
 
 struct ba_POpStkItem {

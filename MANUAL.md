@@ -25,7 +25,7 @@ An atom is one of the following:
 An expression consists of atoms and operators (or just an atom on its own).
 
 #### Operator precedence
-Operators are the following (each line is ordered from high to low precedence.
+Operators are the following (each line is ordered from high to low precedence).
 - unary prefixes `+ - ! ~` and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
@@ -35,6 +35,7 @@ Operators are the following (each line is ordered from high to low precedence.
 - add `+`, subtract `-`
 - logical and `&&`
 - logical or `||`
+- assignment `=`
 
 #### Notes about specific operators
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
@@ -42,6 +43,8 @@ Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is s
 Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
 
 The `&&` and `||` operators are short-circuiting.
+
+The left-hand side of an assignment must be an lvalue, which currently means it can only be an identifier, or identifier in parentheses.
 ### Statements
 Statements are combinations of expressions that together form a program. In this section, square brackets signify optionality, and words in angle brackets represent that one of multiple different expressions or tokens can be used.
 

@@ -33,7 +33,7 @@ struct ba_Controller {
 };
 
 void ba_PTkStkPush(struct ba_Controller* ctr, void* val, 
-	u64 type, u64 lexemeType)
+	u64 type, u64 lexemeType, u8 isLValue)
 {
 	struct ba_PTkStkItem* stkItem = malloc(sizeof(struct ba_PTkStkItem));
 	if (!stkItem) {
@@ -42,6 +42,7 @@ void ba_PTkStkPush(struct ba_Controller* ctr, void* val,
 	stkItem->val = val;
 	stkItem->type = type;
 	stkItem->lexemeType = lexemeType;
+	stkItem->isLValue = isLValue;
 	ba_StkPush((void*)stkItem, ctr->pTkStk);
 }
 

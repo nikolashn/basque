@@ -34,10 +34,12 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 /* base_type = "u64" | "i64" */
 u8 ba_PBaseType(struct ba_Controller* ctr) {
 	if (ba_PAccept(BA_TK_KW_U64, ctr)) {
-		ba_PTkStkPush(ctr, 0, BA_TYPE_TYPE, BA_TK_KW_U64);
+		ba_PTkStkPush(ctr, /* val = */ 0, BA_TYPE_TYPE, BA_TK_KW_U64, 
+			/* isLValue = */ 0);
 	}
 	else if (ba_PAccept(BA_TK_KW_I64, ctr)) {
-		ba_PTkStkPush(ctr, 0, BA_TYPE_TYPE, BA_TK_KW_I64);
+		ba_PTkStkPush(ctr, /* val = */ 0, BA_TYPE_TYPE, BA_TK_KW_I64, 
+			/*isLValue = */ 0);
 	}
 	else {
 		return 0;
@@ -100,7 +102,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		stkStr->str = str;
 		stkStr->len = len;
-		ba_PTkStkPush(ctr, (void*)stkStr, BA_TYPE_NONE, BA_TK_LITSTR);
+		ba_PTkStkPush(ctr, (void*)stkStr, BA_TYPE_NONE, BA_TK_LITSTR, 
+			/* isLValue = */ 0);
 	}
 	// lit_int
 	else if (ba_PAccept(BA_TK_LITINT, ctr)) {
@@ -117,7 +120,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 				type = BA_TYPE_I64;
 			}
 		}
-		ba_PTkStkPush(ctr, (void*)num, type, BA_TK_LITINT);
+		ba_PTkStkPush(ctr, (void*)num, type, BA_TK_LITINT, 
+			/* isLValue = */ 0);
 	}
 	// identifier
 	else if (ba_PAccept(BA_TK_IDENTIFIER, ctr)) {
@@ -130,7 +134,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
 				lexLine, lexColStart);
 		}
-		ba_PTkStkPush(ctr, (void*)id, id->type, BA_TK_IDENTIFIER);
+		ba_PTkStkPush(ctr, (void*)id, id->type, BA_TK_IDENTIFIER, 
+			/* isLValue = */ 1);
 	}
 	// Other
 	else {
@@ -184,6 +189,9 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			else if (op->lexemeType == BA_TK_DBBAR) {
 				return 9;
 			}
+			else if (op->lexemeType == '=') {
+				return 11;
+			}
 			break;
 
 		case BA_OP_POSTFIX:
@@ -222,7 +230,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				else if (ba_IsTypeSigned(arg->type)) {
 					arg->type = BA_TYPE_I64;
 				}
-
+				
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -272,6 +281,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					arg->type = BA_TYPE_I64;
 				}
 
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -333,6 +343,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					ba_POpNonLitBitShift(imOp, arg, lhs, rhs, isRhsLiteral, ctr);
 				}
 
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -438,6 +449,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						isRhsLiteral, /* isShortCirc = */ 0, ctr);
 				}
 
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -645,6 +657,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 				}
 
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -873,6 +886,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					}
 				}
 
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -911,6 +925,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 						isRhsLiteral, /* isShortCirc = */ 0, ctr);
 				}
 				
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -938,6 +953,82 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				ba_POpNonLitBinary(imOp, arg, lhs, rhs, isLhsLiteral, 
 					isRhsLiteral, /* isShortCirc = */ 1, ctr);
 				
+				arg->isLValue = 0;
+				ba_StkPush(arg, ctr->pTkStk);
+				return 1;
+			}
+			
+			// Assignment
+			else if (op->lexemeType == '=') {
+				// TODO: change the 2nd condition when other lvalues are added
+				if (!lhs->isLValue || lhs->lexemeType != BA_TK_IDENTIFIER) {
+					return ba_ExitMsg(BA_EXIT_ERR, "assignment to non-lvalue on", 
+						op->line, op->col);
+				}
+
+				if (!ba_IsTypeNumeric(lhs->type)) {
+					if (lhs->type != rhs->type) {
+						return ba_ExitMsg(BA_EXIT_ERR, "assignment of "
+							"incompatible types on", op->line, op->col);
+					}
+				}
+				else if (!ba_IsTypeNumeric(rhs->type)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric "
+						"expression to numeric lvalue on", op->line, op->col);
+				}
+
+				u64 stackPos = 0;
+				u64 reg = (u64)rhs->val; // Kept only if rhs is a register
+				if (rhs->lexemeType != BA_TK_IMREGISTER) {
+					reg = ba_NextIMRegister(ctr);
+				}
+				
+				if (!reg) {
+					if (!ctr->imStackCnt) {
+						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+					}
+					++ctr->imStackCnt;
+					ctr->imStackSize += 8;
+					stackPos = ctr->imStackSize;
+
+					// First: result location, second: preserve rax
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+				}
+
+				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+				}
+				else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+						BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+				}
+				else if (rhs->lexemeType != BA_TK_IMREGISTER) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+						BA_IM_IMM, (u64)rhs->val);
+				}
+
+				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+					((struct ba_STVal*)lhs->val)->address, 
+					reg ? reg : BA_IM_RAX);
+
+				if (reg) {
+					arg->lexemeType = BA_TK_IMREGISTER;
+					arg->val = (void*)reg;
+				}
+				else {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+						stackPos, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+					arg->lexemeType = BA_TK_IMRBPSUB;
+					arg->val = (void*)ctr->imStackSize;
+				}
+
+				arg->type = lhs->type;
+				arg->isLValue = 0;
 				ba_StkPush(arg, ctr->pTkStk);
 				return 1;
 			}
@@ -1010,7 +1101,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
 				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
 				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_DBAMPD, ctr) || 
-				ba_PAccept(BA_TK_DBBAR, ctr))
+				ba_PAccept(BA_TK_DBBAR, ctr) || ba_PAccept('=', ctr))
 			{
 				op->syntax = BA_OP_INFIX;
 			}

@@ -1,0 +1,11 @@
+u64 nuane = 1337;
+write nuane; "->"; # 1336
+nuane = 21;
+write nuane; "->"; # 21
+(nuane) = (nuane + 5 * 20) << (nuane - 20);
+write nuane; "->"; # 242
+write nuane = -6 + (nuane = 15); "->"; # 9
+write nuane; "\n"; # 9
+# nuane = "yo"; # Gives an error
+# "nuane" = 5; # Gives an error
+
