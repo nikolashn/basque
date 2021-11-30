@@ -105,17 +105,15 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 		++ctr->imStackCnt;
 		ctr->imStackSize += 8;
 		lhsStackPos = ctr->imStackSize;
+
+		// First: result location, second: preserve rax
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 	}
 	
 	/* regR is replaced with rdx normally, but if regL is 
 	 * already rdx, regR will be set to rcx. */
 	u64 rhsReplacement = regL == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX;
-
-	if (!regL) {
-		// First: result location, second: preserve rax
-		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
-		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
-	}
 
 	if (!regR) {
 		// Only once to preserve rdx/rcx
