@@ -25,7 +25,7 @@ An atom is one of the following:
 An expression consists of atoms and operators (or just an atom on its own).
 
 #### Operator precedence
-Operators are the following (each line is ordered from high to low precedence).
+Basque's operators are the following (each line is ordered from high to low precedence). Lines with an asterisk (\*) before them mean the operator(s) are right-associative. All other binary operators are left-associative.
 - unary prefixes `+ - ! ~` and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
@@ -35,7 +35,7 @@ Operators are the following (each line is ordered from high to low precedence).
 - add `+`, subtract `-`
 - logical and `&&`
 - logical or `||`
-- assignment `= += -= &= ^= |= *= //= %= <<= >>=`
+- \*assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### Notes about specific operators
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.

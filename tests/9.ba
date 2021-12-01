@@ -1,5 +1,5 @@
 u64 nuane = 1337;
-write nuane; "->"; # 1336
+write nuane; "->"; # 1337
 nuane = 21;
 write nuane; "->"; # 21
 (nuane) = (nuane + 5 * 20) << (nuane - 20);
@@ -30,7 +30,10 @@ nuane <<= x // x;
 write nuane; "->"; # 18
 nuane &= ~x;
 write nuane; "->"; # 16
-nuane |= x + x;
-write nuane; "->"; # 20
+nuane |= x - x - x - x;
+write nuane; "->"; # 18446744073709551612
 nuane ^= nuane;
 write nuane; "\n"; # 0
+
+x = nuane = 5931;
+write x; " "; write nuane; "\n";
