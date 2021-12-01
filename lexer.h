@@ -140,134 +140,139 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				else if (!((c == ' ') || (c == '\t') || (c == '\v') || 
 					(c == '\f') || (c == '\r')))
 				{
+					u8 needsToIterate = 1;
+
 					if (c == '\n') {
 						++line;
 						col = 1;
 						++fileIter;
 						continue;
 					}
-					else if (c == ';' || c == '+' || c == '-' || c == '!' || 
-						c == '~' || c == '(' || c == ')' || c == '*' || 
-						c == '%' || c == '^' || c == '=')
+					else if (c == ';' || c == '!' || c == '~' || c == '(' || 
+						c == ')' || c == '=')
 					{
 						nextLex->type = c;
 					}
-					else if (c == '&') {
-						colStart = col++;
-						c = fileBuf[++fileIter];
-
-						if (c == '&') {
-							nextLex->type = BA_TK_DBAMPD;
-						}
-						else {
-							nextLex->type = '&';
-							nextLex->line = line;
-							nextLex->colStart = colStart;
-							nextLex->next = ba_NewLexeme();
-							nextLex = nextLex->next;
-							if ((c == EOF) || (c == 0)) {
-								break;
-							}
-							else {
-								continue;
-							}
-						}
-					}
-					else if (c == '|') {
-						colStart = col++;
-						c = fileBuf[++fileIter];
-
-						if (c == '|') {
-							nextLex->type = BA_TK_DBBAR;
-						}
-						else {
-							nextLex->type = '|';
-							nextLex->line = line;
-							nextLex->colStart = colStart;
-							nextLex->next = ba_NewLexeme();
-							nextLex = nextLex->next;
-							if ((c == EOF) || (c == 0)) {
-								break;
-							}
-							else {
-								continue;
-							}
-						}
-					}
-					else if (c == '/') {
-						colStart = col++;
-						c = fileBuf[++fileIter];
-
-						if (c == '/') {
-							nextLex->type = BA_TK_DBSLASH;
-						}
-						else {
-							nextLex->type = '/';
-							nextLex->line = line;
-							nextLex->colStart = colStart;
-							nextLex->next = ba_NewLexeme();
-							nextLex = nextLex->next;
-							if ((c == EOF) || (c == 0)) {
-								break;
-							}
-							else {
-								continue;
-							}
-						}
-					}
-					else if (c == '>') {
-						colStart = col++;
-						c = fileBuf[++fileIter];
-						
-						if (c == '>') {
-							nextLex->type = BA_TK_RSHIFT;
-						}
-						else {
-							nextLex->type = '>';
-							nextLex->line = line;
-							nextLex->colStart = colStart;
-							nextLex->next = ba_NewLexeme();
-							nextLex = nextLex->next;
-							if ((c == EOF) || (c == 0)) {
-								break;
-							}
-							else {
-								continue;
-							}
-						}
-						
-					}
-					else if (c == '<') {
-						colStart = col++;
-						c = fileBuf[++fileIter];
-						
-						if (c == '<') {
-							nextLex->type = BA_TK_LSHIFT;
-						}
-						else {
-							nextLex->type = '<';
-							nextLex->line = line;
-							nextLex->colStart = colStart;
-							nextLex->next = ba_NewLexeme();
-							nextLex = nextLex->next;
-							if ((c == EOF) || (c == 0)) {
-								break;
-							}
-							else {
-								continue;
-							}
-						}
-						
-					}
 					else {
-						return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid character at", 
-							line, col);
+						char oldC = c;
+						colStart = col++;
+						c = fileBuf[++fileIter];
+
+						if (oldC == '+') {
+							((c == '=') && (nextLex->type = BA_TK_ADDEQ)) || 
+							((nextLex->type = '+') && (needsToIterate = 0));
+						}
+						else if (oldC == '-') {
+							((c == '=') && (nextLex->type = BA_TK_SUBEQ)) || 
+							((nextLex->type = '-') && (needsToIterate = 0));
+						}
+						else if (oldC == '*') {
+							((c == '=') && (nextLex->type = BA_TK_MULEQ)) || 
+							((nextLex->type = '*') && (needsToIterate = 0));
+						}
+						else if (oldC == '%') {
+							((c == '=') && (nextLex->type = BA_TK_MODEQ)) || 
+							((nextLex->type = '%') && (needsToIterate = 0));
+						}
+						else if (oldC == '^') {
+							((c == '=') && (nextLex->type = BA_TK_BITXOREQ)) || 
+							((nextLex->type = '^') && (needsToIterate = 0));
+						}
+						else if (oldC == '&') {
+							((c == '=') && (nextLex->type = BA_TK_BITANDEQ)) || 
+							((c == '&') && (nextLex->type = BA_TK_LOGAND)) || 
+							((nextLex->type = '&') && (needsToIterate = 0));
+						}
+						else if (oldC == '|') {
+							((c == '=') && (nextLex->type = BA_TK_BITOREQ)) || 
+							((c == '|') && (nextLex->type = BA_TK_LOGOR)) || 
+							((nextLex->type = '|') && (needsToIterate = 0));
+						}
+						else if (oldC == '>') {
+							if (c == '=') {
+								nextLex->type = BA_TK_GTE;
+							}
+							else if (c == '>') {
+								colStart = col++;
+								c = fileBuf[++fileIter];
+								
+								if (c == '=') {
+									nextLex->type = BA_TK_RSHIFTEQ;
+								}
+								else {
+									nextLex->type = BA_TK_RSHIFT;
+									needsToIterate = 0;
+								}
+							}
+							else {
+								nextLex->type = '>';
+								needsToIterate = 0;
+							}
+						}
+						else if (oldC == '<') {
+							if (c == '=') {
+								nextLex->type = BA_TK_LTE;
+							}
+							else if (c == '<') {
+								colStart = col++;
+								c = fileBuf[++fileIter];
+								
+								if (c == '=') {
+									nextLex->type = BA_TK_LSHIFTEQ;
+								}
+								else {
+									nextLex->type = BA_TK_LSHIFT;
+									needsToIterate = 0;
+								}
+							}
+							else {
+								nextLex->type = '<';
+								needsToIterate = 0;
+							}
+						}
+						else if (oldC == '/') {
+							if (c == '=') {
+								nextLex->type = BA_TK_FDIVEQ;
+							}
+							else if (c == '/') {
+								colStart = col++;
+								c = fileBuf[++fileIter];
+								
+								if (c == '=') {
+									nextLex->type = BA_TK_IDIVEQ;
+								}
+								else {
+									nextLex->type = BA_TK_IDIV;
+									needsToIterate = 0;
+								}
+							}
+							else {
+								nextLex->type = '/';
+								needsToIterate = 0;
+							}
+						}
+						else {
+							return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid "
+								"character at", line, col);
+						}
 					}
 
 					nextLex->line = line;
 					nextLex->colStart = col;
 					nextLex->next = ba_NewLexeme();
 					nextLex = nextLex->next;
+
+					if (needsToIterate) {
+						++col;
+						++fileIter;
+					}
+
+					if ((c == EOF) || (c == 0)) {
+						break;
+					}
+					else {
+						continue;
+					}
 				}
 			}
 			// Comments

@@ -14,3 +14,23 @@ x && (nuane = 9_000); # My favourite way of writing if statements
 write nuane; "\n"; # 9
 !x && (nuane = 0xd00d);
 write nuane; "\n"; # 53261
+
+nuane += 5;
+write nuane; "->"; # 53266
+nuane >>= -7 + nuane // 33;
+write nuane; "->"; # 416
+nuane -= 400;
+write nuane; "->"; # 16
+nuane *= nuane;
+write nuane; "->"; # 256
+x = 10;
+nuane //= (x + nuane>>4);
+write nuane; "->"; # 9
+nuane <<= x // x;
+write nuane; "->"; # 18
+nuane &= ~x;
+write nuane; "->"; # 16
+nuane |= x + x;
+write nuane; "->"; # 20
+nuane ^= nuane;
+write nuane; "\n"; # 0

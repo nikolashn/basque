@@ -167,7 +167,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 				return 2;
 			}
 			else if (op->lexemeType == '*' || op->lexemeType == '%' || 
-				op->lexemeType == BA_TK_DBSLASH)
+				op->lexemeType == BA_TK_IDIV)
 			{
 				return 3;
 			}
@@ -183,13 +183,15 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			else if (op->lexemeType == '+' || op->lexemeType == '-') {
 				return 7;
 			}
-			else if (op->lexemeType == BA_TK_DBAMPD) {
+			else if (op->lexemeType == BA_TK_LOGAND) {
 				return 8;
 			}
-			else if (op->lexemeType == BA_TK_DBBAR) {
+			else if (op->lexemeType == BA_TK_LOGOR) {
 				return 9;
 			}
-			else if (op->lexemeType == '=') {
+			else if (op->lexemeType == '=' || 
+				ba_IsLexemeCompoundAssign(op->lexemeType))
+			{
 				return 11;
 			}
 			break;
@@ -456,7 +458,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 			// Division
 
-			else if (op->lexemeType == BA_TK_DBSLASH) {
+			else if (op->lexemeType == BA_TK_IDIV) {
 				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "integer division with "
 						"non numeric operand(s) on", op->line, op->col);
@@ -897,8 +899,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				op->lexemeType == '|')
 			{
 				if (!ba_IsTypeIntegral(lhs->type) && !ba_IsTypeIntegral(rhs->type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "bit shift used with non integral "
-						"operand(s) on", op->line, op->col);
+					return ba_ExitMsg(BA_EXIT_ERR, "bitwise operation used with "
+						"non integral operand(s) on", op->line, op->col);
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
@@ -931,8 +933,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			}
 			
 			// Logical short-circuiting operators
-			else if (op->lexemeType == BA_TK_DBAMPD || 
-				op->lexemeType == BA_TK_DBBAR) 
+			else if (op->lexemeType == BA_TK_LOGAND || 
+				op->lexemeType == BA_TK_LOGOR) 
 			{
 				if (!ba_IsTypeNumeric(lhs->type) ||
 					!ba_IsTypeNumeric(rhs->type))
@@ -944,7 +946,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				arg->type = BA_TYPE_U8;
 
-				u64 imOp = op->lexemeType == BA_TK_DBAMPD
+				u64 imOp = op->lexemeType == BA_TK_LOGAND
 					? BA_IM_AND : BA_IM_OR;
 
 				// Although it is called "NonLit", it does work with literals 
@@ -959,12 +961,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 			}
 			
 			// Assignment
-			else if (op->lexemeType == '=') {
+			else if (op->lexemeType == '=' || 
+				ba_IsLexemeCompoundAssign(op->lexemeType)) 
+			{
 				// TODO: change the 2nd condition when other lvalues are added
 				if (!lhs->isLValue || lhs->lexemeType != BA_TK_IDENTIFIER) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment to non-lvalue on", 
 						op->line, op->col);
 				}
+
+				u64 opLex = op->lexemeType;
 
 				if (!ba_IsTypeNumeric(lhs->type)) {
 					if (lhs->type != rhs->type) {
@@ -975,6 +981,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				else if (!ba_IsTypeNumeric(rhs->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric "
 						"expression to numeric lvalue on", op->line, op->col);
+				}
+				else if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
+					opLex == BA_TK_BITOREQ || opLex == BA_TK_LSHIFTEQ || 
+					opLex == BA_TK_RSHIFTEQ) && (!ba_IsTypeIntegral(lhs->type) || 
+					!ba_IsTypeIntegral(rhs->type)))
+				{
+					return ba_ExitMsg(BA_EXIT_ERR, "bit shift or bitwise operation "
+						"used with non integral operand(s) on", op->line, op->col);
 				}
 
 				u64 stackPos = 0;
@@ -991,27 +1005,116 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					ctr->imStackSize += 8;
 					stackPos = ctr->imStackSize;
 
-					// First: result location, second: preserve rax
-					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
-					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					// First: result location, second: preserve rcx
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
 				}
 
 				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RCX,
 						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
 				}
 				else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RCX,
 						BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
 				}
 				else if (rhs->lexemeType != BA_TK_IMREGISTER) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RCX,
 						BA_IM_IMM, (u64)rhs->val);
+				}
+
+				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) &&
+					ba_IsTypeUnsigned(rhs->type);
+
+				u64 imOp = 0;
+				((opLex == BA_TK_ADDEQ) && (imOp = BA_IM_ADD)) ||
+				((opLex == BA_TK_SUBEQ) && (imOp = BA_IM_SUB)) ||
+				((opLex == BA_TK_MULEQ) && (imOp = BA_IM_IMUL)) ||
+				((opLex == BA_TK_LSHIFTEQ) && (imOp = BA_IM_SHL)) ||
+				((opLex == BA_TK_RSHIFTEQ) && (imOp = BA_IM_SAR)) ||
+				((opLex == BA_TK_BITANDEQ) && (imOp = BA_IM_AND)) ||
+				((opLex == BA_TK_BITXOREQ) && (imOp = BA_IM_XOR)) ||
+				((opLex == BA_TK_BITOREQ) && (imOp = BA_IM_OR));
+
+				if (opLex == BA_TK_IDIVEQ || opLex == BA_TK_MODEQ) {
+					if (isRhsLiteral && !rhs->val) {
+						return ba_ExitMsg(BA_EXIT_ERR, "division or modulo by "
+							"zero on", op->line, op->col);
+					}
+
+					if (ctr->usedRegisters & BA_CTRREG_RAX) {
+						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					}
+					if (ctr->usedRegisters & BA_CTRREG_RDX) {
+						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RDX);
+					}
+
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+						((struct ba_STVal*)lhs->val)->address);
+					ba_AddIM(&ctr->im, 1, BA_IM_CQO);
+					ba_AddIM(&ctr->im, 2, areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV, 
+						reg ? reg : BA_IM_RCX);
+					
+					u64 divResultReg = BA_TK_IDIVEQ ? BA_IM_RAX : BA_IM_RDX;
+					if (reg != divResultReg) {
+						ba_AddIM(&ctr->im, 3, BA_IM_MOV, reg ? reg : BA_IM_RCX,
+							divResultReg);
+					}
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+						((struct ba_STVal*)lhs->val)->address, 
+						reg ? reg : BA_IM_RCX);
+
+					if (ctr->usedRegisters & BA_CTRREG_RDX) {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RDX);
+					}
+					if (ctr->usedRegisters & BA_CTRREG_RAX) {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+					}
+				}
+				else if (imOp) {
+					u64 opResultReg = reg == BA_IM_RAX ? BA_IM_RDX : BA_IM_RAX;
+					u8 isPushOpResReg = 
+						((reg == BA_IM_RAX && 
+							(ctr->usedRegisters & BA_CTRREG_RDX)) ||
+						(reg == BA_IM_RDX && 
+							(ctr->usedRegisters & BA_CTRREG_RAX)));
+
+					if (isPushOpResReg) {
+						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, opResultReg);
+					}
+
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, opResultReg, BA_IM_DATASGMT, 
+						((struct ba_STVal*)lhs->val)->address);
+
+					if (opLex == BA_TK_LSHIFTEQ || opLex == BA_TK_RSHIFTEQ) {
+						if (reg != BA_IM_RCX) {
+							if (ctr->usedRegisters & BA_CTRREG_RCX) {
+								ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
+							}
+							ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, reg);
+						}
+
+						ba_AddIM(&ctr->im, 3, imOp, opResultReg, BA_IM_CL);
+
+						if (reg != BA_IM_RCX && (ctr->usedRegisters & BA_CTRREG_RCX)) {
+							ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RCX);
+						}
+					}
+					else {
+						ba_AddIM(&ctr->im, 3, imOp, opResultReg, reg ? reg : BA_IM_RCX);
+					}
+
+					ba_AddIM(&ctr->im, 3, BA_IM_MOV, reg ? reg : BA_IM_RCX, 
+						opResultReg);
+
+					if (isPushOpResReg) {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, opResultReg);
+					}
 				}
 
 				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
 					((struct ba_STVal*)lhs->val)->address, 
-					reg ? reg : BA_IM_RAX);
+					reg ? reg : BA_IM_RCX);
 
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
@@ -1019,9 +1122,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 				else {
 					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-						stackPos, BA_IM_RAX);
-					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
-					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+						stackPos, BA_IM_RCX);
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RCX);
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RCX);
 
 					arg->lexemeType = BA_TK_IMRBPSUB;
 					arg->val = (void*)ctr->imStackSize;
@@ -1097,11 +1200,17 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 
 				ba_PAccept(BA_TK_RSHIFT, ctr) || ba_PAccept('*', ctr) || 
-				ba_PAccept(BA_TK_DBSLASH, ctr) || ba_PAccept('%', ctr) || 
+				ba_PAccept(BA_TK_IDIV, ctr) || ba_PAccept('%', ctr) || 
 				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
 				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
-				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_DBAMPD, ctr) || 
-				ba_PAccept(BA_TK_DBBAR, ctr) || ba_PAccept('=', ctr))
+				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_LOGAND, ctr) || 
+				ba_PAccept(BA_TK_LOGOR, ctr) || ba_PAccept('=', ctr) ||
+				ba_PAccept(BA_TK_ADDEQ, ctr) || ba_PAccept(BA_TK_SUBEQ, ctr) || 
+				ba_PAccept(BA_TK_MULEQ, ctr) || ba_PAccept(BA_TK_IDIVEQ, ctr) || 
+				ba_PAccept(BA_TK_FDIVEQ, ctr) || ba_PAccept(BA_TK_MODEQ, ctr) || 
+				ba_PAccept(BA_TK_LSHIFTEQ, ctr) || ba_PAccept(BA_TK_RSHIFTEQ, ctr) || 
+				ba_PAccept(BA_TK_BITANDEQ, ctr) || ba_PAccept(BA_TK_BITXOREQ, ctr) || 
+				ba_PAccept(BA_TK_BITOREQ, ctr))
 			{
 				op->syntax = BA_OP_INFIX;
 			}
@@ -1134,7 +1243,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 
 			// Short circuiting: jmp ahead if right-hand side operand is unnecessary
-			if (lexType == BA_TK_DBAMPD || lexType == BA_TK_DBBAR) {
+			if (lexType == BA_TK_LOGAND || lexType == BA_TK_LOGOR) {
 				struct ba_PTkStkItem* lhs = ba_StkTop(ctr->pTkStk);
 				ba_StkPush((void*)ctr->labelCnt, ctr->shortCircLblStk);
 
@@ -1168,7 +1277,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 				}
 				ba_AddIM(&ctr->im, 2, 
-					lexType == BA_TK_DBAMPD ? BA_IM_LABELJZ : BA_IM_LABELJNZ,
+					lexType == BA_TK_LOGAND ? BA_IM_LABELJZ : BA_IM_LABELJNZ,
 						ctr->labelCnt);
 
 				if (reg && lhs->lexemeType != BA_TK_IMREGISTER) {
