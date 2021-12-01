@@ -26,7 +26,8 @@ An expression consists of atoms and operators (or just an atom on its own).
 
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified otherwise with [RA].
-- unary prefixes `+ - ! ~` and grouping `()`
+- type cast postfix `@ <type>`
+- unary prefixes `+ - ! ~`, and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
@@ -44,7 +45,7 @@ Integer division gives the quotient from truncated division (`16 // 3 == 5 == -1
 
 The `&&` and `||` operators are short-circuiting.
 
-The left-hand side of an assignment must be an lvalue. So `a = 1`, `msg = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
+The left-hand side of an assignment must be an lvalue (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 ### Statements
 Statements are combinations of expressions that together form a program. In this section, square brackets signify optionality, and words in angle brackets represent that one of multiple different expressions or tokens can be used.
 

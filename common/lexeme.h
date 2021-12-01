@@ -1,5 +1,7 @@
 // See LICENSE for copyright/license information
 
+#include "types.h"
+
 #ifndef BA__LEXEME_H
 #define BA__LEXEME_H
 
@@ -82,6 +84,16 @@ inline u8 ba_IsLexemeCompoundAssign(u64 lexType) {
 		lexType == BA_TK_BITOREQ;
 }
 
+u8 ba_GetTypeFromKeyword(u64 lexType) {
+	switch (lexType) {
+		case BA_TK_KW_U64:
+			return BA_TYPE_U64;
+		case BA_TK_KW_I64:
+			return BA_TYPE_I64;
+	}
+	return 0;
+}
+
 char* ba_GetLexemeStr(u64 lex) {
 	if (lex == BA_TK_EOF) {
 		return "eof";
@@ -146,6 +158,10 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "identifier";
 		case BA_TK_KW_WRITE:
 			return "keyword 'write'";
+		case BA_TK_KW_U64:
+			return "keyword 'u64'";
+		case BA_TK_KW_I64:
+			return "keyword 'i64'";
 	}
 	return 0;
 }

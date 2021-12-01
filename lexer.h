@@ -148,8 +148,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						++fileIter;
 						continue;
 					}
-					else if (c == ';' || c == '!' || c == '~' || c == '(' || 
-						c == ')' || c == '=')
+					else if (c == ';' || c == '!' || c == '~' || c == '@' || 
+						c == '(' || c == ')' || c == '=')
 					{
 						nextLex->type = c;
 					}

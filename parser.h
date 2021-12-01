@@ -33,13 +33,10 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 
 /* base_type = "u64" | "i64" */
 u8 ba_PBaseType(struct ba_Controller* ctr) {
-	if (ba_PAccept(BA_TK_KW_U64, ctr)) {
-		ba_PTkStkPush(ctr, /* val = */ 0, BA_TYPE_TYPE, BA_TK_KW_U64, 
+	u64 lexType = ctr->lex->type;
+	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr)) {
+		ba_PTkStkPush(ctr, /* val = */ 0, BA_TYPE_TYPE, lexType, 
 			/* isLValue = */ 0);
-	}
-	else if (ba_PAccept(BA_TK_KW_I64, ctr)) {
-		ba_PTkStkPush(ctr, /* val = */ 0, BA_TYPE_TYPE, BA_TK_KW_I64, 
-			/*isLValue = */ 0);
 	}
 	else {
 		return 0;
@@ -199,6 +196,9 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 		case BA_OP_POSTFIX:
 			if (op->lexemeType == ')') {
 				return 255;
+			}
+			else if (op->lexemeType == '@') {
+				return 0;
 			}
 			break;
 	}
@@ -1147,11 +1147,43 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 		}
 
 		case BA_OP_POSTFIX:
+		{
 			// This should never occur
 			if (op->lexemeType == ')') {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, op->col);
 			}
+			else if (op->lexemeType == '@') {
+				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
+				if (!castedExp) {
+					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 
+						op->line, op->col);
+				}
+				struct ba_PTkStkItem* typeArg = arg;
+
+				u64 newType = ba_GetTypeFromKeyword(typeArg->lexemeType);
+
+				if (!newType) {
+					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that is "
+						"not a type on", op->line, op->col);
+				}
+
+				if (ba_IsTypeNumeric(newType) != 
+					ba_IsTypeNumeric(castedExp->type))
+				{
+					return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
+						"types on", op->line, op->col);
+				}
+				
+				free(typeArg);
+				arg = castedExp;
+				arg->type = newType;
+				arg->isLValue = 0;
+				ba_StkPush(arg, ctr->pTkStk);
+				return 1;
+			}
+
 			break;
+		}
 	}
 	
 	return 1;
@@ -1170,7 +1202,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
 
-		// Start of an expression or after an operator
+		// Start of an expression or after a binary operator
 		if (!afterAtom) {
 			// Prefix operator
 			if (ba_PAccept('+', ctr) || ba_PAccept('-', ctr) || 
@@ -1204,6 +1236,14 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			// Set syntax type
 			if (ba_PAccept(')', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
+			}
+			else if (ba_PAccept('@', ctr)) {
+				op->syntax = BA_OP_POSTFIX;
+
+				if (!ba_PBaseType(ctr)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression "
+						"that is not a type on", op->line, op->col);
+				}
 			}
 			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 
 				ba_PAccept(BA_TK_RSHIFT, ctr) || ba_PAccept('*', ctr) || 
@@ -1512,14 +1552,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return ba_ErrorMallocNoMem();
 		}
 		idVal->parent = ctr->currScope;
-		switch (varTypeItem->lexemeType) {
-			case BA_TK_KW_U64:
-				idVal->type = BA_TYPE_U64;
-				break;
-			case BA_TK_KW_I64:
-				idVal->type = BA_TYPE_I64;
-				break;
-		}
+		idVal->type = ba_GetTypeFromKeyword(varTypeItem->lexemeType);
 		
 		idVal->address = ctr->dataSgmtSize;
 		ctr->dataSgmtSize += ba_GetSizeOfType(idVal->type);

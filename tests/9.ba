@@ -37,3 +37,5 @@ write nuane; "\n"; # 0
 
 x = nuane = 5931;
 write x; " "; write nuane; "\n";
+write (-1)@u64 // 1_000_000u; "\n"; # 18446744073709
+
