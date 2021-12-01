@@ -209,6 +209,13 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	return 255;
 }
 
+u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
+	if (op->syntax != BA_OP_INFIX) {
+		return 0;
+	}
+	return op->lexemeType == '=' || ba_IsLexemeCompoundAssign(op->lexemeType);
+}
+
 // Handle operations (i.e. perform operation now or generate code for it)
 u8 ba_POpHandle(struct ba_Controller* ctr) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
@@ -1223,15 +1230,18 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 			if (ctr->pOpStk->count) {
 				do {
-					if (ba_POpPrecedence(ba_StkTop(ctr->pOpStk)) <=
-						ba_POpPrecedence(op))
-					{
-						u8 handle = ba_POpHandle(ctr);
-						if (!handle) {
+					u8 stkTopPrec = ba_POpPrecedence(ba_StkTop(ctr->pOpStk));
+					u8 opPrec = ba_POpPrecedence(op);
+					u8 willHandle = ba_POpIsRightAssoc(op)
+						? stkTopPrec < opPrec : stkTopPrec <= opPrec;
+
+					if (willHandle) {
+						u8 handleResult = ba_POpHandle(ctr);
+						if (!handleResult) {
 							return 0;
 						}
 						// Left grouping parenthesis
-						else if (handle == 2) {
+						else if (handleResult == 2) {
 							goto BA_LBL_PEXP_LOOPEND;
 						}
 					}
