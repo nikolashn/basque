@@ -35,7 +35,7 @@ Operators are the following (each line is ordered from high to low precedence).
 - add `+`, subtract `-`
 - logical and `&&`
 - logical or `||`
-- assignment `=`
+- assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### Notes about specific operators
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
