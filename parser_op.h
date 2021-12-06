@@ -155,7 +155,6 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	if (isShortCirc) {
 		u64 realRegL = regL ? regL : BA_IM_RAX;
 		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, ba_StkPop(ctr->shortCircLblStk));
-		ba_AddIM(&ctr->im, 3, BA_IM_TEST, realRegL, realRegL);
 		ba_AddIM(&ctr->im, 2, BA_IM_SETNZ, realRegL - BA_IM_RAX + BA_IM_AL);
 		ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realRegL,
 			realRegL - BA_IM_RAX + BA_IM_AL);
