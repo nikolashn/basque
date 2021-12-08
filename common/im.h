@@ -46,8 +46,12 @@ enum {
 	BA_IM_POP          = 0x44,
 	
 	BA_IM_LABELJMP     = 0x50,
-	BA_IM_LABELJNZ     = 0x51,
-	BA_IM_LABELJZ      = 0x52,
+	BA_IM_LABELJZ      = 0x51,
+	BA_IM_LABELJNZ     = 0x52,
+	BA_IM_LABELJB      = 0x53,
+	BA_IM_LABELJBE     = 0x54,
+	BA_IM_LABELJA      = 0x55,
+	BA_IM_LABELJAE     = 0x56,
 
 	BA_IM_MOVZX        = 0x60,
 	BA_IM_CQO          = 0x61,
@@ -55,6 +59,10 @@ enum {
 	BA_IM_SETNS        = 0x63,
 	BA_IM_SETZ         = 0x64,
 	BA_IM_SETNZ        = 0x65,
+	BA_IM_SETB         = 0x66,
+	BA_IM_SETBE        = 0x67,
+	BA_IM_SETA         = 0x68,
+	BA_IM_SETAE        = 0x69,
 
 	// Registers must remain in order, otherwise binary generation messes up
 	// i.e. the last nibble of each value must stay the same as originally, 
@@ -209,12 +217,28 @@ char* ba_IMToStr(struct ba_IM* im) {
 				strcat(str, "LABELJMP ");
 				isImm = 1;
 				break;
+			case BA_IM_LABELJZ:
+				strcat(str, "LABELJZ ");
+				isImm = 1;
+				break;
 			case BA_IM_LABELJNZ:
 				strcat(str, "LABELJNZ ");
 				isImm = 1;
 				break;
-			case BA_IM_LABELJZ:
-				strcat(str, "LABELJZ ");
+			case BA_IM_LABELJB:
+				strcat(str, "LABELJB ");
+				isImm = 1;
+				break;
+			case BA_IM_LABELJBE:
+				strcat(str, "LABELJBE ");
+				isImm = 1;
+				break;
+			case BA_IM_LABELJA:
+				strcat(str, "LABELJA ");
+				isImm = 1;
+				break;
+			case BA_IM_LABELJAE:
+				strcat(str, "LABELJAE ");
 				isImm = 1;
 				break;
 			case BA_IM_MOVZX:
@@ -234,6 +258,18 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SETNZ:
 				strcat(str, "SETNZ ");
+				break;
+			case BA_IM_SETB:
+				strcat(str, "SETB ");
+				break;
+			case BA_IM_SETBE:
+				strcat(str, "SETBE ");
+				break;
+			case BA_IM_SETA:
+				strcat(str, "SETA ");
+				break;
+			case BA_IM_SETAE:
+				strcat(str, "SETAE ");
 				break;
 			case BA_IM_INC:
 				strcat(str, "INC ");

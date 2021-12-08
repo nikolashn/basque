@@ -944,8 +944,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_LABELJNZ:
-			case BA_IM_LABELJZ:
+			case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_LABELJZ: 
+			case BA_IM_LABELJNZ: case BA_IM_LABELJB: case BA_IM_LABELJBE: 
+			case BA_IM_LABELJA: case BA_IM_LABELJAE: 
 			{
 				enum {
 					_INSTRTYPE_CALL,
@@ -966,8 +967,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					opCodeNear = 0xe9;
 				}
 				else {
+					(im->vals[0] == BA_IM_LABELJZ && (opCodeShort = 0x74)) ||
 					(im->vals[0] == BA_IM_LABELJNZ && (opCodeShort = 0x75)) ||
-					(im->vals[0] == BA_IM_LABELJZ && (opCodeShort = 0x74));
+					(im->vals[0] == BA_IM_LABELJB && (opCodeShort = 0x72)) ||
+					(im->vals[0] == BA_IM_LABELJBE && (opCodeShort = 0x76)) ||
+					(im->vals[0] == BA_IM_LABELJA && (opCodeShort = 0x77)) ||
+					(im->vals[0] == BA_IM_LABELJAE && (opCodeShort = 0x73));
 				}
 
 				(instrType == _INSTRTYPE_JCC) && 
@@ -1195,6 +1200,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			}
 
 			case BA_IM_SETS: case BA_IM_SETNS: case BA_IM_SETZ: case BA_IM_SETNZ: 
+			case BA_IM_SETB: case BA_IM_SETBE: case BA_IM_SETA: case BA_IM_SETAE: 
 			{
 				if (im->count < 2) {
 					return ba_ErrorIMArgCount(1, im);
@@ -1210,7 +1216,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					((im->vals[0] == BA_IM_SETS) && (byte1 = 0x98)) ||
 					((im->vals[0] == BA_IM_SETNS) && (byte1 = 0x99)) ||
 					((im->vals[0] == BA_IM_SETZ) && (byte1 = 0x94)) ||
-					((im->vals[0] == BA_IM_SETNZ) && (byte1 = 0x95));
+					((im->vals[0] == BA_IM_SETNZ) && (byte1 = 0x95)) ||
+					((im->vals[0] == BA_IM_SETB) && (byte1 = 0x92)) ||
+					((im->vals[0] == BA_IM_SETBE) && (byte1 = 0x96)) ||
+					((im->vals[0] == BA_IM_SETA) && (byte1 = 0x97)) ||
+					((im->vals[0] == BA_IM_SETAE) && (byte1 = 0x93));
 
 					code->cnt += 3 + (reg0 >= 4);
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -1623,13 +1633,15 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		// JMP/Jcc instructions are all calculated pessimally
 		case BA_IM_LABELCALL: case BA_IM_LABELJMP:
 			return 5;
-		case BA_IM_LABELJNZ: case BA_IM_LABELJZ:
+		case BA_IM_LABELJNZ: case BA_IM_LABELJZ: case BA_IM_LABELJB: 
+		case BA_IM_LABELJBE: case BA_IM_LABELJA: case BA_IM_LABELJAE:
 			return 6;
 		
 		case BA_IM_MOVZX:
 			return 4;
 
 		case BA_IM_SETS: case BA_IM_SETNS: case BA_IM_SETZ: case BA_IM_SETNZ:
+		case BA_IM_SETB: case BA_IM_SETBE: case BA_IM_SETA: case BA_IM_SETAE: 
 		{
 			// GPRb
 			if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
