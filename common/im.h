@@ -21,22 +21,23 @@ enum {
 	BA_IM_MOV          = 0x10,
 	BA_IM_ADD          = 0x11,
 	BA_IM_SUB          = 0x12,
-	BA_IM_INC          = 0x13,
-	BA_IM_NOT          = 0x14,
-	BA_IM_NEG          = 0x15,
-	BA_IM_TEST         = 0x16,
-	BA_IM_AND          = 0x17,
-	BA_IM_XOR          = 0x18,
-	BA_IM_OR           = 0x19,
-	BA_IM_ROL          = 0x1a,
-	BA_IM_ROR          = 0x1b,
-	BA_IM_SHL          = 0x1c,
-	BA_IM_SHR          = 0x1d,
-	BA_IM_SAR          = 0x1e,
-	BA_IM_MUL          = 0x1f,
-	BA_IM_IMUL         = 0x20,
-	BA_IM_DIV          = 0x21,
-	BA_IM_IDIV         = 0x22,
+	BA_IM_CMP          = 0x13,
+	BA_IM_INC          = 0x14,
+	BA_IM_NOT          = 0x15,
+	BA_IM_NEG          = 0x16,
+	BA_IM_TEST         = 0x17,
+	BA_IM_AND          = 0x18,
+	BA_IM_XOR          = 0x19,
+	BA_IM_OR           = 0x1a,
+	BA_IM_ROL          = 0x1b,
+	BA_IM_ROR          = 0x1c,
+	BA_IM_SHL          = 0x1d,
+	BA_IM_SHR          = 0x1e,
+	BA_IM_SAR          = 0x1f,
+	BA_IM_MUL          = 0x20,
+	BA_IM_IMUL         = 0x21,
+	BA_IM_DIV          = 0x22,
+	BA_IM_IDIV         = 0x23,
 	
 	BA_IM_SYSCALL      = 0x40,
 	BA_IM_LABELCALL    = 0x41,
@@ -183,6 +184,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_SUB:
 				strcat(str, "SUB ");
+				break;
+			case BA_IM_CMP:
+				strcat(str, "CMP ");
 				break;
 			case BA_IM_SYSCALL:
 				strcat(str, "SYSCALL ");

@@ -501,12 +501,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_ADD: case BA_IM_SUB: case BA_IM_AND: case BA_IM_XOR:
-			case BA_IM_OR:
+			case BA_IM_ADD: case BA_IM_SUB: case BA_IM_CMP: case BA_IM_AND: 
+			case BA_IM_XOR: case BA_IM_OR:
 			{
 				char* instrName = 0;
 				((im->vals[0] == BA_IM_ADD) && (instrName = "ADD")) ||
 				((im->vals[0] == BA_IM_SUB) && (instrName = "SUB")) ||
+				((im->vals[0] == BA_IM_CMP) && (instrName = "CMP")) ||
 				((im->vals[0] == BA_IM_AND) && (instrName = "AND")) ||
 				((im->vals[0] == BA_IM_OR) && (instrName = "OR")) ||
 				((im->vals[0] == BA_IM_XOR) && (instrName = "XOR"));
@@ -518,6 +519,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				u8 byte1Offset = 0;
 				((im->vals[0] == BA_IM_ADD) && (byte1Offset = 0)) || 
 				((im->vals[0] == BA_IM_SUB) && (byte1Offset = 0x28)) || 
+				((im->vals[0] == BA_IM_CMP) && (byte1Offset = 0x38)) || 
 				((im->vals[0] == BA_IM_AND) && (byte1Offset = 0x20)) || 
 				((im->vals[0] == BA_IM_OR) && (byte1Offset = 0x08)) || 
 				((im->vals[0] == BA_IM_XOR) && (byte1Offset = 0x30));
@@ -1518,8 +1520,8 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 			break;
 		}
-		case BA_IM_ADD: case BA_IM_SUB: case BA_IM_AND: case BA_IM_XOR:
-		case BA_IM_OR:
+		case BA_IM_ADD: case BA_IM_SUB: case BA_IM_CMP: case BA_IM_AND: 
+		case BA_IM_XOR: case BA_IM_OR:
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
