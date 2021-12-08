@@ -148,8 +148,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						++fileIter;
 						continue;
 					}
-					else if (c == ';' || c == '!' || c == '~' || c == '@' || 
-						c == '(' || c == ')' || c == '=')
+					else if (c == ';' || c == '~' || c == '@' || 
+						c == '(' || c == ')')
 					{
 						nextLex->type = c;
 					}
@@ -158,7 +158,15 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						colStart = col++;
 						c = fileBuf[++fileIter];
 
-						if (oldC == '+') {
+						if (oldC == '=') {
+							((c == '=') && (nextLex->type = BA_TK_DBEQUAL)) || 
+							((nextLex->type = '=') && (needsToIterate = 0));
+						}
+						else if (oldC == '!') {
+							((c == '=') && (nextLex->type = BA_TK_NEQUAL)) || 
+							((nextLex->type = '!') && (needsToIterate = 0));
+						}
+						else if (oldC == '+') {
 							((c == '=') && (nextLex->type = BA_TK_ADDEQ)) || 
 							((nextLex->type = '+') && (needsToIterate = 0));
 						}
