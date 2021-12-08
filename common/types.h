@@ -35,8 +35,6 @@ u8 ba_IsTypeNumeric(u64 type) {
 
 u64 ba_GetSizeOfType(u64 type) {
 	switch (type) {
-		case BA_TYPE_NONE:
-			return 0;
 		case BA_TYPE_U64:
 		case BA_TYPE_I64:
 		case BA_TYPE_F64:
@@ -52,8 +50,6 @@ u64 ba_GetSizeOfType(u64 type) {
 
 char* ba_GetTypeStr(u64 type) {
 	switch (type) {
-		case BA_TYPE_NONE:
-			return 0;
 		case BA_TYPE_U64:
 			return "'u64'";
 		case BA_TYPE_I64:
