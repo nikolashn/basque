@@ -939,8 +939,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			{
 				code->cnt += 2;
 				(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-				code->arr[code->cnt-2] = 0xf;
-				code->arr[code->cnt-1] = 0x5;
+				code->arr[code->cnt-2] = 0x0f;
+				code->arr[code->cnt-1] = 0x05;
 				break;
 			}
 
@@ -1013,8 +1013,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					code->cnt += instrSize;
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-					(instrType == _INSTRTYPE_JCC) && 
-						(code->arr[code->cnt-instrSize] = 0xf);
+					(instrType == _INSTRTYPE_JCC && instrSize == 4) && 
+						(code->arr[code->cnt-4] = 0x0f);
 					code->arr[code->cnt-instrSize + 
 						(instrType == _INSTRTYPE_JCC)] = 
 						(instrSize == 2) ? opCodeShort : opCodeNear;
@@ -1056,20 +1056,28 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					(++lbl->jmpOfstSizes->cnt > lbl->jmpOfsts->cap) &&
 						ba_ResizeDynArr8(lbl->jmpOfstSizes);
 
-					*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt + 1;
-					
 					if (instrType != _INSTRTYPE_CALL && labelDistance < 0x80) {
+						*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt + 1;
+					
 						code->cnt += 2;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
 						*ba_TopDynArr8(lbl->jmpOfstSizes) = 1;
+
 						code->arr[code->cnt-2] = opCodeShort;
 					}
 					else {
+						*ba_TopDynArr64(lbl->jmpOfsts) = code->cnt + 1 + 
+							(instrType == _INSTRTYPE_JCC);
+					
 						code->cnt += 5 + (instrType == _INSTRTYPE_JCC);
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
 						*ba_TopDynArr8(lbl->jmpOfstSizes) = 4;
-						code->arr[code->cnt-5-(instrType == _INSTRTYPE_JCC)] = 
-							opCodeNear;
+
+						(instrType == _INSTRTYPE_JCC) && 
+							(code->arr[code->cnt-6] = 0x0f);
+						code->arr[code->cnt-5] = opCodeNear;
 					}
 				}
 
@@ -1187,7 +1195,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->cnt += 4;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 						code->arr[code->cnt-4] = byte0;
-						code->arr[code->cnt-3] = 0xf;
+						code->arr[code->cnt-3] = 0x0f;
 						code->arr[code->cnt-2] = 0xb6;
 						code->arr[code->cnt-1] = byte3;
 					}
