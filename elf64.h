@@ -690,7 +690,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
-			case BA_IM_INC: case BA_IM_NOT: case BA_IM_NEG:
+			case BA_IM_INC: case BA_IM_DEC: case BA_IM_NOT: case BA_IM_NEG:
 			{
 				u8 byte1;
 				u8 byte2Offset;
@@ -698,6 +698,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				if (im->vals[0] == BA_IM_INC) {
 					byte1 = 0xff;
 					byte2Offset = 0;
+				}
+				else if (im->vals[0] == BA_IM_DEC) {
+					byte1 = 0xff;
+					byte2Offset = 0x8;
 				}
 				else if (im->vals[0] == BA_IM_NOT) {
 					byte1 = 0xf7;
@@ -1568,7 +1572,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 
 			break;
 
-		case BA_IM_INC: case BA_IM_NOT: case BA_IM_NEG:
+		case BA_IM_INC: case BA_IM_DEC: case BA_IM_NOT: case BA_IM_NEG:
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				return 3;
 			}
