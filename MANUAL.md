@@ -7,7 +7,7 @@ Basque is extremely extremely alpha. The current features are very limited and r
 Basque has no entry point function as there is in C. Code in the outer body of a program can be executed as if it were in a main function.
 
 ## Types
-Currently only string (string literal), `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `u8` (unsigned byte) exist. The last one, `u8` only exists as the result of some operations and currently variables cannot be defined as `u8`. The string type will eventually be removed once pointers are added, and more types will be added like `i8` (signed byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
+Currently only string (string literal), `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `u8` (unsigned byte) exist. The last one, `u8`, only exists as the result of some operations and currently variables cannot be defined as `u8`. The string type will eventually be removed once pointers are added, and more types will be added like `i8` (signed byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
 
 ## Syntax
 ### Comments
@@ -54,7 +54,7 @@ Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is s
 
 Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
 
-The `&&` and `||` operators are short-circuiting.
+The `&&` and `||` operators are short-circuiting and always result in type `u8`.
 
 Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`.
 
