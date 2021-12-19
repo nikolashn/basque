@@ -41,16 +41,16 @@ i64 p = 91;
 
 # 1,0,1,0,1
 write c >= a - b != 0; ",";
-write c >= (a - b != 0)@i64; ",";
-write (c >= a - b)@i64 != 0; ",";
-write c < a < b && c >= (a - b == 0 || a == a == a)@i64; ",";
+write c >= (a - b != 0)~i64; ",";
+write (c >= a - b)~i64 != 0; ",";
+write c < a < b && c >= (a - b == 0 || a == a == a)~i64; ",";
 write (a - b == 0 || a == a == a); "\n";
 
 # 0,1
 write (c + d) >= (a < b < c); ",";
-write (c + d)@u64 >= (a < b < c); "\n";
+write (c + d)~u64 >= (a < b < c); "\n";
 
 # 1
-write a || b < c <= d + e != (f = g) == (h > i >= j)@i64 != k || 
+write a || b < c <= d + e != (f = g) == (h > i >= j)~i64 != k || 
 	l < m && n == o != p; "\n";
 
