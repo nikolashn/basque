@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 				return ba_ErrorMallocNoMem();
 			}
 			strcpy(outFileName, argv[i]);
-			continue;
+			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (argv[i][0] == '-') {
 			if (len > 1 && argv[i][1] != '-') {
@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
 			return 0;
 		}
 		else if (isHandledCLO) {
-			continue;
+			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (!strcmp(argv[i], "--silence-warnings")) {
 			ba_IsSilenceWarnings = 1;
@@ -128,6 +128,7 @@ int main(int argc, char* argv[]) {
 			printf("Error: only one input file may be specified\n");
 			return -1;
 		}
+		BA_LBL_MAIN_ARGSLOOPEND:;
 	}
 	if (ba_IsWarningsAsErrors && ba_IsSilenceWarnings) {
 		printf("Error: cannot both silence warnings and have warnings as errors\n");
