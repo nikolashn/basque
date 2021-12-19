@@ -1013,8 +1013,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					code->cnt += instrSize;
 					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-					(instrType == _INSTRTYPE_JCC && instrSize == 4) && 
-						(code->arr[code->cnt-4] = 0x0f);
+
+					(instrType == _INSTRTYPE_JCC && instrSize == 6) && 
+						(code->arr[code->cnt-6] = 0x0f);
 					code->arr[code->cnt-instrSize + 
 						(instrType == _INSTRTYPE_JCC)] = 
 						(instrSize == 2) ? opCodeShort : opCodeNear;
