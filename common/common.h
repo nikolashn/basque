@@ -56,66 +56,65 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 	u64 base = 10;
 
 	while (*str) {
-		if (*str != '0') {
-			if (base == 10) {
-				if ((*str == 'x') || (*str == 'X')) {
-					base = 16;
-					++str;
-					continue;
-				}
-				else if ((*str == 'o') || (*str == 'O')) {
-					base = 8;
-					++str;
-					continue;
-				}
-				else if ((*str == 'b') || (*str == 'B')) {
-					base = 2;
-					++str;
-					continue;
-				}
-			}
-
-			len = strlen(str);
-			if (base == 10) {
-				if (len > 20) {
-					return ba_ErrorIntLitTooLong(line, col);
-				}
-				else if (len == 20) {
-					// Maximum 64-bit unsigned integer
-					char* mx = "18446744073709551615";
-					for (u64 i = 0; i < 20; i++) {
-						// Guaranteed greater than the max integer
-						if (str[i] > *mx) {
-							return ba_ErrorIntLitTooLong(line, col);
-						}
-						// Guaranteed smaller than the max integer
-						else if (str[i] < *mx) {
-							break;
-						}
-
-						++mx;
-					}
-				}
-			}
-			else if (base == 16) {
-				if (len > 16) {
-					return ba_ErrorIntLitTooLong(line, col);
-				}
-			}
-			else if (base == 8) {
-				if ((len > 21) && (*str >= '2')) {
-					return ba_ErrorIntLitTooLong(line, col);
-				}
-			}
-			else if (base == 2) {
-				if (len > 64) {
-					return ba_ErrorIntLitTooLong(line, col);
-				}
-			}
-
-			break;
+		if (*str == '0') {
+			goto BA_LBL_STRTOU64_LOOPEND;
 		}
+
+		if (base == 10) {
+			if ((*str == 'x') || (*str == 'X')) {
+				base = 16;
+				goto BA_LBL_STRTOU64_LOOPEND;
+			}
+			else if ((*str == 'o') || (*str == 'O')) {
+				base = 8;
+				goto BA_LBL_STRTOU64_LOOPEND;
+			}
+			else if ((*str == 'b') || (*str == 'B')) {
+				base = 2;
+				goto BA_LBL_STRTOU64_LOOPEND;
+			}
+		}
+
+		len = strlen(str);
+		if (base == 10) {
+			if (len > 20) {
+				return ba_ErrorIntLitTooLong(line, col);
+			}
+			else if (len == 20) {
+				// Maximum 64-bit unsigned integer
+				char* mx = "18446744073709551615";
+				for (u64 i = 0; i < 20; i++) {
+					// Guaranteed greater than the max integer
+					if (str[i] > *mx) {
+						return ba_ErrorIntLitTooLong(line, col);
+					}
+					// Guaranteed smaller than the max integer
+					else if (str[i] < *mx) {
+						break;
+					}
+					++mx;
+				}
+			}
+		}
+		else if (base == 16) {
+			if (len > 16) {
+				return ba_ErrorIntLitTooLong(line, col);
+			}
+		}
+		else if (base == 8) {
+			if ((len > 21) && (*str >= '2')) {
+				return ba_ErrorIntLitTooLong(line, col);
+			}
+		}
+		else if (base == 2) {
+			if (len > 64) {
+				return ba_ErrorIntLitTooLong(line, col);
+			}
+		}
+
+		break;
 		
+		BA_LBL_STRTOU64_LOOPEND:
 		++str;
 	}
 
