@@ -31,7 +31,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
 - type cast postfix `~ <type>`
-- unary prefixes `+ - ! ~`, and grouping `()`
+- unary prefixes `+ - ! ~ ++ --`, and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
@@ -44,6 +44,8 @@ Basque's operators are the following (each line is ordered from high to low prec
 - assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### Notes about specific operators
+Only prefix increment and decrement are available in Basque.
+
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
 
 Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
