@@ -1,11 +1,13 @@
 # The Basque Programming Language and C Basque Compiler Manual
 
+Basque is extremely extremely alpha. The current features are very limited and rough around the edges. Nothing is stable; anything is subject to change.
+
 ## Program structure
 
 Basque has no entry point function as there is in C. Code in the outer body of a program can be executed as if it were in a main function.
 
 ## Types
-Currently only string (string literal), `i64` (64-bit signed integer) and `u64` (64-bit unsigned integer) exist. The string type will eventually be removed once pointers are added, and more types will be added like `u8` (unsigned byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
+Currently only string (string literal), `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `u8` (unsigned byte) exist. The last one, `u8` only exists as the result of some operations and currently variables cannot be defined as `u8`. The string type will eventually be removed once pointers are added, and more types will be added like `i8` (signed byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
 
 ## Syntax
 ### Comments
@@ -31,7 +33,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
 - type cast postfix `~ <type>`
-- unary prefixes `+ - ! ~ ++ --`, and grouping `()`
+- unary prefixes `+ - ! ~ ++ -- $`, and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
@@ -44,7 +46,9 @@ Basque's operators are the following (each line is ordered from high to low prec
 - assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### Notes about specific operators
-Only prefix increment and decrement are available in Basque.
+Only prefix increment and decrement are available in Basque. Postfix increment and decrement will not be added.
+
+The $ operator is an operator that evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
 
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
 
