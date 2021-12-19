@@ -1,5 +1,9 @@
 # The Basque Programming Language and C Basque Compiler Manual
 
+## Program structure
+
+Basque has no entry point function as there is in C. Code in the outer body of a program can be executed as if it were in a main function.
+
 ## Types
 Currently only string (string literal), `i64` (64-bit signed integer) and `u64` (64-bit unsigned integer) exist. The string type will eventually be removed once pointers are added, and more types will be added like `u8` (unsigned byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
 
@@ -25,7 +29,7 @@ An atom is one of the following:
 An expression consists of atoms and operators (or just an atom on its own).
 
 #### Operator precedence
-Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified otherwise with [RA].
+Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
 - type cast postfix `@ <type>`
 - unary prefixes `+ - ! ~`, and grouping `()`
 - bit shift operators `<< >>`
@@ -34,9 +38,10 @@ Basque's operators are the following (each line is ordered from high to low prec
 - bitwise xor `^`
 - bitwise or `|`
 - add `+`, subtract `-`
+- comparison `< > <= >= == !=`
 - logical and `&&`
 - logical or `||`
-- [RA] assignment `= += -= &= ^= |= *= //= %= <<= >>=`
+- assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### Notes about specific operators
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
@@ -45,7 +50,9 @@ Integer division gives the quotient from truncated division (`16 // 3 == 5 == -1
 
 The `&&` and `||` operators are short-circuiting.
 
-The left-hand side of an assignment must be an lvalue (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
+Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`.
+
+All assignment operators are right-associative. The left-hand side of an assignment must be an L-value (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 ### Statements
 Statements are combinations of expressions that together form a program. In this section, square brackets signify optionality, and words in angle brackets represent that one of multiple different expressions or tokens can be used.
 
