@@ -152,7 +152,8 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 			if (op->lexemeType == '+' || op->lexemeType == '-' || 
-				op->lexemeType == '!' || op->lexemeType == '~')
+				op->lexemeType == '!' || op->lexemeType == '~' ||
+				op->lexemeType == BA_TK_INC || op->lexemeType == BA_TK_DEC)
 			{
 				return 1;
 			}
@@ -216,11 +217,15 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	return 255;
 }
 
+// Right associative operators don't handle operators of the same precedence
 u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
-	if (op->syntax != BA_OP_INFIX) {
-		return 0;
+	if (op->syntax == BA_OP_INFIX) {
+		return op->lexemeType == '=' || ba_IsLexemeCompoundAssign(op->lexemeType);
 	}
-	return op->lexemeType == '=' || ba_IsLexemeCompoundAssign(op->lexemeType);
+	else if (op->syntax == BA_OP_PREFIX) {
+		return op->lexemeType == '(';
+	}
+	return 0;
 }
 
 // Handle operations (i.e. perform operation now or generate code for it)
@@ -295,6 +300,64 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				else if (ba_IsTypeSigned(arg->type)) {
 					arg->type = BA_TYPE_I64;
+				}
+
+				arg->isLValue = 0;
+				ba_StkPush(ctr->pTkStk, arg);
+				return 1;
+			}
+			// Note: assumes arg is an identifier
+			else if (op->lexemeType == BA_TK_INC || 
+				op->lexemeType == BA_TK_DEC)
+			{
+				if (!arg->isLValue || arg->lexemeType != BA_TK_IDENTIFIER) {
+					return ba_ExitMsg(BA_EXIT_ERR, "increment/decrement of "
+						"non-lvalue on", op->line, op->col);
+				}
+				
+				if (!ba_IsTypeNumeric(arg->type)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric"
+						"lvalue on", op->line, op->col);
+				}
+
+				u64 imOp = op->lexemeType == BA_TK_INC ? BA_IM_INC : BA_IM_DEC;
+				u64 stackPos = 0;
+				u64 reg = ba_NextIMRegister(ctr);
+				
+				if (!reg) {
+					if (!ctr->imStackCnt) {
+						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+					}
+					++ctr->imStackCnt;
+					ctr->imStackSize += 8;
+					stackPos = ctr->imStackSize;
+
+					// First: result location, second: preserve rcx
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+				}
+
+				ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+					BA_IM_DATASGMT, ((struct ba_STVal*)arg->val)->address);
+
+				ba_AddIM(&ctr->im, 2, imOp, reg ? reg : BA_IM_RAX);
+
+				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+					((struct ba_STVal*)arg->val)->address, 
+					reg ? reg : BA_IM_RAX);
+
+				if (reg) {
+					arg->lexemeType = BA_TK_IMREGISTER;
+					arg->val = (void*)reg;
+				}
+				else {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+						stackPos, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+					arg->lexemeType = BA_TK_IMRBPSUB;
+					arg->val = (void*)ctr->imStackSize;
 				}
 
 				arg->isLValue = 0;
@@ -975,10 +1038,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			}
 			
 			// Assignment
+			// Note: assumes lhs is an identifier
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType)) 
 			{
-				// TODO: change the 2nd condition when other lvalues are added
 				if (!lhs->isLValue || lhs->lexemeType != BA_TK_IDENTIFIER) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment to non-lvalue on", 
 						op->line, op->col);
@@ -1396,7 +1459,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			// Prefix operator
 			if (ba_PAccept('+', ctr) || ba_PAccept('-', ctr) || 
 				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) ||
-				ba_PAccept('(', ctr))
+				ba_PAccept('(', ctr) || ba_PAccept(BA_TK_INC, ctr) ||
+				ba_PAccept(BA_TK_DEC, ctr))
 			{
 				// Left grouping parenthesis
 				if (lexType == '(') {

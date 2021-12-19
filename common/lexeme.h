@@ -29,6 +29,8 @@ enum {
 	BA_TK_BITANDEQ = 0x111,
 	BA_TK_BITXOREQ = 0x112,
 	BA_TK_BITOREQ = 0x113,
+	BA_TK_INC = 0x114,
+	BA_TK_DEC = 0x115,
 	
 	BA_TK_LITSTR = 0x200,
 	BA_TK_LITINT = 0x201,
@@ -156,6 +158,10 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "'^='";
 		case BA_TK_BITOREQ:
 			return "'|='";
+		case BA_TK_INC:
+			return "'++'";
+		case BA_TK_DEC:
+			return "'--'";
 		case BA_TK_LITSTR:
 			return "string literal";
 		case BA_TK_LITINT:

@@ -157,10 +157,12 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						}
 						else if (oldC == '+') {
 							((c == '=') && (nextLex->type = BA_TK_ADDEQ)) || 
+							((c == '+') && (nextLex->type = BA_TK_INC)) || 
 							((nextLex->type = '+') && (needsToIterate = 0));
 						}
 						else if (oldC == '-') {
 							((c == '=') && (nextLex->type = BA_TK_SUBEQ)) || 
+							((c == '-') && (nextLex->type = BA_TK_DEC)) || 
 							((nextLex->type = '-') && (needsToIterate = 0));
 						}
 						else if (oldC == '*') {
