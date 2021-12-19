@@ -7,7 +7,7 @@
 
 int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 	enum StateType {
-		ST_NONE,
+		ST_NONE = 0,
 		ST_CMNT,
 		ST_CMNT_SG,
 		ST_CMNT_ML,
@@ -21,7 +21,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 		ST_NUM_OCT,
 		ST_NUM_BIN,
 	}
-	state = ST_NONE;
+	state = 0;
 
 	char fileBuf[BA_FILE_BUF_SIZE] = {0};
 	char litBuf[BA_LITERAL_SIZE+1] = {0};
@@ -39,13 +39,11 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			}
 
 			// Starts of lexemes
-			if (state == ST_NONE) {
+			if (!state) {
 				// Comments
 				if (c == '#') {
 					state = ST_CMNT;
-					++col;
-					++fileIter;
-					continue;
+					goto BA_LBL_LEX_LOOPITER;
 				}
 
 				// Identifiers
@@ -54,14 +52,13 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				{
 					state = ST_ID;
 					colStart = col;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 				// String literals
 				else if (c == '"') {
 					state = ST_STR;
-					colStart = col++;
-					++fileIter;
-					continue;
+					colStart = col;
+					goto BA_LBL_LEX_LOOPITER;
 				}
 				// Number literals
 				else if (c == '0') {
@@ -81,27 +78,21 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					if ((c == 'x') || (c == 'X')) {
 						litBuf[litIter++] = c;
 						state = ST_NUM_HEX;
-						++col;
-						++fileIter;
-						continue;
+						goto BA_LBL_LEX_LOOPITER;
 					}
 					else if ((c == 'o') || (c == 'O')) {
 						litBuf[litIter++] = c;
 						state = ST_NUM_OCT;
-						++col;
-						++fileIter;
-						continue;
+						goto BA_LBL_LEX_LOOPITER;
 					}
 					else if ((c == 'b') || (c == 'B')) {
 						litBuf[litIter++] = c;
 						state = ST_NUM_BIN;
-						++col;
-						++fileIter;
-						continue;
+						goto BA_LBL_LEX_LOOPITER;
 					}
 					else if ((c >= '0') && (c <= '9')) {
 						state = ST_NUM_DEC;
-						continue;
+						goto BA_LBL_LEX_LOOPEND;
 					}
 					else {
 						if ((c == 'u') || (c == 'U')) {
@@ -124,17 +115,17 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						nextLex = nextLex->next;
 						
 						litIter = 0;
-						state = ST_NONE;
+						state = 0;
 
 						if (!((c == 'u') || (c == 'U'))) {
-							continue;
+							goto BA_LBL_LEX_LOOPEND;
 						}
 					}
 				}
 				else if ((c >= '1') && (c <= '9')) {
 					state = ST_NUM_DEC;
 					colStart = col;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 				// Other characters
 				else if (!((c == ' ') || (c == '\t') || (c == '\v') || 
@@ -146,11 +137,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						++line;
 						col = 1;
 						++fileIter;
-						continue;
+						goto BA_LBL_LEX_LOOPEND;
 					}
-					else if (c == ';' || c == '~' || c == '@' || 
-						c == '(' || c == ')')
-					{
+					else if (c == ';' || c == '~' || c == '(' || c == ')') {
 						nextLex->type = c;
 					}
 					else {
@@ -270,17 +259,15 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex->next = ba_NewLexeme();
 					nextLex = nextLex->next;
 
-					if (needsToIterate) {
-						++col;
-						++fileIter;
-					}
-
 					if ((c == EOF) || (c == 0)) {
 						break;
 					}
-					else {
-						continue;
+
+					if (needsToIterate) {
+						goto BA_LBL_LEX_LOOPITER;
 					}
+
+					goto BA_LBL_LEX_LOOPEND;
 				}
 			}
 			// Comments
@@ -290,7 +277,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				}
 				else {
 					state = ST_CMNT_SG;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 			}
 			else if (state == ST_CMNT_SG) {
@@ -298,8 +285,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					++line;
 					col = 1;
 					++fileIter;
-					state = ST_NONE;
-					continue;
+					state = 0;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 			}
 			else if (state == ST_CMNT_ML) {
@@ -307,7 +294,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					++line;
 					col = 1;
 					++fileIter;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == '#') {
 					state = ST_CMNT_MLHASH;
@@ -319,10 +306,10 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					col = 1;
 					++fileIter;
 					state = ST_CMNT_ML;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == '#') {
-					state = ST_NONE;
+					state = 0;
 				}
 				else {
 					state = ST_CMNT_ML;
@@ -340,9 +327,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					}
 
 					idBuf[idIter++] = c;
-					++col;
-					++fileIter;
-					continue;
+					goto BA_LBL_LEX_LOOPITER;
 				}
 				if (idIter > 0) {
 					idBuf[idIter] = 0;
@@ -373,8 +358,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex = nextLex->next;
 					
 					idIter = 0;
-					state = ST_NONE;
-					continue;
+					state = 0;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 			}
 			// String literals
@@ -402,20 +387,18 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex = nextLex->next;
 
 					litIter = 0;
-					state = ST_NONE;
+					state = 0;
 				}
 				else if (c == '\n') {
 					litBuf[litIter++] = c;
 					++line;
 					col = 1;
 					++fileIter;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == '\\') {
-					++col;
-					++fileIter;
 					state = ST_STR_ESC;
-					continue;
+					goto BA_LBL_LEX_LOOPITER;
 				}
 				else {
 					litBuf[litIter++] = c;
@@ -458,13 +441,11 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					col = 1;
 					++fileIter;
 					state = ST_STR;
-					continue;
+					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == 'x') {
-					++col;
-					++fileIter;
 					state = ST_STR_XESC;
-					continue;
+					goto BA_LBL_LEX_LOOPITER;
 				}
 				// TODO: add more escape patterns
 				else {
@@ -549,10 +530,10 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex = nextLex->next;
 
 					litIter = 0;
-					state = ST_NONE;
+					state = 0;
 
 					if (!((c == 'u') || (c == 'U'))) {
-						continue;
+						goto BA_LBL_LEX_LOOPEND;
 					}
 				}
 			}
@@ -592,10 +573,10 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex = nextLex->next;
 
 					litIter = 0;
-					state = ST_NONE;
+					state = 0;
 
 					if (!((c == 'u') || (c == 'U'))) {
-						continue;
+						goto BA_LBL_LEX_LOOPEND;
 					}
 				}
 			}
@@ -635,10 +616,10 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex = nextLex->next;
 
 					litIter = 0;
-					state = ST_NONE;
+					state = 0;
 
 					if (!((c == 'u') || (c == 'U'))) {
-						continue;
+						goto BA_LBL_LEX_LOOPEND;
 					}
 				}
 			}
@@ -678,21 +659,23 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					nextLex = nextLex->next;
 
 					litIter = 0;
-					state = ST_NONE;
+					state = 0;
 
 					if (!((c == 'u') || (c == 'U'))) {
-						continue;
+						goto BA_LBL_LEX_LOOPEND;
 					}
 				}
 			}
 			
-			// Iterate
+			BA_LBL_LEX_LOOPITER:
 			++col;
 			++fileIter;
+
+			BA_LBL_LEX_LOOPEND:;
 		}
 	}
 
-	if (state != ST_NONE) {
+	if (state) {
 		printf("Error: unexpected end of input\n");
 		return 0;
 	}
