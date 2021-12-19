@@ -30,7 +30,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
-- type cast postfix `@ <type>`
+- type cast postfix `~ <type>`
 - unary prefixes `+ - ! ~`, and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`

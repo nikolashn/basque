@@ -204,7 +204,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			if (op->lexemeType == ')') {
 				return 100;
 			}
-			else if (op->lexemeType == '@') {
+			else if (op->lexemeType == '~') {
 				return 0;
 			}
 			break;
@@ -1336,7 +1336,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			if (op->lexemeType == ')') {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, op->col);
 			}
-			else if (op->lexemeType == '@') {
+			else if (op->lexemeType == '~') {
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
 				if (!castedExp) {
 					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 
@@ -1432,7 +1432,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			if (ba_PAccept(')', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
 			}
-			else if (ba_PAccept('@', ctr)) {
+			else if (ba_PAccept('~', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
 
 				if (!ba_PBaseType(ctr)) {
