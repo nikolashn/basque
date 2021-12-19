@@ -56,7 +56,7 @@ Integer division gives the quotient from truncated division (`16 // 3 == 5 == -1
 
 The `&&` and `||` operators are short-circuiting and always result in type `u8`.
 
-Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`.
+Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`. Comparison operators result in type `u8`.
 
 All assignment operators are right-associative. The left-hand side of an assignment must be an L-value (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 ### Statements
