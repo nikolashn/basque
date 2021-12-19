@@ -175,7 +175,6 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
 			lhsStackPos, BA_IM_RAX);
 		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
-		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 
 		arg->lexemeType = BA_TK_IMRBPSUB;
 		arg->val = (void*)ctr->imStackSize;

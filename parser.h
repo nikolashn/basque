@@ -35,7 +35,7 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 u8 ba_PBaseType(struct ba_Controller* ctr) {
 	u64 lexType = ctr->lex->type;
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr)) {
-		ba_PTkStkPush(ctr, /* val = */ 0, BA_TYPE_TYPE, lexType, 
+		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, BA_TYPE_TYPE, lexType, 
 			/* isLValue = */ 0);
 	}
 	else {
@@ -99,7 +99,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		stkStr->str = str;
 		stkStr->len = len;
-		ba_PTkStkPush(ctr, (void*)stkStr, BA_TYPE_NONE, BA_TK_LITSTR, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, BA_TYPE_NONE, BA_TK_LITSTR, 
 			/* isLValue = */ 0);
 	}
 	// lit_int
@@ -117,7 +117,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 				type = BA_TYPE_I64;
 			}
 		}
-		ba_PTkStkPush(ctr, (void*)num, type, BA_TK_LITINT, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, BA_TK_LITINT, 
 			/* isLValue = */ 0);
 	}
 	// identifier
@@ -131,7 +131,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
 				lexLine, lexColStart);
 		}
-		ba_PTkStkPush(ctr, (void*)id, id->type, BA_TK_IDENTIFIER, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
 			/* isLValue = */ 1);
 	}
 	// Other
@@ -145,6 +145,10 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 
 // Operator precedence
 u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
+	if (!op) {
+		return 255;
+	}
+
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 			if (op->lexemeType == '+' || op->lexemeType == '-' || 
@@ -153,7 +157,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 				return 1;
 			}
 			else if (op->lexemeType == '(') {
-				return 254;
+				return 99;
 			}
 			break;
 
@@ -180,11 +184,14 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			else if (op->lexemeType == '+' || op->lexemeType == '-') {
 				return 7;
 			}
-			else if (op->lexemeType == BA_TK_LOGAND) {
+			else if (ba_IsLexemeCompare(op->lexemeType)) {
 				return 8;
 			}
-			else if (op->lexemeType == BA_TK_LOGOR) {
+			else if (op->lexemeType == BA_TK_LOGAND) {
 				return 9;
+			}
+			else if (op->lexemeType == BA_TK_LOGOR) {
+				return 10;
 			}
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType))
@@ -195,7 +202,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 
 		case BA_OP_POSTFIX:
 			if (op->lexemeType == ')') {
-				return 255;
+				return 100;
 			}
 			else if (op->lexemeType == '@') {
 				return 0;
@@ -217,7 +224,7 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 }
 
 // Handle operations (i.e. perform operation now or generate code for it)
-u8 ba_POpHandle(struct ba_Controller* ctr) {
+u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
 	struct ba_PTkStkItem* arg = ba_StkPop(ctr->pTkStk);
 	if (!arg) {
@@ -241,7 +248,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 				
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 			else if (op->lexemeType == '-' || op->lexemeType == '~' ||
@@ -291,11 +298,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 			else if (op->lexemeType == '(') {
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				// IMPORTANT!!!!
 				// This leads to the parser moving back to parsing lexemes 
 				// as if it had just followed an atom, which is essentially 
@@ -336,7 +343,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				
 				// If rhs is 0, there is no change in in lhs
 				if (isRhsLiteral && !rhs->val) {
-					ba_StkPush(lhs, ctr->pTkStk);
+					ba_StkPush(ctr->pTkStk, lhs);
 					return 1;
 				}
 
@@ -353,7 +360,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 			
@@ -459,7 +466,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 
@@ -472,7 +479,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				u64 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
 					ba_IsTypeUnsigned(rhs->type);
 
 				if (areBothUnsigned) {
@@ -667,7 +674,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 
@@ -682,7 +689,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				u64 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
 					ba_IsTypeUnsigned(rhs->type);
 
 				if (areBothUnsigned) {
@@ -896,7 +903,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 			
@@ -935,7 +942,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				}
 				
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 			
@@ -963,7 +970,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 					isRhsLiteral, /* isShortCirc = */ 1, ctr);
 				
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 			
@@ -1139,7 +1146,184 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 				arg->type = lhs->type;
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
+				return 1;
+			}
+
+			// Comparison
+			else if (ba_IsLexemeCompare(op->lexemeType)) {
+				if (!ba_IsTypeNumeric(lhs->type) ||
+					!ba_IsTypeNumeric(rhs->type))
+				{
+					return ba_ExitMsg(BA_EXIT_ERR, "comparison operation "
+						"with non numeric operand(s) on", op->line, op->col);
+				}
+				else if (ba_IsTypeUnsigned(lhs->type) ^ 
+					ba_IsTypeUnsigned(rhs->type))
+				{
+					ba_ExitMsg(BA_EXIT_WARN, "comparison of integers of " 
+						"different signedness on", op->line, op->col);
+				}
+
+				struct ba_PTkStkItem* rhsCopy = malloc(sizeof(*rhsCopy));
+				memcpy(rhsCopy, rhs, sizeof(*rhsCopy));
+
+				u64 opLex = op->lexemeType;
+				u64 imOpSet = 0;
+				u64 imOpJcc = 0;
+
+				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+					ba_IsTypeUnsigned(rhs->type);
+
+				if (opLex == '<') {
+					imOpSet = areBothUnsigned ? BA_IM_SETB : BA_IM_SETL;
+					imOpJcc = areBothUnsigned ? BA_IM_LABELJAE : BA_IM_LABELJGE;
+				}
+				else if (opLex == '>') {
+					imOpSet = areBothUnsigned ? BA_IM_SETA : BA_IM_SETG;
+					imOpJcc = areBothUnsigned ? BA_IM_LABELJBE : BA_IM_LABELJLE;
+				}
+				else if (opLex == BA_TK_LTE) {
+					imOpSet = areBothUnsigned ? BA_IM_SETBE : BA_IM_SETLE;
+					imOpJcc = areBothUnsigned ? BA_IM_LABELJA : BA_IM_LABELJG;
+				}
+				else if (opLex == BA_TK_GTE) {
+					imOpSet = areBothUnsigned ? BA_IM_SETAE : BA_IM_SETGE;
+					imOpJcc = areBothUnsigned ? BA_IM_LABELJB : BA_IM_LABELJL;
+				}
+				else if (opLex == BA_TK_DBEQUAL) {
+					imOpSet = BA_IM_SETZ;
+					imOpJcc = BA_IM_LABELJNZ;
+				}
+				else if (opLex == BA_TK_NEQUAL) {
+					imOpSet = BA_IM_SETNZ;
+					imOpJcc = BA_IM_LABELJZ;
+				}
+
+				arg->type = BA_TYPE_U8;
+				arg->isLValue = 0;
+
+				u64 lhsStackPos = 0;
+				u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+				u64 regR = (u64)rhs->val; // Kept only if rhs is a register
+
+				// Return 0 means on the stack
+				(lhs->lexemeType != BA_TK_IMREGISTER) &&
+					(regL = ba_NextIMRegister(ctr));
+				(rhs->lexemeType != BA_TK_IMREGISTER) &&
+					(regR = ba_NextIMRegister(ctr));
+
+				if (!regL) {
+					if (!ctr->imStackCnt) {
+						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
+							BA_IM_RSP);
+					}
+					++ctr->imStackCnt;
+					ctr->imStackSize += 8;
+					lhsStackPos = ctr->imStackSize;
+
+					// First: result location, second: preserve rax
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+				}
+				
+				/* regR is replaced with rdx normally, but if regL is 
+				 * already rdx, regR will be set to rcx. */
+				u64 realRegL = regL ? regL : BA_IM_RAX;
+				u64 realRegR = regR ? regR : 
+					(regL == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX);
+
+				if (!regR) {
+					// Only once to preserve rdx/rcx
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, realRegR);
+				}
+
+				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegL,
+						BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+				}
+				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realRegL,
+						BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
+				}
+				else if (isLhsLiteral) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegL,
+						BA_IM_IMM, (u64)lhs->val);
+				}
+
+				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegR,
+						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+				}
+				else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realRegR,
+						BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+				}
+				else if (isRhsLiteral) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegR,
+						BA_IM_IMM, (u64)rhs->val);
+				}
+
+				u64 movReg = (u64)ba_StkTop(ctr->cmpRegStk);
+				!movReg && (movReg = realRegL);
+
+				ba_AddIM(&ctr->im, 3, BA_IM_CMP, realRegL, realRegR);
+				ba_AddIM(&ctr->im, 2, imOpSet, movReg - BA_IM_RAX + BA_IM_AL);
+				ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, movReg, 
+					movReg - BA_IM_RAX + BA_IM_AL);
+
+				if (regL) {
+					arg->lexemeType = BA_TK_IMREGISTER;
+					arg->val = (void*)realRegL;
+				}
+				else {
+					arg->lexemeType = BA_TK_IMRBPSUB;
+					arg->val = (void*)ctr->imStackSize;
+
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+						lhsStackPos, BA_IM_RAX);
+				}
+
+				if (handler && ba_IsLexemeCompare(handler->lexemeType)) {
+					// First in the chain
+					if (!ba_StkTop(ctr->cmpRegStk)) {
+						ba_StkPush(ctr->pTkStk, arg);
+						ba_StkPush(ctr->cmpLblStk, (void*)(ctr->labelCnt++));
+						ctr->cmpRegStk->items[ctr->cmpRegStk->count-1] = 
+							(void*)realRegL;
+					}
+					else if (regL) {
+						ctr->usedRegisters &= ~ba_IMToCtrRegister(regL);
+					}
+
+					ba_StkPush(ctr->pTkStk, rhsCopy);
+
+					ba_AddIM(&ctr->im, 2, imOpJcc, 
+						(u64)ba_StkTop(ctr->cmpLblStk));
+				}
+				else {
+					if (!ba_StkTop(ctr->cmpRegStk)) {
+						ba_StkPush(ctr->pTkStk, arg);
+					}
+					if (regR) {
+						ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+					}
+					else {
+						ba_AddIM(&ctr->im, 2, BA_IM_POP, realRegR);
+					}
+
+					if (ba_StkTop(ctr->cmpLblStk)) {
+						ba_AddIM(&ctr->im, 2, BA_IM_LABEL, 
+							(u64)ba_StkPop(ctr->cmpLblStk));
+					}
+					ctr->cmpRegStk->items[ctr->cmpRegStk->count-1] = (void*)0;
+				}
+
+				// TODO: fix
+				if (!regL) {
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+				}
+
 				return 1;
 			}
 
@@ -1178,7 +1362,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 				arg = castedExp;
 				arg->type = newType;
 				arg->isLValue = 0;
-				ba_StkPush(arg, ctr->pTkStk);
+				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
 
@@ -1191,8 +1375,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr) {
 
 // Any type of expression
 u8 ba_PExp(struct ba_Controller* ctr) {
+	// Reset comparison chain stacks
+	ctr->cmpLblStk->count = 0;
+	ctr->cmpRegStk->count = 1;
+	ctr->cmpRegStk->items[0] = (void*)0;
+
 	// Parse as if following an operator or parse as if following an atom?
-	u8 afterAtom = 0;
+	u8 isAfterAtom = 0;
 
 	// Counts grouping parentheses to make sure they are balanced
 	i64 paren = 0;
@@ -1203,19 +1392,23 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		u64 col = ctr->lex->colStart;
 
 		// Start of an expression or after a binary operator
-		if (!afterAtom) {
+		if (!isAfterAtom) {
 			// Prefix operator
 			if (ba_PAccept('+', ctr) || ba_PAccept('-', ctr) || 
 				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) ||
 				ba_PAccept('(', ctr))
 			{
 				// Left grouping parenthesis
-				(lexType == '(') && ++paren;
-				ba_POpStkPush(ctr, line, col, lexType, BA_OP_PREFIX);
+				if (lexType == '(') {
+					++paren;
+					// Entering a new expression frame (reset whether is cmp chain)
+					ba_StkPush(ctr->cmpRegStk, (void*)0);
+				}
+				ba_POpStkPush(ctr->pOpStk, line, col, lexType, BA_OP_PREFIX);
 			}
 			// Atom: note that ba_PAtom pushes the atom to pTkStk
 			else if (ba_PAtom(ctr)) {
-				afterAtom = 1;
+				isAfterAtom = 1;
 			}
 			else {
 				return 0;
@@ -1232,6 +1425,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			op->col = col;
 			op->lexemeType = lexType;
 			op->syntax = 0;
+
+			u64 nextLexType = ctr->lex->type;
 
 			// Set syntax type
 			if (ba_PAccept(')', ctr)) {
@@ -1251,13 +1446,11 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
 				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
 				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_LOGAND, ctr) || 
-				ba_PAccept(BA_TK_LOGOR, ctr) || ba_PAccept('=', ctr) ||
-				ba_PAccept(BA_TK_ADDEQ, ctr) || ba_PAccept(BA_TK_SUBEQ, ctr) || 
-				ba_PAccept(BA_TK_MULEQ, ctr) || ba_PAccept(BA_TK_IDIVEQ, ctr) || 
-				ba_PAccept(BA_TK_FDIVEQ, ctr) || ba_PAccept(BA_TK_MODEQ, ctr) || 
-				ba_PAccept(BA_TK_LSHIFTEQ, ctr) || ba_PAccept(BA_TK_RSHIFTEQ, ctr) || 
-				ba_PAccept(BA_TK_BITANDEQ, ctr) || ba_PAccept(BA_TK_BITXOREQ, ctr) || 
-				ba_PAccept(BA_TK_BITOREQ, ctr))
+				ba_PAccept(BA_TK_LOGOR, ctr) || ba_PAccept('=', ctr) || 
+				(ba_IsLexemeCompoundAssign(nextLexType) && 
+					ba_PAccept(nextLexType, ctr)) || 
+				(ba_IsLexemeCompare(nextLexType) && 
+					ba_PAccept(nextLexType, ctr)))
 			{
 				op->syntax = BA_OP_INFIX;
 			}
@@ -1270,18 +1463,21 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 			if (ctr->pOpStk->count) {
 				do {
-					u8 stkTopPrec = ba_POpPrecedence(ba_StkTop(ctr->pOpStk));
+					struct ba_POpStkItem* stkTop = ba_StkTop(ctr->pOpStk);
+					u8 stkTopPrec = ba_POpPrecedence(stkTop);
 					u8 opPrec = ba_POpPrecedence(op);
 					u8 willHandle = ba_POpIsRightAssoc(op)
 						? stkTopPrec < opPrec : stkTopPrec <= opPrec;
 
 					if (willHandle) {
-						u8 handleResult = ba_POpHandle(ctr);
+						u8 handleResult = ba_POpHandle(ctr, op);
 						if (!handleResult) {
 							return 0;
 						}
 						// Left grouping parenthesis
 						else if (handleResult == 2) {
+							// Return to previous expression frame
+							ba_StkPop(ctr->cmpRegStk);
 							goto BA_LBL_PEXP_LOOPEND;
 						}
 					}
@@ -1294,8 +1490,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 			// Short circuiting: jmp ahead if right-hand side operand is unnecessary
 			if (lexType == BA_TK_LOGAND || lexType == BA_TK_LOGOR) {
-				struct ba_PTkStkItem* lhs = ba_StkTop(ctr->pTkStk);
-				ba_StkPush((void*)ctr->labelCnt, ctr->shortCircLblStk);
+				struct ba_PTkStkItem* lhs = ba_StkPop(ctr->pTkStk);
+				ba_StkPush(ctr->shortCircLblStk, (void*)ctr->labelCnt);
 
 				u64 reg = (u64)lhs->val; // Kept only if lhs is a register
 				
@@ -1330,17 +1526,17 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 					lexType == BA_TK_LOGAND ? BA_IM_LABELJZ : BA_IM_LABELJNZ,
 						ctr->labelCnt);
 
-				if (reg && lhs->lexemeType != BA_TK_IMREGISTER) {
-					ctr->usedRegisters &= ~ba_IMToCtrRegister(reg);
-				}
+				lhs->lexemeType = BA_TK_IMREGISTER;
+				lhs->val = (void*)reg;
+				ba_StkPush(ctr->pTkStk, lhs);
 
 				++ctr->labelCnt;
 			}
 
-			ba_StkPush(op, ctr->pOpStk);
+			ba_StkPush(ctr->pOpStk, op);
 
 			if (op->syntax == BA_OP_INFIX) {
-				afterAtom = 0;
+				isAfterAtom = 0;
 			}
 		}
 
@@ -1361,7 +1557,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 	}
 	
 	while (ctr->pOpStk->count) {
-		if (!ba_POpHandle(ctr)) {
+		if (!ba_POpHandle(ctr, 0)) {
 			return 0;
 		}
 	}

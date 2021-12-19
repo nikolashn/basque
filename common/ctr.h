@@ -16,9 +16,12 @@ struct ba_Controller {
 	struct ba_SymTable* globalST;
 	struct ba_SymTable* currScope;
 
-	// Takes u64 (label IDs) as items.
 	// Stores labels used in short circuiting (&& and || operators)
-	struct ba_Stk* shortCircLblStk;
+	struct ba_Stk* shortCircLblStk; // Takes u64 (label IDs) as items
+
+	// Used in comparison chains
+	struct ba_Stk* cmpLblStk; // Takes u64 (label IDs) as items
+	struct ba_Stk* cmpRegStk; // Takes u64 (im enum for registers) as items
 
 	// Code generation
 	struct ba_IM* startIM;
@@ -32,10 +35,10 @@ struct ba_Controller {
 	u64 dataSgmtSize;
 };
 
-void ba_PTkStkPush(struct ba_Controller* ctr, void* val, 
+void ba_PTkStkPush(struct ba_Stk* stk, void* val, 
 	u64 type, u64 lexemeType, u8 isLValue)
 {
-	struct ba_PTkStkItem* stkItem = malloc(sizeof(struct ba_PTkStkItem));
+	struct ba_PTkStkItem* stkItem = malloc(sizeof(*stkItem));
 	if (!stkItem) {
 		ba_ErrorMallocNoMem();
 	}
@@ -43,13 +46,13 @@ void ba_PTkStkPush(struct ba_Controller* ctr, void* val,
 	stkItem->type = type;
 	stkItem->lexemeType = lexemeType;
 	stkItem->isLValue = isLValue;
-	ba_StkPush((void*)stkItem, ctr->pTkStk);
+	ba_StkPush(stk, (void*)stkItem);
 }
 
-void ba_POpStkPush(struct ba_Controller* ctr, u64 line, u64 col, 
+void ba_POpStkPush(struct ba_Stk* stk, u64 line, u64 col, 
 	u64 lexemeType, u8 syntax)
 {
-	struct ba_POpStkItem* stkItem = malloc(sizeof(struct ba_POpStkItem));
+	struct ba_POpStkItem* stkItem = malloc(sizeof(*stkItem));
 	if (!stkItem) {
 		ba_ErrorMallocNoMem();
 	}
@@ -57,7 +60,7 @@ void ba_POpStkPush(struct ba_Controller* ctr, u64 line, u64 col,
 	stkItem->col = col;
 	stkItem->lexemeType = lexemeType;
 	stkItem->syntax = syntax;
-	ba_StkPush((void*)stkItem, ctr->pOpStk);
+	ba_StkPush(stk, (void*)stkItem);
 }
 
 struct ba_Controller* ba_NewController() {
@@ -70,6 +73,8 @@ struct ba_Controller* ba_NewController() {
 	ctr->pTkStk = ba_NewStk();
 	ctr->pOpStk = ba_NewStk();
 	ctr->shortCircLblStk = ba_NewStk();
+	ctr->cmpLblStk = ba_NewStk();
+	ctr->cmpRegStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
@@ -78,7 +83,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->usedRegisters = 0;
 	ctr->imStackCnt = 0;
 	ctr->imStackSize = 0;
-	ctr->labelCnt = 0;
+	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->dataSgmtSize = 0;
 	return ctr;
 }

@@ -75,13 +75,19 @@ struct ba_Lexeme* ba_DelLexeme(struct ba_Lexeme* lex) {
 	return next;
 }
 
-inline u8 ba_IsLexemeCompoundAssign(u64 lexType) {
+u8 ba_IsLexemeCompoundAssign(u64 lexType) {
 	return lexType == BA_TK_ADDEQ || lexType == BA_TK_SUBEQ || 
 		lexType == BA_TK_MULEQ || lexType == BA_TK_IDIVEQ || 
 		lexType == BA_TK_FDIVEQ || lexType == BA_TK_MODEQ || 
 		lexType == BA_TK_LSHIFTEQ || lexType == BA_TK_RSHIFTEQ || 
 		lexType == BA_TK_BITANDEQ || lexType == BA_TK_BITXOREQ || 
 		lexType == BA_TK_BITOREQ;
+}
+
+u8 ba_IsLexemeCompare(u64 lexType) {
+	return lexType == '<' || lexType == '>' || lexType == BA_TK_LTE || 
+		lexType == BA_TK_GTE || lexType == BA_TK_DBEQUAL || 
+		lexType == BA_TK_NEQUAL;
 }
 
 u8 ba_GetTypeFromKeyword(u64 lexType) {

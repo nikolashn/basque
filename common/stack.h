@@ -39,7 +39,7 @@ u8 ba_ResizeStk(struct ba_Stk* stk) {
 	return 1;
 }
 
-void* ba_StkPush(void* item, struct ba_Stk* stk) {
+void* ba_StkPush(struct ba_Stk* stk, void* item) {
 	(stk->count >= stk->cap) && ba_ResizeStk(stk);
 	stk->items[stk->count] = item;
 	++stk->count;
