@@ -153,6 +153,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 		case BA_OP_PREFIX:
 			if (op->lexemeType == '+' || op->lexemeType == '-' || 
 				op->lexemeType == '!' || op->lexemeType == '~' ||
+				op->lexemeType == '$' || 
 				op->lexemeType == BA_TK_INC || op->lexemeType == BA_TK_DEC)
 			{
 				return 1;
@@ -252,6 +253,20 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					arg->type = BA_TYPE_I64;
 				}
 				
+				arg->isLValue = 0;
+				ba_StkPush(ctr->pTkStk, arg);
+				return 1;
+			}
+			else if (op->lexemeType == '$') {
+				arg->val = (void*)ba_GetSizeOfType(arg->type);
+
+				if (!arg->val) {
+					return ba_ExitMsg(BA_EXIT_ERR, "type of operand to '$' "
+						"operator has undefined size on", op->line, op->col);
+				}
+
+				arg->type = BA_TYPE_U64;
+				arg->lexemeType = BA_TK_LITINT;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
@@ -1458,9 +1473,9 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		if (!isAfterAtom) {
 			// Prefix operator
 			if (ba_PAccept('+', ctr) || ba_PAccept('-', ctr) || 
-				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) ||
-				ba_PAccept('(', ctr) || ba_PAccept(BA_TK_INC, ctr) ||
-				ba_PAccept(BA_TK_DEC, ctr))
+				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) || 
+				ba_PAccept('(', ctr) || ba_PAccept('$', ctr) || 
+				ba_PAccept(BA_TK_INC, ctr) || ba_PAccept(BA_TK_DEC, ctr))
 			{
 				// Left grouping parenthesis
 				if (lexType == '(') {
