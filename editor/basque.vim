@@ -14,7 +14,7 @@ endif
 
 syn keyword baTodo contained TODO FIXME XXX NOTE
 syn region baMLComment start="##" end="##" contains=baTodo
-syn match baComment "#[^#].*$" contains=baTodo
+syn match baComment "#[^#]*$" contains=baTodo
 
 syn match baNumber "-\?[0-9_]\+\(u\|U\)\?"
 syn match baNumber "-\?0x[0-9a-fA-F_]\+\(u\|U\)\?"
