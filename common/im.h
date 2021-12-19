@@ -157,7 +157,7 @@ char* ba_IMToStr(struct ba_IM* im) {
 		if (isImm) {
 			sprintf(str+strlen(str), "%#llx ", val);
 			isImm = 0;
-			continue;
+			goto BA_LBL_IMTOSTR_LOOPEND;
 		}
 		else if (adrP1) {
 			if (!--adrP1) {
@@ -454,6 +454,7 @@ char* ba_IMToStr(struct ba_IM* im) {
 			default:
 				sprintf(str+strlen(str), "%llu ", val);
 		}
+		BA_LBL_IMTOSTR_LOOPEND:;
 	}
 
 	return str;
