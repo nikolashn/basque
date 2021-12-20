@@ -1052,8 +1052,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					// Don't check for lbl->jmpOfstSizes, they are allocated together
 					if (!lbl->jmpOfsts) {
-						lbl->jmpOfsts = ba_NewDynArr64(0x100);
-						lbl->jmpOfstSizes = ba_NewDynArr8(0x100);
+						lbl->jmpOfsts = ba_NewDynArr64(0x40);
+						lbl->jmpOfstSizes = ba_NewDynArr8(0x40);
 					}
 
 					(++lbl->jmpOfsts->cnt > lbl->jmpOfsts->cap) &&

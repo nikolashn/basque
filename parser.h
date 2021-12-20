@@ -255,7 +255,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			else if (op->lexemeType == '$') {
 				arg->val = (void*)ba_GetSizeOfType(arg->type);
@@ -269,7 +269,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				arg->lexemeType = BA_TK_LITINT;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			else if (op->lexemeType == '-' || op->lexemeType == '~' ||
 				op->lexemeType == '!')
@@ -319,7 +319,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			// Note: assumes arg is an identifier
 			else if (op->lexemeType == BA_TK_INC || 
@@ -377,7 +377,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			else if (op->lexemeType == '(') {
 				ba_StkPush(ctr->pTkStk, arg);
@@ -385,6 +385,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// This leads to the parser moving back to parsing lexemes 
 				// as if it had just followed an atom, which is essentially 
 				// what a grouped expression is
+				free(op);
 				return 2;
 			}
 			break;
@@ -422,7 +423,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// If rhs is 0, there is no change in in lhs
 				if (isRhsLiteral && !rhs->val) {
 					ba_StkPush(ctr->pTkStk, lhs);
-					return 1;
+					goto BA_LBL_OPHANDLE_END;
 				}
 
 				if (isLhsLiteral && isRhsLiteral) {
@@ -438,8 +439,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			
 			// Multiplication/addition/subtraction
@@ -544,8 +546,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 
 			// Division
@@ -752,8 +755,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 
 			// Modulo
@@ -981,8 +985,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			
 			// Bitwise operations
@@ -1020,8 +1025,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			
 			// Logical short-circuiting operators
@@ -1048,8 +1054,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					isRhsLiteral, /* isShortCirc = */ 1, ctr);
 				
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 			
 			// Assignment
@@ -1224,8 +1231,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->type = lhs->type;
 				arg->isLValue = 0;
+				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 
 			// Comparison
@@ -1402,7 +1410,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 				}
 
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 
 			break;
@@ -1441,13 +1449,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				arg->type = newType;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
+				goto BA_LBL_OPHANDLE_END;
 			}
 
 			break;
 		}
 	}
 	
+	BA_LBL_OPHANDLE_END:;
+	free(op);
 	return 1;
 }
 
@@ -1822,7 +1832,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return ba_ErrorVarRedef(idName, line, col);
 		}
 
-		idVal = malloc(sizeof(struct ba_STVal)); //TODO: free later on
+		idVal = malloc(sizeof(struct ba_STVal));
 		if (!idVal) {
 			return ba_ErrorMallocNoMem();
 		}
