@@ -1280,6 +1280,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		im = ba_DelIM(im);
 	}
 
+	if (labels->jmpOfsts) {
+		ba_DelDynArr64(labels->jmpOfsts);
+		ba_DelDynArr8(labels->jmpOfstSizes);
+	}
+	free(labels);
+
 	// Data segment
 	dataSgmtAddr = 0x1000 + code->cnt;
 	tmp = dataSgmtAddr & 0xfff;
@@ -1469,11 +1475,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	ba_DelDynArr64(relDSOffsets);
 	ba_DelDynArr64(relDSRips);
 	ba_DelDynArr8(code);
-	if (labels->jmpOfsts) {
-		ba_DelDynArr64(labels->jmpOfsts);
-		ba_DelDynArr8(labels->jmpOfstSizes);
-	}
-	free(labels);
 
 	return 1;
 }
