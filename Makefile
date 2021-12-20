@@ -8,6 +8,9 @@ all:
 debug:
 	${CC} basque.c -o basque -g ${CFLAGSDEBUG}
 
+profile:
+	${CC} basque.c -o basque -g ${CFLAGSPROFILE} -pg
+
 clean:
 	rm -f basque
 
