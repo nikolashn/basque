@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Basque
 " Maintainer: nikolashn
-" Latest Revision: 2021 Dec 18
+" Latest Revision: 2021 Dec 21
 " Usage instructions:
 
 " Put this file in .vim/syntax/basque.vim,
