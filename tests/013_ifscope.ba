@@ -3,7 +3,7 @@ i64 you = 89899;
 
 if (me + you)//2 * (me + you)//2 == me * you + 1 {
 	i64 they = me * you;
-	write they; "\n";
+	write they; "\n"; # 8081650403
 }
 # write they; # Error
 
