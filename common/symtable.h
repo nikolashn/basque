@@ -6,10 +6,10 @@
 struct ba_SymTable;
 
 struct ba_STVal {
-	struct ba_SymTable* parent;
+	struct ba_SymTable* scope;
 	
 	/* If global, relative to global memory start address
-	 * If in a scope, relative to RBP */
+	 * If in a scope, relative to start of scope's stack */
 	u64 address;
 
 	u64 type;
@@ -186,6 +186,21 @@ char* ba_STSet(struct ba_SymTable* st, char* key, struct ba_STVal* val) {
 	
 	ba_STSetNoExpand(st, key, val);
 	return key;
+}
+
+// Offset from RSP if ctr->imStackSize == 0, otherwise RBP
+u64 ba_CalcSTValOffset(struct ba_SymTable* currScope, struct ba_STVal* id) {
+	u64 stackStart = id->scope->dataSize;
+	while (currScope && currScope != id->scope) {
+		stackStart += currScope->dataSize;
+		currScope = currScope->parent;
+	}
+	if (!currScope) {
+		printf("Error: identifier used in scope that is not a descendant "
+			"of its own scope");
+		exit(-1);
+	}
+	return stackStart - id->address;
 }
 
 #endif

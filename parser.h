@@ -135,7 +135,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
 				lexLine, lexColStart);
 		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, 
+			id->scope == ctr->globalST ? BA_TK_GLOBALID : BA_TK_LOCALID, 
 			/* isLValue = */ 1);
 	}
 	// Other
@@ -293,12 +294,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				((op->lexemeType == '~') && (imOp = BA_IM_NOT));
 
 				if (ba_IsTypeIntegral(arg->type)) {
-					u8 isArgLiteral = 
-						arg->lexemeType != BA_TK_IDENTIFIER && 
-						arg->lexemeType != BA_TK_IMRBPSUB && 
-						arg->lexemeType != BA_TK_IMREGISTER;
-
-					if (isArgLiteral) {
+					if (ba_IsLexemeLiteral(arg->lexemeType)) {
 						((op->lexemeType == '-') && 
 							(arg->val = (void*)(-(u64)arg->val))) ||
 						((op->lexemeType == '~') &&
@@ -329,7 +325,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == BA_TK_INC || 
 				op->lexemeType == BA_TK_DEC)
 			{
-				if (!arg->isLValue || arg->lexemeType != BA_TK_IDENTIFIER) {
+				if (!arg->isLValue || (arg->lexemeType != BA_TK_GLOBALID && 
+					arg->lexemeType != BA_TK_LOCALID))
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "increment/decrement of "
 						"non-lvalue on", op->line, op->col);
 				}
@@ -356,14 +354,23 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
 				}
 
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
-					BA_IM_DATASGMT, ((struct ba_STVal*)arg->val)->address);
-
-				ba_AddIM(&ctr->im, 2, imOp, reg ? reg : BA_IM_RAX);
-
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-					((struct ba_STVal*)arg->val)->address, 
-					reg ? reg : BA_IM_RAX);
+				if (arg->lexemeType == BA_TK_GLOBALID) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+						BA_IM_DATASGMT, ((struct ba_STVal*)arg->val)->address);
+					ba_AddIM(&ctr->im, 2, imOp, reg ? reg : BA_IM_RAX);
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+						((struct ba_STVal*)arg->val)->address, 
+						reg ? reg : BA_IM_RAX);
+				}
+				else {
+					u64 ofst = ba_CalcSTValOffset(ctr->currScope, arg->val);
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, ofst);
+					ba_AddIM(&ctr->im, 2, imOp, reg ? reg : BA_IM_RAX);
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRADD, 
+						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						ofst, reg ? reg : BA_IM_RAX);
+				}
 
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
@@ -402,14 +409,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			}
 			struct ba_PTkStkItem* rhs = arg;
 			
-			u8 isLhsLiteral = 
-				lhs->lexemeType != BA_TK_IDENTIFIER &&
-				lhs->lexemeType != BA_TK_IMREGISTER && 
-				lhs->lexemeType != BA_TK_IMRBPSUB;
-			u8 isRhsLiteral = 
-				rhs->lexemeType != BA_TK_IDENTIFIER &&
-				rhs->lexemeType != BA_TK_IMREGISTER && 
-				rhs->lexemeType != BA_TK_IMRBPSUB;
+			u8 isLhsLiteral = ba_IsLexemeLiteral(lhs->lexemeType);
+			u8 isRhsLiteral = ba_IsLexemeLiteral(rhs->lexemeType);
 
 			// Bit shifts
 
@@ -693,22 +694,33 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
 					}
 
-					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+					if (lhs->lexemeType == BA_TK_GLOBALID) {
 						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX,
 							BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
 					}
+					else if (lhs->lexemeType == BA_TK_LOCALID) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX,
+							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+							ba_CalcSTValOffset(ctr->currScope, lhs->val));
+					}
 					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX,
-							BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
+							BA_IM_ADRSUB, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+							(u64)lhs->val);
 					}
 					else if (isLhsLiteral) {
 						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX,
 							BA_IM_IMM, (u64)lhs->val);
 					}
 
-					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+					if (rhs->lexemeType == BA_TK_GLOBALID) {
 						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
 							BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+					}
+					else if (rhs->lexemeType == BA_TK_LOCALID) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX,
+							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+							ba_CalcSTValOffset(ctr->currScope, rhs->val));
 					}
 					else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX,
@@ -908,9 +920,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
 					}
 
-					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+					if (lhs->lexemeType == BA_TK_GLOBALID) {
 						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX,
 							BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+					}
+					else if (lhs->lexemeType == BA_TK_LOCALID) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX,
+							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+							ba_CalcSTValOffset(ctr->currScope, lhs->val));
 					}
 					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX,
@@ -921,9 +938,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							BA_IM_IMM, (u64)lhs->val);
 					}
 
-					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+					if (rhs->lexemeType == BA_TK_GLOBALID) {
 						ba_AddIM(&ctr->im, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
 							BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+					}
+					else if (rhs->lexemeType == BA_TK_LOCALID) {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX,
+							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+							ba_CalcSTValOffset(ctr->currScope, rhs->val));
 					}
 					else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX,
@@ -1061,7 +1083,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType)) 
 			{
-				if (!lhs->isLValue || lhs->lexemeType != BA_TK_IDENTIFIER) {
+				if (!lhs->isLValue || (lhs->lexemeType != BA_TK_GLOBALID &&
+						lhs->lexemeType != BA_TK_LOCALID)) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment to non-lvalue on", 
 						op->line, op->col);
 				}
@@ -1106,9 +1130,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RCX);
 				}
 
-				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+				if (rhs->lexemeType == BA_TK_GLOBALID) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg ? reg : BA_IM_RCX,
 						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+				}
+				else if (rhs->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RCX,
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						ba_CalcSTValOffset(ctr->currScope, rhs->val));
 				}
 				else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
 					ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg ? reg : BA_IM_RCX,
@@ -1132,6 +1161,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				((opLex == BA_TK_BITXOREQ) && (imOp = BA_IM_XOR)) ||
 				((opLex == BA_TK_BITOREQ) && (imOp = BA_IM_OR));
 
+				u64 lhsOffset = 
+					ba_CalcSTValOffset(ctr->currScope, lhs->val);
+
 				if (opLex == BA_TK_IDIVEQ || opLex == BA_TK_MODEQ) {
 					if (isRhsLiteral && !rhs->val) {
 						return ba_ExitMsg(BA_EXIT_ERR, "division or modulo by "
@@ -1145,8 +1177,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RDX);
 					}
 
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-						((struct ba_STVal*)lhs->val)->address);
+					if (lhs->lexemeType == BA_TK_GLOBALID) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+							((struct ba_STVal*)lhs->val)->address);
+					}
+					else {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+							lhsOffset);
+					}
+
 					ba_AddIM(&ctr->im, 1, BA_IM_CQO);
 					ba_AddIM(&ctr->im, 2, areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV, 
 						reg ? reg : BA_IM_RCX);
@@ -1156,9 +1196,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(&ctr->im, 3, BA_IM_MOV, reg ? reg : BA_IM_RCX,
 							divResultReg);
 					}
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						((struct ba_STVal*)lhs->val)->address, 
-						reg ? reg : BA_IM_RCX);
+
+					if (lhs->lexemeType == BA_TK_GLOBALID) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+							((struct ba_STVal*)lhs->val)->address, 
+							reg ? reg : BA_IM_RCX);
+					}
+					else {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRADD, 
+							BA_IM_RBP, lhsOffset, reg ? reg : BA_IM_RCX);
+					}
 
 					if (ctr->usedRegisters & BA_CTRREG_RDX) {
 						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RDX);
@@ -1179,8 +1226,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(&ctr->im, 2, BA_IM_PUSH, opResultReg);
 					}
 
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, opResultReg, BA_IM_DATASGMT, 
-						((struct ba_STVal*)lhs->val)->address);
+					if (lhs->lexemeType == BA_TK_GLOBALID) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, opResultReg, BA_IM_DATASGMT, 
+							((struct ba_STVal*)lhs->val)->address);
+					}
+					else {
+						ba_AddIM(&ctr->im, 5, BA_IM_MOV, opResultReg, BA_IM_ADRADD, 
+							BA_IM_RBP, lhsOffset);
+					}
 
 					if (opLex == BA_TK_LSHIFTEQ || opLex == BA_TK_RSHIFTEQ) {
 						if (reg != BA_IM_RCX) {
@@ -1208,9 +1261,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 				}
 
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-					((struct ba_STVal*)lhs->val)->address, 
-					reg ? reg : BA_IM_RCX);
+				if (lhs->lexemeType == BA_TK_GLOBALID) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+						((struct ba_STVal*)lhs->val)->address, 
+						reg ? reg : BA_IM_RCX);
+				}
+				else {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRADD, 
+						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						lhsOffset, reg ? reg : BA_IM_RCX);
+				}
 
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
@@ -1320,9 +1380,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, realRegR);
 				}
 
-				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+				if (lhs->lexemeType == BA_TK_GLOBALID) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegL,
 						BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+				}
+				else if (lhs->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realRegL,
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+						ba_CalcSTValOffset(ctr->currScope, lhs->val));
 				}
 				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
 					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realRegL,
@@ -1333,9 +1398,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_IMM, (u64)lhs->val);
 				}
 
-				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+				if (rhs->lexemeType == BA_TK_GLOBALID) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegR,
 						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+				}
+				else if (rhs->lexemeType == BA_TK_GLOBALID) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realRegR,
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+						ba_CalcSTValOffset(ctr->currScope, rhs->val));
 				}
 				else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
 					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realRegR,
@@ -1587,9 +1657,14 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				}
 				
 				u64 realReg = reg ? reg : BA_IM_RAX;
-				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+				if (lhs->lexemeType == BA_TK_GLOBALID) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, BA_IM_DATASGMT,
 						((struct ba_STVal*)lhs->val)->address);
+				}
+				else if (lhs->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+						ba_CalcSTValOffset(ctr->currScope, lhs->val));
 				}
 				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
 					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, BA_IM_ADRSUB,
@@ -1753,29 +1828,35 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		// Everything is printed as unsigned, this will be removed in the 
 		// future anyway so i don't care about adding signed representation
 		else if (ba_IsTypeIntegral(stkItem->type)) {
-			if (stkItem->lexemeType == BA_TK_IDENTIFIER ||
-				stkItem->lexemeType == BA_TK_IMREGISTER)
-			{
+			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
+				str = ba_U64ToStr((u64)stkItem->val);
+				len = strlen(str);
+			}
+			else {
 				// U64ToStr is needed
 				if (!ba_BltinFlagsTest(BA_BLTIN_U64ToStr)) {
 					ba_BltinU64ToStr(ctr);
 				}
 
-				if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
-					// Load the data and call U64ToStr
+				if (stkItem->lexemeType == BA_TK_GLOBALID) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
-					ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
-						ba_BltinLabels[BA_BLTIN_U64ToStr]);
+				}
+				else if (stkItem->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
 				}
 				else if (stkItem->lexemeType == BA_TK_IMREGISTER) {
 					if ((u64)stkItem->val != BA_IM_RAX) {
 						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX, 
 							(u64)stkItem->val);
 					}
-					ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
-						ba_BltinLabels[BA_BLTIN_U64ToStr]);
 				}
+				/* stkItem->lexemeType won't ever be BA_IM_RBPSUB */
+
+				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
+					ba_BltinLabels[BA_BLTIN_U64ToStr]);
 
 				// write
 				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
@@ -1791,10 +1872,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				ba_PExpect(';', ctr);
 
 				return 1;
-			}
-			else {
-				str = ba_U64ToStr((u64)stkItem->val);
-				len = strlen(str);
 			}
 		}
 		else {
@@ -1831,8 +1908,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
 		
-		struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-		ctr->currScope = scope;
+		struct ba_SymTable* ifScope = ba_SymTableAddChild(ctr->currScope);
+		ctr->currScope = ifScope;
 		
 		// ... ( "," stmt | scope ) ...
 		if (ba_PAccept(',', ctr)) {
@@ -1844,7 +1921,11 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 
-		ctr->currScope = scope->parent;
+		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+			BA_IM_IMM, ifScope->dataSize);
+
+		ctr->currScope = ifScope->parent;
+		free(ifScope);
 		
 		// ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
 		
@@ -1884,12 +1965,16 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		if (!idVal) {
 			return ba_ErrorMallocNoMem();
 		}
-		idVal->parent = ctr->currScope;
+		idVal->scope = ctr->currScope;
 		idVal->type = ba_GetTypeFromKeyword(varTypeItem->lexemeType);
 		
-		idVal->address = ctr->globalST->dataSize;
-		ctr->globalST->dataSize += ba_GetSizeOfType(idVal->type);
-		
+		u64 idDataSize = ba_GetSizeOfType(idVal->type);
+		/* For global identifiers, the address of the start is used 
+		 * For non global identifiers, the address of the end is used */
+		idVal->address = ctr->currScope->dataSize + 
+			(ctr->currScope != ctr->globalST) * idDataSize;
+		ctr->currScope->dataSize += idDataSize;
+
 		idVal->initVal = 0;
 		idVal->isInited = 0;
 
@@ -1914,19 +1999,29 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 						varTypeStr, line, col);
 				}
 
-				if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-					// Load the data into RAX, then load RAX into id address
+				if (expItem->lexemeType == BA_TK_GLOBALID) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
 						((struct ba_STVal*)expItem->val)->address);
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						idVal->address, BA_IM_RAX);
 				}
-				else if (expItem->lexemeType == BA_TK_IMREGISTER) {
+				else if (expItem->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						ba_CalcSTValOffset(ctr->currScope, expItem->val));
+				}
+
+				if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+					idVal->initVal = expItem->val;
+				}
+				else if (ctr->currScope == ctr->globalST) {
 					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						idVal->address, (u64)expItem->val);
+						idVal->address, 
+						expItem->lexemeType == BA_TK_IMREGISTER ? 
+							(u64)expItem->val : BA_IM_RAX);
 				}
 				else {
-					idVal->initVal = expItem->val;
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH,
+						expItem->lexemeType == BA_TK_IMREGISTER ? 
+							(u64)expItem->val : BA_IM_RAX);
 				}
 			}
 		}
@@ -1935,6 +2030,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 
+		if (ctr->currScope != ctr->globalST && !idVal->isInited) {
+			ba_AddIM(&ctr->im, 3, BA_IM_PUSH, BA_IM_IMM, 0);
+		}
+		
 		return 1;
 	}
 	// exp ";"

@@ -47,6 +47,8 @@ enum {
 	 * the parser for intermediate values */
 	BA_TK_IMREGISTER = 0x1000,
 	BA_TK_IMRBPSUB   = 0x1001,
+	BA_TK_GLOBALID   = 0x1002,
+	BA_TK_LOCALID    = 0x1003,
 };
 
 struct ba_Lexeme {
@@ -91,6 +93,13 @@ u8 ba_IsLexemeCompare(u64 lexType) {
 	return lexType == '<' || lexType == '>' || lexType == BA_TK_LTE || 
 		lexType == BA_TK_GTE || lexType == BA_TK_DBEQUAL || 
 		lexType == BA_TK_NEQUAL;
+}
+
+u8 ba_IsLexemeLiteral(u64 lexType) {
+	return lexType != BA_TK_GLOBALID && 
+		lexType != BA_TK_LOCALID && 
+		lexType != BA_TK_IMRBPSUB && 
+		lexType != BA_TK_IMREGISTER;
 }
 
 u8 ba_GetTypeFromKeyword(u64 lexType) {
