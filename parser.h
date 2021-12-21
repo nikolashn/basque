@@ -1795,6 +1795,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
 /* stmt = "write" exp ";" 
  *      | "if" exp ( "," stmt | scope ) { "elif" exp ( "," stmt | scope ) }
  *        [ "else" ( "," stmt | scope ) ]
+ *      | "while" exp ( "," stmt | scope )
  *      | base_type identifier [ "=" exp ] ";" 
  *      | exp ";"
  *      | ";" 
@@ -1932,6 +1933,55 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		// TODO: add elif, else
 
 		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, lblId);
+
+		return 1;
+	}
+	// while ...
+	else if (ba_PAccept(BA_TK_KW_WHILE, ctr)) {
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->colStart;
+
+		u64 startLblId = ctr->labelCnt++;
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, startLblId);
+
+		// ... exp ...
+		if (!ba_PExp(ctr)) {
+			return 0;
+		}
+
+		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
+		if (!stkItem) {
+			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+		}
+
+		u64 endLblId = ctr->labelCnt++;
+
+		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
+		
+		struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
+		ctr->currScope = scope;
+		
+		// ... ( "," stmt | scope ) ...
+		if (ba_PAccept(',', ctr)) {
+			if (!ba_PStmt(ctr)) {
+				return 0;
+			}
+		}
+		else if (!ba_PScope(ctr)) {
+			return 0;
+		}
+
+		if (scope->dataSize) {
+			ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+				BA_IM_IMM, scope->dataSize);
+		}
+
+		ctr->currScope = scope->parent;
+		free(scope);
+
+		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, startLblId);
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, endLblId);
 
 		return 1;
 	}

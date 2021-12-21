@@ -42,6 +42,7 @@ enum {
 	BA_TK_KW_IF      = 0x303,
 	BA_TK_KW_ELIF    = 0x304,
 	BA_TK_KW_ELSE    = 0x305,
+	BA_TK_KW_WHILE   = 0x306,
 
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */
@@ -178,14 +179,16 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "integer literal";
 		case BA_TK_IDENTIFIER:
 			return "identifier";
+		case BA_TK_KW_WRITE:
+			return "keyword 'write'";
 		case BA_TK_KW_IF:
 			return "keyword 'if'";
 		case BA_TK_KW_ELIF:
 			return "keyword 'elif'";
 		case BA_TK_KW_ELSE:
 			return "keyword 'else'";
-		case BA_TK_KW_WRITE:
-			return "keyword 'write'";
+		case BA_TK_KW_WHILE:
+			return "keyword 'while'";
 		case BA_TK_KW_U64:
 			return "keyword 'u64'";
 		case BA_TK_KW_I64:
