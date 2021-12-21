@@ -40,11 +40,7 @@ int main(int argc, char* argv[]) {
 				printf("Error: no file name provided after -o\n");
 				return -1;
 			}
-			outFileName = malloc(len * sizeof(char));
-			if (!outFileName) {
-				return ba_ErrorMallocNoMem();
-			}
-			strcpy(outFileName, argv[i]);
+			outFileName = argv[i];
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (argv[i][0] == '-') {
@@ -112,11 +108,7 @@ int main(int argc, char* argv[]) {
 			}
 			if (!outFileName) {
 				if ((len > 3) && !strcmp(argv[i]+len-3, ".ba")) {
-					outFileName = malloc(len-3);
-					if (!outFileName) {
-						return ba_ErrorMallocNoMem();
-					}
-					strcpy(outFileName, argv[i]);
+					outFileName = argv[i];
 					*(outFileName+len-3) = '\0';
 				}
 				else {
