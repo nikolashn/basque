@@ -175,14 +175,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 sub = im->vals[2] == BA_IM_ADRSUB;
 						u64 offset = im->vals[4];
 
-						u8 byte2 = 0x40 + (offset >= 0x80) * 0x40;
+						u8 byte2 = (offset != 0) * 0x40 + 
+							(offset >= 0x80) * 0x40;
 						u8 reg1 = im->vals[3] - BA_IM_RAX;
 						
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 
 						u8 isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
-						u64 ofstSz = 1 + (offset >= 0x80) * 3;
+						u64 ofstSz = (offset != 0) + (offset >= 0x80) * 3;
 						
 						code->cnt += 3 + ofstSz + isReg1Mod4;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -192,16 +193,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-ofstSz-1-isReg1Mod4] = byte2;
 						(isReg1Mod4) && (code->arr[code->cnt-ofstSz-1] = 0x24);
 						
-						if (offset >= 0x80) {
+						if (offset && offset < 0x80) {
+							sub && (offset = -offset);
+							code->arr[code->cnt-1] = offset & 0xff;
+						}
+						else if (offset >= 0x80) {
 							sub && (offset = -offset);
 							for (u64 i = 4; i > 0; i--) {
 								code->arr[code->cnt-i] = offset & 0xff;
 								offset >>= 8;
 							}
-						}
-						else {
-							sub && (offset = -offset);
-							code->arr[code->cnt-1] = offset & 0xff;
 						}
 					}
 
@@ -1508,7 +1509,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				{
 					u64 offset = im->vals[4];
 					u8 reg1 = im->vals[3] - BA_IM_RAX;
-					u64 ofstSz = 1 + (offset >= 0x80) * 3;
+					u64 ofstSz = (offset != 0) + (offset >= 0x80) * 3;
 					return 3 + ((reg1 & 7) == 4 || (reg1 & 7) == 5) + ofstSz;
 				}
 				else if (im->vals[2] == BA_IM_DATASGMT) {
