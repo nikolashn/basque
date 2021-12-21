@@ -1887,8 +1887,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		idVal->parent = ctr->currScope;
 		idVal->type = ba_GetTypeFromKeyword(varTypeItem->lexemeType);
 		
-		idVal->address = ctr->dataSgmtSize;
-		ctr->dataSgmtSize += ba_GetSizeOfType(idVal->type);
+		idVal->address = ctr->globalST->dataSize;
+		ctr->globalST->dataSize += ba_GetSizeOfType(idVal->type);
 		
 		idVal->initVal = 0;
 		idVal->isInited = 0;

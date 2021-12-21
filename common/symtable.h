@@ -8,7 +8,8 @@ struct ba_SymTable;
 struct ba_STVal {
 	struct ba_SymTable* parent;
 	
-	// If global, relative to global memory start address
+	/* If global, relative to global memory start address
+	 * If in a scope, relative to RBP */
 	u64 address;
 
 	u64 type;
@@ -30,6 +31,10 @@ struct ba_SymTable {
 	struct ba_STEntry* entries;
 	u64 capacity;
 	u64 count;
+	
+	/* If global, size of the data segment
+	 * If in a scope, size of stack */
+	u64 dataSize;
 };
 
 struct ba_SymTable* ba_NewSymTable() {
@@ -49,6 +54,9 @@ struct ba_SymTable* ba_NewSymTable() {
 
 	st->capacity = BA_SYMTABLE_CAPACITY;
 	st->count = 0;
+
+	st->dataSize = 0;
+
 	return st;
 }
 

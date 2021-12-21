@@ -19,8 +19,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// Generate data segment
 	u64 dataSgmtAddr = 0;
 
-	struct ba_DynArr8* dataSgmt = ba_NewDynArr8(ctr->dataSgmtSize);
-	dataSgmt->cnt = ctr->dataSgmtSize;
+	struct ba_DynArr8* dataSgmt = ba_NewDynArr8(ctr->globalST->dataSize);
+	dataSgmt->cnt = ctr->globalST->dataSize;
 
 	for (u64 i = 0; i < ctr->globalST->capacity; i++) {
 		struct ba_STEntry e = ctr->globalST->entries[i];

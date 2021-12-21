@@ -32,7 +32,6 @@ struct ba_Controller {
 	u64 imStackCnt;
 	u64 imStackSize;
 	u64 labelCnt;
-	u64 dataSgmtSize;
 };
 
 void ba_PTkStkPush(struct ba_Stk* stk, void* val, 
@@ -84,7 +83,6 @@ struct ba_Controller* ba_NewController() {
 	ctr->imStackCnt = 0;
 	ctr->imStackSize = 0;
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
-	ctr->dataSgmtSize = 0;
 	return ctr;
 }
 
