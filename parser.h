@@ -1471,7 +1471,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ctr->cmpRegStk->items[ctr->cmpRegStk->count-1] = (void*)0;
 				}
 
-				// TODO: fix
 				if (!regL) {
 					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 				}
