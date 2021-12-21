@@ -25,6 +25,7 @@ struct ba_SymTable {
 	struct ba_SymTable* parent;
 	struct ba_SymTable** children;
 	u64 childCnt;
+	u64 childCap;
 
 	struct ba_STEntry* entries;
 	u64 capacity;
@@ -39,6 +40,7 @@ struct ba_SymTable* ba_NewSymTable() {
 	st->parent = 0;
 	st->children = 0;
 	st->childCnt = 0;
+	st->childCap = 0;
 	
 	st->entries = calloc(BA_SYMTABLE_CAPACITY, sizeof(struct ba_STEntry));
 	if (!st->entries) {
@@ -53,6 +55,22 @@ struct ba_SymTable* ba_NewSymTable() {
 void ba_DelSymTable(struct ba_SymTable* st) {
 	free(st->entries);
 	free(st);
+}
+
+struct ba_SymTable* ba_SymTableAddChild(struct ba_SymTable* parent) {
+	struct ba_SymTable* child = ba_NewSymTable();
+	child->parent = parent;
+	if (!parent->childCap) {
+		parent->childCap = 0x20;
+		parent->children = malloc(0x20 * sizeof(*parent->children));
+	}
+	else if (parent->childCap >= parent->childCnt) {
+		parent->childCap <<= 1;
+		parent->children = realloc(parent->children, 
+			parent->childCap * sizeof(*parent->children));
+	}
+	parent->children[parent->childCnt++] = child;
+	return child;
 }
 
 u64 ba_Hash(char* str) {

@@ -1827,10 +1827,12 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 
 		u64 lblId = ctr->labelCnt++;
+
 		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
 		
-		// TODO: enter scope
+		struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
+		ctr->currScope = scope;
 		
 		// ... ( "," stmt | scope ) ...
 		if (ba_PAccept(',', ctr)) {
@@ -1842,7 +1844,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 
-		// TODO: exit scope
+		ctr->currScope = scope->parent;
 		
 		// ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
 		
