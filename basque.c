@@ -152,16 +152,6 @@ int main(int argc, char* argv[]) {
 	if (!ba_Parse(ctr)) {
 		return -1;
 	}
-	
-	// DEBUG
-	/*
-	for (u64 i = 0; i < ctr->globalST->capacity; i++) {
-		struct ba_STEntry e = ctr->globalST->entries[i];
-		if (e.val) {
-			printf("entry %lld: %s %llx\n", i, e.key, e.val->type);
-		}
-	}
-	*/
 
 	// ----- Optimization -----
 	// TODO: optimization
