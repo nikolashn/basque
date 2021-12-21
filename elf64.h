@@ -1010,7 +1010,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					if (instrType == _INSTRTYPE_CALL ||
 						!((relAddr >= 0 && relAddr < 0x80) ||
-						(relAddr < 0ll && relAddr < -0x80ll)))
+						(relAddr < 0ll && relAddr >= -0x80ll)))
 					{
 						relAddr -= 3 + (instrType == _INSTRTYPE_JCC);
 						instrSize += 3 + (instrType == _INSTRTYPE_JCC);
@@ -1022,7 +1022,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					(instrType == _INSTRTYPE_JCC && instrSize == 6) && 
 						(code->arr[code->cnt-6] = 0x0f);
 					code->arr[code->cnt-instrSize + 
-						(instrType == _INSTRTYPE_JCC)] = 
+						(instrType == _INSTRTYPE_JCC && instrSize == 6)] = 
 						(instrSize == 2) ? opCodeShort : opCodeNear;
 
 					if (instrSize > 2) {
