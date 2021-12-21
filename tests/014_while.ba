@@ -1,0 +1,8 @@
+u64 i = 0;
+while i < 10u {
+	if i != 0u, ",";
+	write i;
+	++i;
+}
+"\n";
+
