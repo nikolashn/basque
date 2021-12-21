@@ -174,22 +174,22 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						u8 sub = im->vals[2] == BA_IM_ADRSUB;
 						u64 offset = im->vals[4];
-					
+
 						u8 byte2 = 0x40 + (offset >= 0x80) * 0x40;
 						u8 reg1 = im->vals[3] - BA_IM_RAX;
 						
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 
-						u8 isReg1Mod4 = (reg1 & 7) == 4; // RBP or R13
-						u64 ofstSz = 1 + (offset >= 0x80) * 3 + isReg1Mod4;
+						u8 isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
+						u64 ofstSz = 1 + (offset >= 0x80) * 3;
 						
 						code->cnt += 3 + ofstSz + isReg1Mod4;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 
-						code->arr[code->cnt-ofstSz-3] = byte0;
-						code->arr[code->cnt-ofstSz-2] = 0x8b;
-						code->arr[code->cnt-ofstSz-1] = byte2;
+						code->arr[code->cnt-ofstSz-3-isReg1Mod4] = byte0;
+						code->arr[code->cnt-ofstSz-2-isReg1Mod4] = 0x8b;
+						code->arr[code->cnt-ofstSz-1-isReg1Mod4] = byte2;
 						(isReg1Mod4) && (code->arr[code->cnt-ofstSz-1] = 0x24);
 						
 						if (offset >= 0x80) {
