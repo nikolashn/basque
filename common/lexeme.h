@@ -7,45 +7,46 @@
 
 // Single-character lexemes not listed here use their ASCII values
 enum {
-	BA_TK_EOF = 0,
+	BA_TK_EOF        = 0,
 
-	BA_TK_GTE = 0x100,
-	BA_TK_RSHIFT = 0x101,
-	BA_TK_LTE = 0x102,
-	BA_TK_LSHIFT = 0x103,
-	BA_TK_IDIV = 0x104,
-	BA_TK_LOGAND = 0x105,
-	BA_TK_LOGOR = 0x106,
-	BA_TK_DBEQUAL = 0x107,
-	BA_TK_NEQUAL = 0x108,
-	BA_TK_ADDEQ = 0x109,
-	BA_TK_SUBEQ = 0x10a,
-	BA_TK_MULEQ = 0x10b,
-	BA_TK_IDIVEQ = 0x10c,
-	BA_TK_FDIVEQ = 0x10d,
-	BA_TK_MODEQ = 0x10e,
-	BA_TK_LSHIFTEQ = 0x10f,
-	BA_TK_RSHIFTEQ = 0x110,
-	BA_TK_BITANDEQ = 0x111,
-	BA_TK_BITXOREQ = 0x112,
-	BA_TK_BITOREQ = 0x113,
-	BA_TK_INC = 0x114,
-	BA_TK_DEC = 0x115,
-	
-	BA_TK_LITSTR = 0x200,
-	BA_TK_LITINT = 0x201,
+	BA_TK_GTE        = 0x100,
+	BA_TK_RSHIFT     = 0x101,
+	BA_TK_LTE        = 0x102,
+	BA_TK_LSHIFT     = 0x103,
+	BA_TK_IDIV       = 0x104,
+	BA_TK_LOGAND     = 0x105,
+	BA_TK_LOGOR      = 0x106,
+	BA_TK_DBEQUAL    = 0x107,
+	BA_TK_NEQUAL     = 0x108,
+	BA_TK_ADDEQ      = 0x109,
+	BA_TK_SUBEQ      = 0x10a,
+	BA_TK_MULEQ      = 0x10b,
+	BA_TK_IDIVEQ     = 0x10c,
+	BA_TK_FDIVEQ     = 0x10d,
+	BA_TK_MODEQ      = 0x10e,
+	BA_TK_LSHIFTEQ   = 0x10f,
+	BA_TK_RSHIFTEQ   = 0x110,
+	BA_TK_BITANDEQ   = 0x111,
+	BA_TK_BITXOREQ   = 0x112,
+	BA_TK_BITOREQ    = 0x113,
+	BA_TK_INC        = 0x114,
+	BA_TK_DEC        = 0x115,
+
+	BA_TK_LITSTR     = 0x200,
+	BA_TK_LITINT     = 0x201,
 	BA_TK_IDENTIFIER = 0x202,
-	
-	BA_TK_KW_WRITE = 0x300,
-	BA_TK_KW_U64 = 0x301,
-	BA_TK_KW_I64 = 0x302,
 
-	BA_TK__COUNT = 0x400,
+	BA_TK_KW_WRITE   = 0x300,
+	BA_TK_KW_U64     = 0x301,
+	BA_TK_KW_I64     = 0x302,
+	BA_TK_KW_IF      = 0x303,
+	BA_TK_KW_ELIF    = 0x304,
+	BA_TK_KW_ELSE    = 0x305,
 
-	// Not actual lexemes but instead used by the parser for 
-	// intermediate values
+	/* Not actual lexemes but instead used by 
+	 * the parser for intermediate values */
 	BA_TK_IMREGISTER = 0x1000,
-	BA_TK_IMRBPSUB = 0x1001,
+	BA_TK_IMRBPSUB   = 0x1001,
 };
 
 struct ba_Lexeme {
@@ -168,6 +169,12 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "integer literal";
 		case BA_TK_IDENTIFIER:
 			return "identifier";
+		case BA_TK_KW_IF:
+			return "keyword 'if'";
+		case BA_TK_KW_ELIF:
+			return "keyword 'elif'";
+		case BA_TK_KW_ELSE:
+			return "keyword 'else'";
 		case BA_TK_KW_WRITE:
 			return "keyword 'write'";
 		case BA_TK_KW_U64:

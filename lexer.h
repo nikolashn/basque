@@ -140,7 +140,8 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						goto BA_LBL_LEX_LOOPEND;
 					}
 					else if (c == ';' || c == '~' || c == '$' || 
-						c == '(' || c == ')') 
+						c == '(' || c == ')' || c == '{' || c == '}' ||
+						c == ',') 
 					{
 						nextLex->type = c;
 					}
@@ -338,8 +339,17 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					
 					nextLex->line = line;
 					nextLex->colStart = colStart;
-
-					if (!strcmp(idBuf, "write")) {
+					
+					if (!strcmp(idBuf, "if")) {
+						nextLex->type = BA_TK_KW_IF;
+					}
+					else if (!strcmp(idBuf, "elif")) {
+						nextLex->type = BA_TK_KW_ELIF;
+					}
+					else if (!strcmp(idBuf, "else")) {
+						nextLex->type = BA_TK_KW_ELSE;
+					}
+					else if (!strcmp(idBuf, "write")) {
 						nextLex->type = BA_TK_KW_WRITE;
 					}
 					else if (!strcmp(idBuf, "u64")) {

@@ -7,6 +7,10 @@
 #include "bltin/bltin.h"
 #include "parser_op.h"
 
+// ----- Forward declarations -----
+u8 ba_PStmt(struct ba_Controller* ctr);
+// --------------------------------
+
 u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
 	if (!ctr->lex || (ctr->lex->type != type)) {
 		return 0;
@@ -385,7 +389,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// This leads to the parser moving back to parsing lexemes 
 				// as if it had just followed an atom, which is essentially 
 				// what a grouped expression is
-				free(op);
 				return 2;
 			}
 			break;
@@ -439,7 +442,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -546,7 +548,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -755,7 +756,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -985,7 +985,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -1025,7 +1024,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -1054,7 +1052,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					isRhsLiteral, /* isShortCirc = */ 1, ctr);
 				
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -1231,7 +1228,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->type = lhs->type;
 				arg->isLValue = 0;
-				free(lhs);
 				ba_StkPush(ctr->pTkStk, arg);
 				goto BA_LBL_OPHANDLE_END;
 			}
@@ -1444,7 +1440,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"types on", op->line, op->col);
 				}
 				
-				free(typeArg);
 				arg = castedExp;
 				arg->type = newType;
 				arg->isLValue = 0;
@@ -1457,7 +1452,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	}
 	
 	BA_LBL_OPHANDLE_END:;
-	free(op);
 	return 1;
 }
 
@@ -1714,7 +1708,18 @@ void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
 	ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
 }
 
+// scope = "{" { stmt } "}"
+u8 ba_PScope(struct ba_Controller* ctr) {
+	if (!ba_PAccept('{', ctr)) {
+		return 0;
+	}
+	while (ba_PStmt(ctr));
+	return ba_PExpect('}', ctr);
+}
+
 /* stmt = "write" exp ";" 
+ *      | "if" exp ( "," stmt | scope ) { "elif" exp ( "," stmt | scope ) }
+ *        [ "else" ( "," stmt | scope ) ]
  *      | base_type identifier [ "=" exp ] ";" 
  *      | exp ";"
  *      | ";" 
@@ -1805,6 +1810,47 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			free(stkItem);
 			return 1;
 		}
+	}
+	// "if" ...
+	else if (ba_PAccept(BA_TK_KW_IF, ctr)) {
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->colStart;
+
+		// ... exp ...
+		if (!ba_PExp(ctr)) {
+			return 0;
+		}
+
+		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
+		if (!stkItem) {
+			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+		}
+
+		u64 lblId = ctr->labelCnt++;
+		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
+		
+		// TODO: enter scope
+		
+		// ... ( "," stmt | scope ) ...
+		if (ba_PAccept(',', ctr)) {
+			if (!ba_PStmt(ctr)) {
+				return 0;
+			}
+		}
+		else if (!ba_PScope(ctr)) {
+			return 0;
+		}
+
+		// TODO: exit scope
+		
+		// ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
+		
+		// TODO: add elif, else
+
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, lblId);
+
+		return 1;
 	}
 	// base_type identifier [ "=" exp ] ";"
 	else if (ba_PBaseType(ctr)) {

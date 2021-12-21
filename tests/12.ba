@@ -1,0 +1,20 @@
+i64 x = 1; # Try using different values of x
+
+if x == 1 || x == -1, "x is +/- 1\n";
+
+if x > 1 {
+	"x is greater than 1";
+	if !(x & 1) {
+		" and even";
+	}
+	"\n";
+}
+
+"value of x: ";
+if x >= 0, write x;
+if x < 0 {
+	"-";
+	write -x;
+}
+"\n";
+
