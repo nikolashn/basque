@@ -98,8 +98,11 @@ Does nothing (compiles to NOP).
 
 #### Conditional statements
 Syntax:
+
 `if <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` )
+
 { `elif <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` ) }
+
 [ `else` ( `"," <statement>` | `{` { `<statement>` } `}` ) ]
 
 The classic if/elif/else conditional statement. Multiple statements can be executed upon a condition using a block (wrapping statements in braces), or a single statement can be executed using a comma. Such statements are in both cases in their own local scope.
