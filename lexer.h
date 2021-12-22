@@ -352,6 +352,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					else if (!strcmp(idBuf, "while")) {
 						nextLex->type = BA_TK_KW_WHILE;
 					}
+					else if (!strcmp(idBuf, "break")) {
+						nextLex->type = BA_TK_KW_BREAK;
+					}
 					else if (!strcmp(idBuf, "write")) {
 						nextLex->type = BA_TK_KW_WRITE;
 					}

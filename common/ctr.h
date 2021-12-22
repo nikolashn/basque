@@ -23,6 +23,9 @@ struct ba_Controller {
 	struct ba_Stk* cmpLblStk; // Takes u64 (label IDs) as items
 	struct ba_Stk* cmpRegStk; // Takes u64 (im enum for registers) as items
 
+	// Used in breaking out of loops
+	struct ba_Stk* breakLblStk; // Takes u64 (label IDs) as items
+
 	// Code generation
 	struct ba_IM* startIM;
 	struct ba_IM* im;
@@ -74,6 +77,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->shortCircLblStk = ba_NewStk();
 	ctr->cmpLblStk = ba_NewStk();
 	ctr->cmpRegStk = ba_NewStk();
+	ctr->breakLblStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;

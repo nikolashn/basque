@@ -1833,12 +1833,16 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
  *        [ "else" ( commaStmt | scope ) ]
  *      | "while" exp ( commaStmt | scope )
+ *      | "break" ";"
  *      | scope
  *      | base_type identifier [ "=" exp ] ";" 
  *      | exp ";"
  *      | ";" 
  */
 u8 ba_PStmt(struct ba_Controller* ctr) {
+	u64 firstLine = ctr->lex->line;
+	u64 firstCol = ctr->lex->colStart;
+
 	// "write" ...
 	if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
 		// TODO: this should eventually be replaced with a Write() function
@@ -1883,7 +1887,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				}
 				else if (stkItem->lexemeType == BA_TK_LOCALID) {
 					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						BA_IM_ADRADD, BA_IM_RSP, 
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
 				}
 				else if (stkItem->lexemeType == BA_TK_IMREGISTER) {
@@ -1943,9 +1947,40 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			}
 
 			u64 lblId = ctr->labelCnt++;
+			u64 reg = BA_IM_RAX;
 
-			ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
-			ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
+			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
+				if (!ba_IsTypeNumeric(stkItem->type)) {
+					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
+						"as condition on", line, col);
+				}
+
+				if (stkItem->val) {
+					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
+						"be true on", line, col);
+				}
+				else {
+					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
+						"be false on", line, col);
+					ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
+				}
+			}
+			else {
+				if (stkItem->lexemeType == BA_TK_IMREGISTER) {
+					reg = (u64)stkItem->val;
+				}
+				else if (stkItem->lexemeType == BA_TK_GLOBALID) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+						((struct ba_STVal*)stkItem->val)->address);
+				}
+				else if (stkItem->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_ADRADD, BA_IM_RSP, 
+						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
+				}
+				ba_AddIM(&ctr->im, 3, BA_IM_TEST, reg, reg);
+				ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
+			}
 		
 			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
 				return 0;
@@ -1996,19 +2031,57 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 
 		u64 endLblId = ctr->labelCnt++;
+		u64 reg = BA_IM_RAX;
 
-		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
-		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
+		if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
+			if (!ba_IsTypeNumeric(stkItem->type)) {
+				return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
+					"as while loop condition on", line, col);
+			}
+
+			if (!stkItem->val) {
+				ba_ExitMsg(BA_EXIT_WARN, "while loop condition will always "
+					"be false on", line, col);
+				ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, endLblId);
+			}
+		}
+		else {
+			if (stkItem->lexemeType == BA_TK_IMREGISTER) {
+				reg = (u64)stkItem->val;
+			}
+			else if (stkItem->lexemeType == BA_TK_GLOBALID) {
+				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
+					((struct ba_STVal*)stkItem->val)->address);
+			}
+			else if (stkItem->lexemeType == BA_TK_LOCALID) {
+				ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+					BA_IM_ADRADD, BA_IM_RSP, 
+					ba_CalcSTValOffset(ctr->currScope, stkItem->val));
+			}
+			ba_AddIM(&ctr->im, 3, BA_IM_TEST, reg, reg);
+			ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
+		}
 		
 		// ... ( commaStmt | scope ) ...
+		ba_StkPush(ctr->breakLblStk, (void*)endLblId);
 		if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
 			return 0;
 		}
+		ba_StkPop(ctr->breakLblStk);
 
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, startLblId);
 		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, endLblId);
 
 		return 1;
+	}
+	// "break" ";"
+	else if (ba_PAccept(BA_TK_KW_BREAK, ctr)) {
+		if (!ctr->breakLblStk->count) {
+			ba_ExitMsg(BA_EXIT_ERR, "keyword 'break' used outside of loop on",
+				firstLine, firstCol);
+		}
+		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, (u64)ba_StkTop(ctr->breakLblStk));
+		return ba_PExpect(';', ctr);
 	}
 	// scope
 	else if (ba_PScope(ctr)) {
