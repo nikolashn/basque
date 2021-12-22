@@ -1492,6 +1492,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
  */
 u8 ba_PessimalInstrSize(struct ba_IM* im) {
 	switch (im->vals[0]) {
+		case BA_IM_NOP:
+			return 1;
+
 		case BA_IM_LABEL:
 			return 0;
 
