@@ -1,0 +1,19 @@
+# Prints the factorial of x, for 0 <= x <= 20
+
+i64 x = 0;
+while x <= 20 {
+	write x;
+	"! = ";
+
+	if x == 0, write 1;
+	elif x == 1, write 1;
+	else {
+		i64 fact = x;
+		i64 y = x;
+		while y > 2, fact *= --y;
+		write fact;
+	}
+	"\n";
+	++x;
+}
+
