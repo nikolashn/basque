@@ -1,0 +1,13 @@
+u64 a = 500;
+write a; "\n";
+
+{
+	u64 b = 5;
+	write b; "\n";
+	a = 25;
+}
+
+write a; "\n";
+# write b; # Error
+# b = 25; # Error
+
