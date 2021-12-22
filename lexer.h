@@ -696,7 +696,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 	}
 
 	if (state) {
-		printf("Error: unexpected end of input\n");
+		fprintf(stderr, "Error: unexpected end of input\n");
 		return 0;
 	}
 	

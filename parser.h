@@ -22,11 +22,11 @@ u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
 u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	if (!ba_PAccept(type, ctr)) {
 		if (!ctr->lex->line) {
-			printf("Error: expected %s at end of file\n", 
+			fprintf(stderr, "Error: expected %s at end of file\n", 
 				ba_GetLexemeStr(type));
 		}
 		else {
-			printf("Error: expected %s at line %llu:%llu\n",
+			fprintf(stderr, "Error: expected %s at line %llu:%llu\n",
 				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->colStart);
 		}
 		exit(-1);
@@ -217,7 +217,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			break;
 	}
 	
-	printf("Error: unknown operator with lexeme type 0x%llx, "
+	fprintf(stderr, "Error: unknown operator with lexeme type 0x%llx, "
 		"syntax type %u\n", op->lexemeType, op->syntax);
 	exit(-1);
 	return 255;
@@ -282,8 +282,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				if ((op->lexemeType == '~' && !ba_IsTypeIntegral(arg->type)) ||
 					!ba_IsTypeNumeric(arg->type))
 				{
-					printf("Error: unary '%s' used with non %s operand on "
-						"line %llu:%llu", ba_GetLexemeStr(op->lexemeType), 
+					fprintf(stderr, "Error: unary '%s' used with non %s operand "
+						"on line %llu:%llu", ba_GetLexemeStr(op->lexemeType), 
 						op->lexemeType == '~' ? "integral" : "numeric", 
 						op->line, op->col);
 					exit(-1);

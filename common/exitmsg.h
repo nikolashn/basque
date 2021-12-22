@@ -24,14 +24,14 @@ u8 ba_ExitMsg2(u8 type, char* preMsg, u64 line, u64 col, char* postMsg) {
 	}
 	switch (type) {
 		case BA_EXIT_ERR:
-			printf("Error");
+			fprintf(stderr, "Error");
 			break;
 		case BA_EXIT_WARN:
 		case BA_EXIT_EXTRAWARN:
-			printf("Warning");
+			fprintf(stderr, "Warning");
 			break;
 	}
-	printf(": %s line %llu:%llu%s\n", preMsg, line, col, postMsg);
+	fprintf(stderr, ": %s line %llu:%llu%s\n", preMsg, line, col, postMsg);
 	if (type == BA_EXIT_ERR || (ba_IsWarningsAsErrors && 
 		(type == BA_EXIT_WARN || (type == BA_EXIT_EXTRAWARN && 
 		ba_IsExtraWarnings)))) 
@@ -60,14 +60,14 @@ u8 ba_ErrorIntLitTooLong(u64 line, u64 col) {
 // ----- Independent errors ------
 
 u8 ba_ErrorMallocNoMem() {
-	printf("Error: insufficient memory\n");
+	fprintf(stderr, "Error: insufficient memory\n");
 	exit(-1);
 	return 0;
 }
 
 u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, u64 max) {
-	printf("Error: encountered %s at %llu:%llu greater than maximum allowed "
-		"length (%llu characters)\n", type, line, col, max);
+	fprintf(stderr, "Error: encountered %s at %llu:%llu greater than maximum "
+		"allowed length (%llu characters)\n", type, line, col, max);
 	exit(-1);
 	return 0;
 }
@@ -75,7 +75,7 @@ u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, u64 max) {
 u8 ba_ErrorAssignTypes(char* expType, char* var, char* varType, 
 	u64 line, u64 col)
 {
-	printf("Error: cannot assign expression of type %s to variable"
+	fprintf(stderr, "Error: cannot assign expression of type %s to variable "
 		"'%s' of type %s on line %llu:%llu\n", expType, var, varType, 
 		line, col);
 	exit(-1);
@@ -83,14 +83,14 @@ u8 ba_ErrorAssignTypes(char* expType, char* var, char* varType,
 }
 
 u8 ba_ErrorIdUndef(char* var, u64 line, u64 col) {
-	printf("Error: identifier '%s' not defined on line %llu:%llu\n", var, 
-		line, col);
+	fprintf(stderr, "Error: identifier '%s' not defined on line %llu:%llu\n", 
+		var, line, col);
 	exit(-1);
 	return 0;
 }
 
 u8 ba_ErrorVarRedef(char* var, u64 line, u64 col) {
-	printf("Error: redefinition of variable '%s' on line %llu:%llu\n", var, 
+	fprintf(stderr, "Error: redefinition of variable '%s' on line %llu:%llu\n", var, 
 		line, col);
 	exit(-1);
 	return 0;

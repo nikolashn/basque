@@ -64,8 +64,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				struct ba_IMLabel* lbl = &labels[labelID];
 				
 				if (labelID >= ctr->labelCnt || lbl->isFound) {
-					printf("Error: cannot generate intermediate label %lld\n", 
-						labelID);
+					fprintf(stderr, "Error: cannot generate intermediate "
+						"label %lld\n", labelID);
 					exit(-1);
 				}
 
@@ -370,9 +370,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						u8 isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
-							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset in instruction %s\n",
-								ba_IMToStr(im));
+							fprintf(stderr, "Error: Effective address cannot "
+								"have a more than 32 bit offset in "
+								"instruction %s\n", ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -402,8 +402,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					// From IMM
 					else if (im->vals[4] == BA_IM_IMM) {
 						if (adrAddDestSize == 0xff) {
-							printf("Error: no size specified for MOV in "
-								"instruction %s\n", ba_IMToStr(im));
+							fprintf(stderr, "Error: no size specified for MOV "
+								"in instruction %s\n", ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -418,9 +418,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						u8 isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
-							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset in instruction %s\n", 
-								ba_IMToStr(im));
+							fprintf(stderr, "Error: Effective address cannot "
+								"have a more than 32 bit offset " 
+								"in instruction %s\n", ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -558,7 +558,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						// >31 bits
 						if (imm >= (1llu << 31)) {
-							printf("Error: Cannot %s more than 31 bits "
+							fprintf(stderr, "Error: Cannot %s more than 31 bits "
 								"to a register in instruction %s\n", 
 								instrName, ba_IMToStr(im));
 							exit(-1);
@@ -633,9 +633,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 					
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
-						printf("Error: first argument for ADRADD/ADRSUB must be a "
-							"general purpose register in instruction %s\n",
-							ba_IMToStr(im));
+						fprintf(stderr, "Error: first argument for "
+							"ADRADD/ADRSUB must be a general purpose register "
+							"in instruction %s\n", ba_IMToStr(im));
 						exit(-1);
 					}
 					
@@ -650,9 +650,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						u8 isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
-							printf("Error: Effective address cannot have a more "
-								"than 32 bit offset in instruction %s\n", 
-								ba_IMToStr(im));
+							fprintf(stderr, "Error: Effective address cannot "
+								"have a more than 32 bit offset in "
+								"instruction %s\n", ba_IMToStr(im));
 							exit(-1);
 						}
 
@@ -842,8 +842,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 						u64 imm = im->vals[3];
 						if (imm >= 0x40) {
-							printf("Error: Cannot SHL a register by more "
-								"than 6 bits in instruction %s\n", 
+							fprintf(stderr, "Error: Cannot SHL a register by "
+								"more than 6 bits in instruction %s\n", 
 								ba_IMToStr(im));
 							exit(-1);
 						}
@@ -996,8 +996,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				struct ba_IMLabel* lbl = &labels[labelID];
 
 				if (labelID >= ctr->labelCnt) {
-					printf("Error: cannot find intermediate label %lld "
-						"in instruction %s\n", labelID, ba_IMToStr(im));
+					fprintf(stderr, "Error: cannot find intermediate label "
+						"%lld in instruction %s\n", labelID, ba_IMToStr(im));
 					exit(-1);
 				}
 
@@ -1273,8 +1273,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 			default:
-				printf("Error: unrecognized intermediate instruction: %#llx\n",
-					im->vals[0]);
+				fprintf(stderr, "Error: unrecognized intermediate "
+					"instruction: %#llx\n", im->vals[0]);
 				exit(-1);
 		}
 
@@ -1682,8 +1682,8 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			return 2;
 
 		default:
-			printf("Error: unrecognized intermediate instruction: %#llx\n",
-				im->vals[0]);
+			fprintf(stderr, "Error: unrecognized intermediate "
+				"instruction: %#llx\n", im->vals[0]);
 			exit(-1);
 	}
 

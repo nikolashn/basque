@@ -21,8 +21,8 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 	((opLexType == '!') && (imOp = 1));
 
 	if (!imOp) {
-		printf("Error: Unary lexeme type %llx passed to ba_POpNonLitUnary "
-			"not recognized.\n", opLexType);
+		fprintf(stderr, "Error: Unary lexeme type %llx passed to "
+			"ba_POpNonLitUnary not recognized\n", opLexType);
 		exit(-1);
 	}
 

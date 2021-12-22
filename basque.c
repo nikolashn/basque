@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 		
 		if (!strcmp(argv[i], "-o")) {
 			if (++i == argc) {
-				printf("Error: no file name provided after -o\n");
+				fprintf(stderr, "Error: no file name provided after -o\n");
 				return -1;
 			}
 			outFileName = argv[i];
@@ -70,7 +70,8 @@ int main(int argc, char* argv[]) {
 							ba_IsWarningsAsErrors = 1;
 							break;
 						default:
-							printf("Command line option %s not found\n", argv[i]);
+							fprintf(stderr, "Error: Command line option %s "
+								"not found\n", argv[i]);
 							return -1;
 					}
 				}
@@ -101,7 +102,7 @@ int main(int argc, char* argv[]) {
 			ba_IsWarningsAsErrors = 1;
 		}
 		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
-			printf("Command line option %s not found\n", argv[i]);
+			fprintf(stderr, "Error: Command line option %s not found\n", argv[i]);
 			return -1;
 		}
 		else if (!srcFile) {
@@ -112,7 +113,7 @@ int main(int argc, char* argv[]) {
 				srcFile = fopen(argv[i], "r");
 			}
 			if (!srcFile) {
-				printf("Cannot find %s: no such file\n", argv[i]);
+				fprintf(stderr, "Error: Cannot find %s: no such file\n", argv[i]);
 				return -1;
 			}
 			if (!outFileName) {
@@ -126,13 +127,14 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		else {
-			printf("Error: only one input file may be specified\n");
+			fprintf(stderr, "Error: only one input file may be specified\n");
 			return -1;
 		}
 		BA_LBL_MAIN_ARGSLOOPEND:;
 	}
 	if (ba_IsWarningsAsErrors && ba_IsSilenceWarnings) {
-		printf("Error: cannot both silence warnings and have warnings as errors\n");
+		fprintf(stderr, "Error: cannot both silence warnings and have warnings "
+			"as errors\n");
 		return -1;
 	}
 	if (!srcFile) {
