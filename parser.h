@@ -1979,7 +1979,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
 				}
 				ba_AddIM(&ctr->im, 3, BA_IM_TEST, reg, reg);
-				ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
+				ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
 			}
 		
 			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
