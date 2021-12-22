@@ -1839,11 +1839,11 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | ";" 
  */
 u8 ba_PStmt(struct ba_Controller* ctr) {
-	// TODO: this should eventually be replaced with a Write() function
-	// and a lone string literal statement
-	
 	// "write" ...
 	if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
+		// TODO: this should eventually be replaced with a Write() function
+		// and a lone string literal statement
+	
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
 
@@ -1905,7 +1905,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
 
 				// deallocate stack memory
-				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
+				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x38);
 
 				// ... ';'
 				ba_PExpect(';', ctr);
