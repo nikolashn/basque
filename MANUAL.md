@@ -132,7 +132,7 @@ else {
 #### While loops
 Syntax: `while <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` )
 
-Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`.
+Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop block are in a local scope.
 
 ```
 u64 i = 0;
@@ -142,6 +142,25 @@ while i < 10u {
 	++i;
 }
 "\n";
+```
+
+#### Unnamed scopes
+Syntax: `{` { `<statement>` } `}`
+
+Multiple statements can be simply wrapped in braces, creating an unnamed local scope or block.
+
+```
+u64 a = 500;
+{
+	u64 b = 5;
+	{
+		u64 c = 2;
+	}
+	# write c; # Error
+}
+write a; "\n";
+# write b; # Error
+# c = 25; # Error
 ```
 
 ## The C Basque compiler
