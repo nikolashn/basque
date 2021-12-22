@@ -12,6 +12,7 @@ char usageStr[] =
 	"  -h,--help               Displays this text.\n"
 	"  -v,--version            Display the current version of the C Basque compiler.\n"
 	"  -o <FILE>               Output compiled code into <FILE>. Use - for stdout.\n"
+	"  -r,--run                Run the compiled code after compilation.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
 	"  -w,--extra-warnings     Show extra warnings.\n"
 	"  -W,--warnings-as-errors Treat warnings as errors.\n"
@@ -27,6 +28,8 @@ int main(int argc, char* argv[]) {
 
 	FILE* srcFile = 0;
 	char* outFileName = 0;
+
+	u8 isRunCode = 0;
 
 	for (u64 i = 1; i < argc; i++) {
 		u8 isHandledCLO = 0;
@@ -54,6 +57,9 @@ int main(int argc, char* argv[]) {
 						case 'v':
 							isCLOVersion = 1;
 							break;
+						case 'r':
+							isRunCode = 1;
+							break;
 						case 's':
 							ba_IsSilenceWarnings = 1;
 							break;
@@ -78,6 +84,9 @@ int main(int argc, char* argv[]) {
 		else if (isCLOVersion || !strcmp(argv[i], "--version")) {
 			printf("basque " BA_VERSION "\n");
 			return 0;
+		}
+		else if (!strcmp(argv[i], "--run")) {
+			isRunCode = 1;
 		}
 		else if (isHandledCLO) {
 			goto BA_LBL_MAIN_ARGSLOOPEND;
@@ -160,6 +169,14 @@ int main(int argc, char* argv[]) {
 	
 	if (!ba_WriteBinary(outFileName, ctr)) {
 		return -1;
+	}
+
+	if (isRunCode) {
+		char* outArg0 = malloc(strlen(outFileName) + 2);
+		strcpy(outArg0, "./");
+		strcat(outArg0, outFileName);
+		char* args[] = { outArg0, NULL };
+		execvp(outArg0, args);
 	}
 	
 	return 0;
