@@ -60,9 +60,10 @@ Comparison operators are non-associative: instead they work by chaining, like in
 
 All assignment operators are right-associative. The left-hand side of an assignment must be an L-value (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 ### Statements
-Statements are combinations of expressions that together form a program. In this section, square brackets signify optionality, and words in angle brackets represent that one of multiple different expressions or tokens can be used.
+Statements are combinations of expressions that together form a program. In this section, square brackets signify optionality, parentheses signify grouping, braces signify that a string can be repeated from 0 to infinite times, a bar signifies alternation, and words in angle brackets represent a group or class of expressions or tokens.
 
-`write <expression>;`
+#### Write statements
+Syntax: `write <expression>;`
 
 Outputs an expression to standard output (converting numeric expressions to `u64` and then to decimal strings of numbers)
 ```
@@ -71,7 +72,8 @@ write 7*12; # 84
 write -1; # 18446744073709551615
 ```
 
-`<expression>;`
+#### Expression statements
+Syntax: `<expression>;`
 
 Does nothing generally, unless the expression is made up of string literals, in which case it is like a write statement.
 ```
@@ -79,7 +81,8 @@ Does nothing generally, unless the expression is made up of string literals, in 
 "yo\n"; # yo
 ```
 
-`<type> <identifier>` [` = <expression>`] `;`
+#### Variable definition
+Syntax: `<type> <identifier>` [` = <expression> `] `;`
 
 Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Identifiers are always initialized to 0.
 ```
@@ -88,9 +91,55 @@ i64 _1234567;
 u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
 
+#### Semicolon
 `;`
 
-Does nothing.
+Does nothing (compiles to NOP).
+
+#### Conditional statements
+Syntax:
+`if <expression> `(` "," <statement> `| `{ `{` <statement> `}` }` )
+{` elif <expression> `(` "," <statement> `| `{ `{` <statement> `}` }` ) }
+[` else `(` "," <statement> `| `{ `{` <statement> `}` }` ) ]
+
+The classic if/elif/else conditional statement. Multiple statements can be executed upon a condition using a block (wrapping statements in braces), or a single statement can be executed using a comma. Such statements are in both cases in their own local scope.
+
+For anything with conditions in Basque, zero is false and any other numeric value is true.
+
+```
+if x == 0 {
+	"zero\n";
+}
+elif x == 1 {
+	write 1;
+	" is the loneliest number\n";
+}
+else {
+	if x > 0, write x*(x-1);
+	else {
+		if x % 2 {
+			write -x;
+		}
+		else, write -x-1;
+	}
+	"\n";
+}
+```
+
+#### While loops
+Syntax: `while <expression> `(` "," <statement> `| `{ `{` <statement> `}` }` )
+
+Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`.
+
+```
+u64 i = 0;
+while i < 10u {
+	if i != 0u, ",";
+	write i;
+	++i;
+}
+"\n";
+```
 
 ## The C Basque compiler
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
