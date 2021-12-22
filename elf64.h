@@ -1041,13 +1041,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						struct ba_IM* tmpIM = im;
 						while (tmpIM && tmpIM->count) {
 							labelDistance += ba_PessimalInstrSize(tmpIM);
-							tmpIM = tmpIM->next;
 							if (labelDistance >= 0x80 /* near jmp */ || 
 								(tmpIM->vals[0] == BA_IM_LABEL &&
 								tmpIM->vals[1] == labelID) /* short jmp*/)
 							{
 								break;
 							}
+							tmpIM = tmpIM->next;
 						}
 					}
 
