@@ -174,11 +174,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (isRunCode) {
-		char* outArg0 = malloc(strlen(outFileName) + 2);
-		strcpy(outArg0, "./");
-		strcat(outArg0, outFileName);
-		char* args[] = { outArg0, NULL };
-		execvp(outArg0, args);
+		char* args[] = { outFileName, NULL };
+		execvp(outFileName, args);
 	}
 	
 	return 0;
