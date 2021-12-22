@@ -8,7 +8,7 @@ Run the following command in the root directory (might need to be run as root us
 ```
 make install
 ```
-Also run this command (not as root!) to install the vim syntax
+Also run this command (not as root!) to install the vim syntax:
 ```
 make vim
 ```
