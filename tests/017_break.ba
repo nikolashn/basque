@@ -1,0 +1,21 @@
+# Print the first 10 fibonacci numbers
+
+u64 num0 = 1;
+u64 num1 = 1;
+u64 ii = 0;
+
+while 1 {
+	"Fibonacci no. ";
+	write ii; " = ";
+	write num0; "\n";
+
+	if ii >= 10u, break;
+	++ii;
+
+	u64 tmp = num1;
+	num1 += num0;
+	num0 = tmp;
+}
+
+# break; # Error: break is only allowed in loops
+
