@@ -82,7 +82,7 @@ Does nothing generally, unless the expression is made up of string literals, in 
 ```
 
 #### Variable definition
-Syntax: `<type> <identifier>` [` = <expression> `] `;`
+Syntax: `<type> <identifier>` [ `= <expression>` ] `;`
 
 Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Identifiers are always initialized to 0.
 ```
@@ -98,9 +98,9 @@ Does nothing (compiles to NOP).
 
 #### Conditional statements
 Syntax:
-`if <expression> `(` "," <statement> `| `{ `{` <statement> `}` }` )
-{` elif <expression> `(` "," <statement> `| `{ `{` <statement> `}` }` ) }
-[` else `(` "," <statement> `| `{ `{` <statement> `}` }` ) ]
+`if <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` )
+{ `elif <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` ) }
+[ `else` ( `"," <statement>` | `{` { `<statement>` } `}` ) ]
 
 The classic if/elif/else conditional statement. Multiple statements can be executed upon a condition using a block (wrapping statements in braces), or a single statement can be executed using a comma. Such statements are in both cases in their own local scope.
 
@@ -127,7 +127,7 @@ else {
 ```
 
 #### While loops
-Syntax: `while <expression> `(` "," <statement> `| `{ `{` <statement> `}` }` )
+Syntax: `while <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` )
 
 Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`.
 
