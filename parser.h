@@ -1780,7 +1780,7 @@ void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
 	ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
 	
 	// deallocate stack memory
-	ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
+	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 }
 
 // commaStmt = "," stmt
