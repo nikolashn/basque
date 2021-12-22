@@ -1232,7 +1232,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 					else {
 						ba_AddIM(&ctr->im, 5, BA_IM_MOV, opResultReg, BA_IM_ADRADD, 
-							BA_IM_RBP, lhsOffset);
+							ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, lhsOffset);
 					}
 
 					if (opLex == BA_TK_LSHIFTEQ || opLex == BA_TK_RSHIFTEQ) {
@@ -1250,7 +1250,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						}
 					}
 					else {
-						ba_AddIM(&ctr->im, 3, imOp, opResultReg, reg ? reg : BA_IM_RCX);
+						ba_AddIM(&ctr->im, 3, imOp, opResultReg, 
+							reg ? reg : BA_IM_RCX);
 					}
 
 					ba_AddIM(&ctr->im, 3, BA_IM_MOV, reg ? reg : BA_IM_RCX, 
@@ -1893,45 +1894,76 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
 
-		// ... exp ...
-		if (!ba_PExp(ctr)) {
-			return 0;
-		}
+		u8 hasReachedElse = 0;
 
-		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
-		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
-		}
+		u64 endLblId = ctr->labelCnt++;
 
-		u64 lblId = ctr->labelCnt++;
+		while (ba_PExp(ctr)) {
+			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
+			if (!stkItem) {
+				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+			}
 
-		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
-		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
+			u64 lblId = ctr->labelCnt++;
+
+			ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+			ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
 		
-		struct ba_SymTable* ifScope = ba_SymTableAddChild(ctr->currScope);
-		ctr->currScope = ifScope;
-		
-		// ... ( "," stmt | scope ) ...
-		if (ba_PAccept(',', ctr)) {
-			if (!ba_PStmt(ctr)) {
+			struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
+			ctr->currScope = scope;
+			if (ba_PAccept(',', ctr)) {
+				if (!ba_PStmt(ctr)) {
+					return 0;
+				}
+			}
+			else if (!ba_PScope(ctr)) {
 				return 0;
 			}
+
+			if (scope->dataSize) {
+				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+					BA_IM_IMM, scope->dataSize);
+			}
+			ctr->currScope = scope->parent;
+			free(scope);
+
+			if (ctr->lex->type == BA_TK_KW_ELIF || ctr->lex->type == BA_TK_KW_ELSE) {
+				ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, endLblId);
+			}
+			
+			ba_AddIM(&ctr->im, 2, BA_IM_LABEL, lblId);
+			
+			if (ba_PAccept(BA_TK_KW_ELSE, ctr)) {
+				hasReachedElse = 1;
+				break;
+			}
+			else if (!ba_PAccept(BA_TK_KW_ELIF, ctr)) {
+				break;
+			}
 		}
-		else if (!ba_PScope(ctr)) {
-			return 0;
+
+		if (hasReachedElse) {
+			struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
+			ctr->currScope = scope;
+			if (ba_PAccept(',', ctr)) {
+				if (!ba_PStmt(ctr)) {
+					return 0;
+				}
+			}
+			else if (!ba_PScope(ctr)) {
+				return 0;
+			}
+
+			if (scope->dataSize) {
+				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+					BA_IM_IMM, scope->dataSize);
+			}
+			ctr->currScope = scope->parent;
+			free(scope);
 		}
 
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-			BA_IM_IMM, ifScope->dataSize);
-
-		ctr->currScope = ifScope->parent;
-		free(ifScope);
-		
-		// ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
-		
-		// TODO: add elif, else
-
-		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, lblId);
+		// In some cases may be a duplicate label
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, endLblId);
 
 		return 1;
 	}
@@ -2058,16 +2090,22 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 						ba_CalcSTValOffset(ctr->currScope, expItem->val));
 				}
 
-				if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-					idVal->initVal = expItem->val;
-				}
-				else if (ctr->currScope == ctr->globalST) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						idVal->address, 
-						expItem->lexemeType == BA_TK_IMREGISTER ? 
-							(u64)expItem->val : BA_IM_RAX);
+				if (ctr->currScope == ctr->globalST) {
+					if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+						idVal->initVal = expItem->val;
+					}
+					else {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+							idVal->address, 
+							expItem->lexemeType == BA_TK_IMREGISTER ? 
+								(u64)expItem->val : BA_IM_RAX);
+					}
 				}
 				else {
+					if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+							BA_IM_IMM, (u64)expItem->val);
+					}
 					ba_AddIM(&ctr->im, 2, BA_IM_PUSH,
 						expItem->lexemeType == BA_TK_IMREGISTER ? 
 							(u64)expItem->val : BA_IM_RAX);
