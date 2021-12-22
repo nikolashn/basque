@@ -27,7 +27,10 @@ Write a list of options to standard output, then exit.
 Write the current version of the C Basque compiler to standard output, then exit.
 .TP
 .BR \-o " file"
-Output compiled code into an executable file at the specified path. To write to standard output, use a dash "\-" as the "file" argument.
+Output compiled code into an executable file at the specified path. To write to standard output, use a dash "\-" as the "file" argument. If this argument is not provided, and the input file name is "filename.ba", the output file will be "filename". Otherwise, the output file will be called "out".
+.TP
+.BR \-r ", " \-\-run
+Run the compiled code after compilation. This will still generate an output file.
 .TP
 .BR \-s ", " \-\-silence\-warnings
 Silence all compiler warnings.
