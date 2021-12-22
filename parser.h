@@ -2204,7 +2204,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			ba_PStmtWrite(ctr, ((struct ba_Str*)expItem->val)->len, str);
 			free(str);
 			free(expItem);
-			return 1;
 		}
 
 		// TODO
