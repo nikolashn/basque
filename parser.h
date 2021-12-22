@@ -1783,19 +1783,57 @@ void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
 	ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
 }
 
+// commaStmt = "," stmt
+u8 ba_PCommaStmt(struct ba_Controller* ctr) {
+	if (!ba_PAccept(',', ctr)) {
+		return 0;
+	}
+
+	struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
+	ctr->currScope = scope;
+
+	if (!ba_PStmt(ctr)) {
+		return 0;
+	}
+
+	if (scope->dataSize) {
+		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+			BA_IM_IMM, scope->dataSize);
+	}
+
+	ctr->currScope = scope->parent;
+	free(scope);
+
+	return 1;
+}
+
 // scope = "{" { stmt } "}"
 u8 ba_PScope(struct ba_Controller* ctr) {
 	if (!ba_PAccept('{', ctr)) {
 		return 0;
 	}
+
+	struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
+	ctr->currScope = scope;
+
 	while (ba_PStmt(ctr));
+
+	if (scope->dataSize) {
+		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+			BA_IM_IMM, scope->dataSize);
+	}
+
+	ctr->currScope = scope->parent;
+	free(scope);
+
 	return ba_PExpect('}', ctr);
 }
 
 /* stmt = "write" exp ";" 
- *      | "if" exp ( "," stmt | scope ) { "elif" exp ( "," stmt | scope ) }
- *        [ "else" ( "," stmt | scope ) ]
- *      | "while" exp ( "," stmt | scope )
+ *      | "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
+ *        [ "else" ( commaStmt | scope ) ]
+ *      | "while" exp ( commaStmt | scope )
+ *      | scope
  *      | base_type identifier [ "=" exp ] ";" 
  *      | exp ";"
  *      | ";" 
@@ -1909,23 +1947,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 			ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
 		
-			struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-			ctr->currScope = scope;
-			if (ba_PAccept(',', ctr)) {
-				if (!ba_PStmt(ctr)) {
-					return 0;
-				}
-			}
-			else if (!ba_PScope(ctr)) {
+			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
 				return 0;
 			}
-
-			if (scope->dataSize) {
-				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-					BA_IM_IMM, scope->dataSize);
-			}
-			ctr->currScope = scope->parent;
-			free(scope);
 
 			if (ctr->lex->type == BA_TK_KW_ELIF || ctr->lex->type == BA_TK_KW_ELSE) {
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, endLblId);
@@ -1943,23 +1967,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 
 		if (hasReachedElse) {
-			struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-			ctr->currScope = scope;
-			if (ba_PAccept(',', ctr)) {
-				if (!ba_PStmt(ctr)) {
-					return 0;
-				}
-			}
-			else if (!ba_PScope(ctr)) {
+			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
 				return 0;
 			}
-
-			if (scope->dataSize) {
-				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-					BA_IM_IMM, scope->dataSize);
-			}
-			ctr->currScope = scope->parent;
-			free(scope);
 		}
 
 		// In some cases may be a duplicate label
@@ -1990,30 +2000,18 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		ba_AddIM(&ctr->im, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
 		
-		struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-		ctr->currScope = scope;
-		
-		// ... ( "," stmt | scope ) ...
-		if (ba_PAccept(',', ctr)) {
-			if (!ba_PStmt(ctr)) {
-				return 0;
-			}
-		}
-		else if (!ba_PScope(ctr)) {
+		// ... ( commaStmt | scope ) ...
+		if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
 			return 0;
 		}
-
-		if (scope->dataSize) {
-			ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-				BA_IM_IMM, scope->dataSize);
-		}
-
-		ctr->currScope = scope->parent;
-		free(scope);
 
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, startLblId);
 		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, endLblId);
 
+		return 1;
+	}
+	// scope
+	else if (ba_PScope(ctr)) {
 		return 1;
 	}
 	// base_type identifier [ "=" exp ] ";"
