@@ -54,6 +54,13 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		(im == ctr->entryIM) && (entryPoint += code->cnt);
 
 		switch (im->vals[0]) {
+			case BA_IM_NOP:
+			{
+				++code->cnt;
+				code->arr[code->cnt-1] = 0x90;
+				break;
+			}
+
 			case BA_IM_LABEL:
 			{
 				if (im->count < 2) {

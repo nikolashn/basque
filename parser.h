@@ -2217,6 +2217,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	}
 	// ";"
 	else if (ba_PAccept(';', ctr)) {
+		ba_AddIM(&ctr->im, 1, BA_IM_NOP);
 		return 1;
 	}
 
