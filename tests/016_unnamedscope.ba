@@ -1,3 +1,11 @@
+# Expected output:
+##
+500
+5
+2,1,0
+25
+##
+
 u64 a = 500;
 write a; "\n";
 
@@ -5,6 +13,17 @@ write a; "\n";
 	u64 b = 5;
 	write b; "\n";
 	a = 25;
+
+	{
+		u64 c = 2;
+		while c {
+			write c; ",";
+			--c;
+		}
+		write c; "\n";
+	}
+
+	# write c; # Error
 }
 
 write a; "\n";
