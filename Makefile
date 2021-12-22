@@ -14,9 +14,12 @@ profile:
 clean:
 	rm -f basque
 
+vim:
+	cp editor/basque.vim ~/.vim/syntax/
+
 install: all
 	mkdir -p ${PPATH}/bin
-	cp -f basque $${PPATH}/bin
+	cp -f basque ${PPATH}/bin
 	chmod 755 ${PPATH}/bin/basque
 	cp basque.1 ${PPATH}/share/man/man1/basque.1
 
@@ -25,5 +28,5 @@ uninstall:
 	rm -f ${PPATH}/share/man/man1/basque.1
 
 
-.PHONY: all clean install uninstall
+.PHONY: all debug profile clean vim install uninstall
 
