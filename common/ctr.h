@@ -39,7 +39,7 @@ struct ba_Controller {
 };
 
 void ba_PTkStkPush(struct ba_Stk* stk, void* val, 
-	u64 type, u64 lexemeType, u8 isLValue)
+	u64 type, u64 lexemeType, bool isLValue)
 {
 	struct ba_PTkStkItem* stkItem = malloc(sizeof(*stkItem));
 	if (!stkItem) {

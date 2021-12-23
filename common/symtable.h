@@ -17,7 +17,7 @@ struct ba_STVal {
 
 	u64 type;
 	void* initVal;
-	u8 isInited;
+	bool isInited;
 };
 
 struct ba_SymTable {
@@ -39,7 +39,7 @@ struct ba_SymTable* ba_NewSymTable() {
 		ba_ErrorMallocNoMem();
 	}
 
-	st->ht = malloc(sizeof(*st->ht));
+	st->ht = ba_NewHashTable();
 	if (!st->ht) {
 		ba_ErrorMallocNoMem();
 	}

@@ -29,12 +29,12 @@ int main(int argc, char* argv[]) {
 	FILE* srcFile = 0;
 	char* outFileName = 0;
 
-	u8 isRunCode = 0;
+	bool isRunCode = 0;
 
 	for (u64 i = 1; i < argc; i++) {
-		u8 isHandledCLO = 0;
-		u8 isCLOHelp = 0;
-		u8 isCLOVersion = 0;
+		bool isHandledCLO = 0;
+		bool isCLOHelp = 0;
+		bool isCLOVersion = 0;
 		
 		u64 len = strlen(argv[i]);
 		

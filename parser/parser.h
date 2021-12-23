@@ -154,7 +154,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 	ctr->cmpRegStk->items[0] = (void*)0;
 
 	// Parse as if following an operator or parse as if following an atom?
-	u8 isAfterAtom = 0;
+	bool isAfterAtom = 0;
 
 	// Counts grouping parentheses to make sure they are balanced
 	i64 paren = 0;
@@ -240,7 +240,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 					struct ba_POpStkItem* stkTop = ba_StkTop(ctr->pOpStk);
 					u8 stkTopPrec = ba_POpPrecedence(stkTop);
 					u8 opPrec = ba_POpPrecedence(op);
-					u8 willHandle = ba_POpIsRightAssoc(op)
+					bool willHandle = ba_POpIsRightAssoc(op)
 						? stkTopPrec < opPrec : stkTopPrec <= opPrec;
 
 					if (willHandle) {
@@ -453,6 +453,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *        [ "else" ( commaStmt | scope ) ]
  *      | "while" exp ( commaStmt | scope )
  *      | "break" ";"
+ *      | "return" ";"
  *      | "goto" identifier ";"
  *      | scope
  *      | base_type identifier [ "=" exp ] ";" 
@@ -557,7 +558,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
 
-		u8 hasReachedElse = 0;
+		bool hasReachedElse = 0;
 
 		u64 endLblId = ctr->labelCnt++;
 

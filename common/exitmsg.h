@@ -5,9 +5,9 @@
 
 // Options
 
-u8 ba_IsSilenceWarnings = 0;
-u8 ba_IsExtraWarnings = 0;
-u8 ba_IsWarningsAsErrors = 0;
+bool ba_IsSilenceWarnings = 0;
+bool ba_IsExtraWarnings = 0;
+bool ba_IsWarningsAsErrors = 0;
 
 enum {
 	BA_EXIT_ERR = 0,

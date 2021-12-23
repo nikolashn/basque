@@ -190,7 +190,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 
-						u8 isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
+						bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
 						u64 ofstSz = (offset != 0) + (offset >= 0x80) * 3;
 						
 						code->cnt += 3 + ofstSz + isReg1Mod4;
@@ -335,7 +335,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte0 = 0x40 | (reg0 >= 8) | ((reg1 >= 8) << 2);
 						u8 byte2 = (reg0 & 7) | ((reg1 & 7) << 3);
 
-						u8 hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || (reg0 >= 8);
+						bool hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || 
+							(reg0 >= 8);
 						u8 instrSz = 2 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5) + 
 							hasByte0;
 
@@ -376,7 +377,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 reg1 = im->vals[4] - BA_IM_RAX;
 						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 3);
 
-						u8 isOffsetOneByte = offset < 0x80;
+						bool isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset in "
@@ -424,7 +425,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u64 imm = im->vals[5];
 						u8 byte0 = 0x48 | (reg0 >= 8);
 
-						u8 isOffsetOneByte = offset < 0x80;
+						bool isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset " 
@@ -617,7 +618,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte0 = 0x40 | ((reg1 >= 8) << 2) | (reg0 >= 8);
 						u8 byte2 = 0xc0 | ((reg1 & 7) << 3) | (reg0 & 7);
 
-						u64 hasByte0 = ((BA_IM_SPL <= im->vals[1]) | 
+						bool hasByte0 = ((BA_IM_SPL <= im->vals[1]) | 
 							(BA_IM_SPL <= im->vals[2]));
 						code->cnt += 2 + hasByte0;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -656,7 +657,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 3);
 						u64 offset = im->vals[3];
 
-						u8 isOffsetOneByte = offset < 0x80;
+						bool isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset in "
@@ -785,7 +786,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u8 byte0 = 0x40 | ((reg1 >= 8) << 2) | (reg0 >= 8);
 						u8 byte2 = 0xc0 | ((reg1 & 7) << 3) | (reg0 & 7);
 
-						u64 hasByte0 = ((BA_IM_SPL <= im->vals[1]) | 
+						bool hasByte0 = ((BA_IM_SPL <= im->vals[1]) | 
 							(BA_IM_SPL <= im->vals[2]));
 						code->cnt += 2 + hasByte0;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -1440,7 +1441,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	
 	// Create the initial file
 	FILE* file;
-	u8 isFileStdout = !strcmp(fileName, "-");
+	bool isFileStdout = !strcmp(fileName, "-");
 
 	if (isFileStdout) {
 		file = stdout;
@@ -1467,12 +1468,12 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u64 bufCodeSize = ( 0x1000 + code->cnt ) >= BA_FILE_BUF_SIZE ? 
 		BA_FILE_BUF_SIZE-0x1000 : code->cnt;
 	memcpy(0x1000+buf, code->arr, bufCodeSize);
-	fwrite(buf, sizeof(u8), 0x1000+bufCodeSize, file);
+	fwrite(buf, 1, 0x1000+bufCodeSize, file);
 	
 	// Write more code, if not everything can fit in the buffer
 	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - 0x1000;
 	while (codePtr - code->arr < code->cnt) {
-		fwrite(codePtr, sizeof(u8), code->cnt >= BA_FILE_BUF_SIZE ? 
+		fwrite(codePtr, 1, code->cnt >= BA_FILE_BUF_SIZE ? 
 			BA_FILE_BUF_SIZE : code->cnt, file);
 		codePtr += BA_FILE_BUF_SIZE;
 	}
@@ -1480,18 +1481,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	memset(buf, 0, 0x1000);
 	tmp = code->cnt & 0xfff;
 	if (tmp) {
-		fwrite(buf, sizeof(u8), 0x1000-tmp, file);
+		fwrite(buf, 1, 0x1000-tmp, file);
 	}
 
 	// Write data segment
 	u64 bufDataSgmtSize = dataSgmt->cnt >= BA_FILE_BUF_SIZE ? 
 		BA_FILE_BUF_SIZE : dataSgmt->cnt;
-	fwrite(dataSgmt->arr, sizeof(u8), bufDataSgmtSize, file);
+	fwrite(dataSgmt->arr, 1, bufDataSgmtSize, file);
 
 	// Write more data segment, if not everything can fit in the buffer
 	u8* dataSgmtPtr = dataSgmt->arr + BA_FILE_BUF_SIZE;
 	while (dataSgmtPtr - dataSgmt->arr < dataSgmt->cnt) {
-		fwrite(dataSgmtPtr, sizeof(u8), dataSgmt->cnt >= BA_FILE_BUF_SIZE ? 
+		fwrite(dataSgmtPtr, 1, dataSgmt->cnt >= BA_FILE_BUF_SIZE ? 
 			BA_FILE_BUF_SIZE : dataSgmt->cnt, file);
 	}
 
@@ -1560,7 +1561,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				u8 reg0 = im->vals[2] - BA_IM_RAX;
 				if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
 					u8 reg1 = im->vals[3] - BA_IM_AL;
-					u8 hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || (reg0 >= 8);
+					bool hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || (reg0 >= 8);
 					return 2 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5) + 
 						hasByte0;
 				}

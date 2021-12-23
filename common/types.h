@@ -10,6 +10,7 @@ enum {
 	BA_TYPE_I64 = 0x2,
 	BA_TYPE_U8 = 0x3,
 	BA_TYPE_I8 = 0x4,
+	BA_TYPE_BOOL = 0x5,
 
 	BA_TYPE_F64 = 0x5,
 	BA_TYPE_F32 = 0x6,
@@ -18,19 +19,19 @@ enum {
 	BA_TYPE_LABEL = 0x1001,
 };
 
-u8 ba_IsTypeUnsigned(u64 type) {
+bool ba_IsTypeUnsigned(u64 type) {
 	return (type == BA_TYPE_U64) || (type == BA_TYPE_U8);
 }
 
-u8 ba_IsTypeSigned(u64 type) {
+bool ba_IsTypeSigned(u64 type) {
 	return (type == BA_TYPE_I64) || (type == BA_TYPE_I8);
 }
 
-u8 ba_IsTypeIntegral(u64 type) {
+bool ba_IsTypeIntegral(u64 type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
-u8 ba_IsTypeNumeric(u64 type) {
+bool ba_IsTypeNumeric(u64 type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 

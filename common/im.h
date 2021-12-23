@@ -140,7 +140,7 @@ struct ba_IMLabel {
 	u64 addr;
 	struct ba_DynArr64* jmpOfsts;
 	struct ba_DynArr8* jmpOfstSizes;
-	u8 isFound;
+	bool isFound;
 };
 
 char* ba_IMToStr(struct ba_IM* im) {
@@ -150,7 +150,7 @@ char* ba_IMToStr(struct ba_IM* im) {
 	}
 	*str = 0;
 
-	u8 isImm = 0;
+	bool isImm = 0;
 	u8 adrP1 = 0;
 
 	for (u64 i = 0; i < im->count; i++) {

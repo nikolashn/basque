@@ -131,7 +131,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				else if (!((c == ' ') || (c == '\t') || (c == '\v') || 
 					(c == '\f') || (c == '\r')))
 				{
-					u8 needsToIterate = 1;
+					bool needsToIterate = 1;
 
 					if (c == '\n') {
 						++line;
@@ -352,20 +352,20 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					else if (!strcmp(idBuf, "goto")) {
 						nextLex->type = BA_TK_KW_GOTO;
 					}
+					else if (!strcmp(idBuf, "i64")) {
+						nextLex->type = BA_TK_KW_I64;
+					}
 					else if (!strcmp(idBuf, "if")) {
 						nextLex->type = BA_TK_KW_IF;
+					}
+					else if (!strcmp(idBuf, "u64")) {
+						nextLex->type = BA_TK_KW_U64;
 					}
 					else if (!strcmp(idBuf, "while")) {
 						nextLex->type = BA_TK_KW_WHILE;
 					}
 					else if (!strcmp(idBuf, "write")) {
 						nextLex->type = BA_TK_KW_WRITE;
-					}
-					else if (!strcmp(idBuf, "i64")) {
-						nextLex->type = BA_TK_KW_I64;
-					}
-					else if (!strcmp(idBuf, "u64")) {
-						nextLex->type = BA_TK_KW_U64;
 					}
 					else {
 						nextLex->val = malloc(BA_LITERAL_SIZE+1);

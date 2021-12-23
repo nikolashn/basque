@@ -165,7 +165,8 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 // Handle binary operators with a non literal operand
 void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
-	u8 isLhsLiteral, u8 isRhsLiteral, u8 isShortCirc, struct ba_Controller* ctr)
+	bool isLhsLiteral, bool isRhsLiteral, bool isShortCirc, 
+	struct ba_Controller* ctr)
 {
 	u64 lhsStackPos = 0;
 	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
@@ -272,9 +273,9 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 // Handle bit shifts with at least one non literal operand
 void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
-	u8 isRhsLiteral, struct ba_Controller* ctr) 
+	bool isRhsLiteral, struct ba_Controller* ctr) 
 {
-	u8 isLhsOriginallyRcx = 0;
+	bool isLhsOriginallyRcx = 0;
 	u64 lhsStackPos = 0;
 	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
 
@@ -331,7 +332,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 	}
 	else {
 		u64 regTmp = BA_IM_RCX;
-		u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
+		bool rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
 			(u64)rhs->val == BA_IM_RCX;
 
 		if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
@@ -581,8 +582,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			}
 			struct ba_PTkStkItem* rhs = arg;
 			
-			u8 isLhsLiteral = ba_IsLexemeLiteral(lhs->lexemeType);
-			u8 isRhsLiteral = ba_IsLexemeLiteral(rhs->lexemeType);
+			bool isLhsLiteral = ba_IsLexemeLiteral(lhs->lexemeType);
+			bool isRhsLiteral = ba_IsLexemeLiteral(rhs->lexemeType);
 
 			// Bit shifts
 
@@ -734,7 +735,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
 					ba_IsTypeUnsigned(rhs->type);
 
 				if (areBothUnsigned) {
@@ -763,7 +764,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							op->line, op->col);
 					}
 
-					u8 isRhsNeg = ba_IsTypeSigned(rhs->type) && (i64)rhs->val < 0;
+					bool isRhsNeg = ba_IsTypeSigned(rhs->type) && (i64)rhs->val < 0;
 
 					if (isRhsNeg) {
 						ba_POpNonLitUnary('-', lhs, ctr);
@@ -955,7 +956,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
 					ba_IsTypeUnsigned(rhs->type);
 
 				if (areBothUnsigned) {
@@ -990,7 +991,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							op->line, op->col);
 					}
 
-					u8 isRhsNeg = ba_IsTypeSigned(rhs->type) && (i64)rhs->val < 0;
+					bool isRhsNeg = ba_IsTypeSigned(rhs->type) && 
+						(i64)rhs->val < 0;
 					u64 rhsAbs = isRhsNeg ? -(u64)rhs->val : (u64)rhs->val;
 
 					if (rhsAbs == 1) {
@@ -1320,7 +1322,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_IMM, (u64)rhs->val);
 				}
 
-				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) &&
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) &&
 					ba_IsTypeUnsigned(rhs->type);
 
 				u64 imOp = 0;
@@ -1388,7 +1390,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				else if (imOp) {
 					u64 opResultReg = reg == BA_IM_RAX ? BA_IM_RDX : BA_IM_RAX;
-					u8 isPushOpResReg = 
+					bool isPushOpResReg = 
 						((reg == BA_IM_RAX && 
 							(ctr->usedRegisters & BA_CTRREG_RDX)) ||
 						(reg == BA_IM_RDX && 
@@ -1487,7 +1489,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				u64 imOpSet = 0;
 				u64 imOpJcc = 0;
 
-				u8 areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
 					ba_IsTypeUnsigned(rhs->type);
 
 				if (opLex == '<') {
