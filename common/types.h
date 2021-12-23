@@ -6,20 +6,20 @@
 enum {
 	BA_TYPE_NONE = 0,
 
-	BA_TYPE_U64 = 0x1,
-	BA_TYPE_I64 = 0x2,
-	BA_TYPE_U8 = 0x3,
-	BA_TYPE_I8 = 0x4,
+	BA_TYPE_U64  = 0x1,
+	BA_TYPE_I64  = 0x2,
+	BA_TYPE_U8   = 0x3,
+	BA_TYPE_I8   = 0x4,
 	BA_TYPE_BOOL = 0x5,
-
-	BA_TYPE_F64 = 0x5,
-	BA_TYPE_F32 = 0x6,
+	BA_TYPE_F64  = 0x6,
+	BA_TYPE_F32  = 0x7,
 	
 	BA_TYPE_TYPE = 0x1000, // ooo meta
 };
 
 bool ba_IsTypeUnsigned(u64 type) {
-	return (type == BA_TYPE_U64) || (type == BA_TYPE_U8);
+	return (type == BA_TYPE_U64) || (type == BA_TYPE_U8) || 
+		(type == BA_TYPE_BOOL);
 }
 
 bool ba_IsTypeSigned(u64 type) {
@@ -44,6 +44,7 @@ u64 ba_GetSizeOfType(u64 type) {
 			return 4;
 		case BA_TYPE_U8:
 		case BA_TYPE_I8:
+		case BA_TYPE_BOOL:
 			return 1;
 	}
 	return 0;
@@ -59,6 +60,8 @@ char* ba_GetTypeStr(u64 type) {
 			return "'u8'";
 		case BA_TYPE_I8:
 			return "'i8'";
+		case BA_TYPE_BOOL:
+			return "'bool'";
 		case BA_TYPE_F64:
 			return "'f64'";
 		case BA_TYPE_F32:

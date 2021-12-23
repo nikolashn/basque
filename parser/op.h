@@ -481,7 +481,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (op->lexemeType == '!') {
-					arg->type = BA_TYPE_U8;
+					arg->type = BA_TYPE_BOOL;
 				}
 				else if (ba_IsTypeUnsigned(arg->type)) {
 					arg->type = BA_TYPE_U64;
@@ -1236,7 +1236,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						op->line, op->col);
 				}
 
-				arg->type = BA_TYPE_U8;
+				arg->type = BA_TYPE_BOOL;
 
 				u64 imOp = op->lexemeType == BA_TK_LOGAND
 					? BA_IM_AND : BA_IM_OR;
@@ -1517,7 +1517,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					imOpJcc = BA_IM_LABELJZ;
 				}
 
-				arg->type = BA_TYPE_U8;
+				arg->type = BA_TYPE_BOOL;
 				arg->isLValue = 0;
 
 				u64 lhsStackPos = 0;
