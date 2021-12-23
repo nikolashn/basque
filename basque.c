@@ -1,6 +1,6 @@
 // See LICENSE for copyright/license information
 
-#include "parser.h"
+#include "parser/parser.h"
 #include "elf64.h"
 
 #include "bltin/bltin.h"

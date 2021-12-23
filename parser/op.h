@@ -1,152 +1,10 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__PARSER_H
-#define BA__PARSER_H
+#ifndef BA__PARSER_OP_H
+#define BA__PARSER_OP_H
 
-#include "lexer.h"
-#include "bltin/bltin.h"
-#include "parser_op.h"
-
-// ----- Forward declarations -----
-u8 ba_PStmt(struct ba_Controller* ctr);
-// --------------------------------
-
-u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
-	if (!ctr->lex || (ctr->lex->type != type)) {
-		return 0;
-	}
-	ctr->lex = ba_DelLexeme(ctr->lex);
-	return 1;
-}
-
-u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
-	if (!ba_PAccept(type, ctr)) {
-		if (!ctr->lex->line) {
-			fprintf(stderr, "Error: expected %s at end of file\n", 
-				ba_GetLexemeStr(type));
-		}
-		else {
-			fprintf(stderr, "Error: expected %s at line %llu:%llu\n",
-				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->colStart);
-		}
-		exit(-1);
-		return 0;
-	}
-	return 1;
-}
-
-/* base_type = "u64" | "i64" */
-u8 ba_PBaseType(struct ba_Controller* ctr) {
-	u64 lexType = ctr->lex->type;
-	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr)) {
-		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, BA_TYPE_TYPE, lexType, 
-			/* isLValue = */ 0);
-	}
-	else {
-		return 0;
-	}
-
-	return 1;
-}
-
-/* atom = lit_str { lit_str }
- *      | lit_int
- *      | identifier
- */
-u8 ba_PAtom(struct ba_Controller* ctr) {
-	u64 lexLine = ctr->lex->line;
-	u64 lexColStart = ctr->lex->colStart;
-	u64 lexValLen = ctr->lex->valLen;
-	char* lexVal = 0;
-	if (ctr->lex->val) {
-		lexVal = malloc(lexValLen+1);
-		if (!lexVal) {
-			return ba_ErrorMallocNoMem();
-		}
-		strcpy(lexVal, ctr->lex->val);
-	}
-
-	// lit_str { lit_str }
-	if (ba_PAccept(BA_TK_LITSTR, ctr)) {
-		u64 len = lexValLen;
-		char* str = malloc(len + 1);
-		if (!str) {
-			return ba_ErrorMallocNoMem();
-		}
-		strcpy(str, lexVal);
-		
-		// do-while prevents 1 more str literal from being consumed than needed
-		do {
-			if (ctr->lex->type != BA_TK_LITSTR) {
-				break;
-			}
-			u64 oldLen = len;
-			len += ctr->lex->valLen;
-			
-			if (len > BA_STACK_SIZE) {
-				return ba_ExitMsg2(BA_EXIT_ERR, "string at", ctr->lex->line, 
-					ctr->lex->colStart, " too large to fit on the stack");
-			}
-
-			str = realloc(str, len+1);
-			if (!str) {
-				return ba_ErrorMallocNoMem();
-			}
-			strcpy(str+oldLen, ctr->lex->val);
-			str[len] = 0;
-		}
-		while (ba_PAccept(BA_TK_LITSTR, ctr));
-		
-		struct ba_Str* stkStr = malloc(sizeof(struct ba_Str));
-		if (!stkStr) {
-			return ba_ErrorMallocNoMem();
-		}
-		stkStr->str = str;
-		stkStr->len = len;
-		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, BA_TYPE_NONE, BA_TK_LITSTR, 
-			/* isLValue = */ 0);
-	}
-	// lit_int
-	else if (ba_PAccept(BA_TK_LITINT, ctr)) {
-		u64 num;
-		u64 type = BA_TYPE_U64;
-		if (lexVal[lexValLen-1] == 'u') {
-			// ba_StrToU64 cannot parse the 'u' suffix so it must be removed
-			lexVal[--lexValLen] = 0;
-			num = ba_StrToU64(lexVal, lexLine, lexColStart);
-		}
-		else {
-			num = ba_StrToU64(lexVal, lexLine, lexColStart);
-			if (num < (1llu << 63)) {
-				type = BA_TYPE_I64;
-			}
-		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, BA_TK_LITINT, 
-			/* isLValue = */ 0);
-	}
-	// identifier
-	else if (ba_PAccept(BA_TK_IDENTIFIER, ctr)) {
-		struct ba_SymTable* stFoundIn = 0;
-		struct ba_STVal* id = ba_STParentFind(ctr->currScope, &stFoundIn, lexVal);
-		if (!id) {
-			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart);
-		}
-		if (!id->isInited) {
-			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
-				lexLine, lexColStart);
-		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, 
-			id->scope == ctr->globalST ? BA_TK_GLOBALID : BA_TK_LOCALID, 
-			/* isLValue = */ 1);
-	}
-	// Other
-	else {
-		return 0;
-	}
-
-	free(lexVal);
-	return 1;
-}
+#include "../lexer.h"
+#include "../bltin/bltin.h"
 
 // Operator precedence
 u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
@@ -221,6 +79,320 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 		"syntax type %u\n", op->lexemeType, op->syntax);
 	exit(-1);
 	return 255;
+}
+
+/* NOTE: The following functions are intended to be called by multiple 
+ * different operators and so should not contain any (source code) operator 
+ * specific exit messages. */
+
+// Handle unary operators with a non literal operand
+void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
+	struct ba_Controller* ctr)
+{
+	u64 imOp = 0;
+	((opLexType == '-') && (imOp = BA_IM_NEG)) ||
+	((opLexType == '~') && (imOp = BA_IM_NOT)) ||
+	((opLexType == '!') && (imOp = 1));
+
+	if (!imOp) {
+		fprintf(stderr, "Error: Unary lexeme type %llx passed to "
+			"ba_POpNonLitUnary not recognized\n", opLexType);
+		exit(-1);
+	}
+
+	u64 stackPos = 0;
+	u64 reg = (u64)arg->val; // Kept only if arg is a register
+
+	if (arg->lexemeType != BA_TK_IMREGISTER) {
+		reg = ba_NextIMRegister(ctr);
+	}
+
+	if (!reg) {
+		if (!ctr->imStackCnt) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, 
+				BA_IM_RSP);
+		}
+		++ctr->imStackCnt;
+		ctr->imStackSize += 8;
+		stackPos = ctr->imStackSize;
+		// First: result location, second: preserve rax
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	}
+
+	u64 realReg = reg ? reg : BA_IM_RAX;
+
+	if (arg->lexemeType == BA_TK_GLOBALID) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, 
+			BA_IM_DATASGMT, 
+			((struct ba_STVal*)arg->val)->address);
+	}
+	else if (arg->lexemeType == BA_TK_LOCALID) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
+			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, arg->val));
+	}
+	else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
+	}
+
+	if (opLexType == '!') {
+		ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
+		ba_AddIM(&ctr->im, 2, BA_IM_SETZ, 
+			realReg - BA_IM_RAX + BA_IM_AL);
+		ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realReg, 
+			realReg - BA_IM_RAX + BA_IM_AL);
+	}
+	else {
+		ba_AddIM(&ctr->im, 2, imOp, realReg);
+	}
+
+	if (reg) {
+		arg->lexemeType = BA_TK_IMREGISTER;
+		arg->val = (void*)reg;
+	}
+	else {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, 
+			BA_IM_RBP, stackPos, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->val = (void*)ctr->imStackSize;
+	}
+}
+
+// Handle binary operators with a non literal operand
+void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
+	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
+	u8 isLhsLiteral, u8 isRhsLiteral, u8 isShortCirc, struct ba_Controller* ctr)
+{
+	u64 lhsStackPos = 0;
+	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+	u64 regR = (u64)rhs->val; // Kept only if rhs is a register
+
+	// Return 0 means on the stack
+	(lhs->lexemeType != BA_TK_IMREGISTER) &&
+		(regL = ba_NextIMRegister(ctr));
+	(rhs->lexemeType != BA_TK_IMREGISTER) &&
+		(regR = ba_NextIMRegister(ctr));
+
+	if (!regL) {
+		if (!ctr->imStackCnt) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+		}
+		++ctr->imStackCnt;
+		ctr->imStackSize += 8;
+		lhsStackPos = ctr->imStackSize;
+
+		// First: result location, second: preserve rax
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	}
+	
+	/* regR is replaced with rdx normally, but if regL is 
+	 * already rdx, regR will be set to rcx. */
+	u64 rhsReplacement = regL == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX;
+
+	if (!regR) {
+		// Only once to preserve rdx/rcx
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, rhsReplacement);
+	}
+
+	if (lhs->lexemeType == BA_TK_GLOBALID) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+	}
+	else if (lhs->lexemeType == BA_TK_LOCALID) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, lhs->val));
+	}
+	else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
+	}
+	else if (isLhsLiteral) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_IMM, (u64)lhs->val);
+	}
+
+	if (rhs->lexemeType == BA_TK_GLOBALID) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regR ? regR : rhsReplacement,
+			BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
+	}
+	else if (rhs->lexemeType == BA_TK_LOCALID) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, regR ? regR : rhsReplacement,
+			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+			ba_CalcSTValOffset(ctr->currScope, rhs->val));
+	}
+	else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, 
+			regR ? regR : rhsReplacement,
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+	}
+	else if (isRhsLiteral) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, 
+			regR ? regR : rhsReplacement,
+			BA_IM_IMM, (u64)rhs->val);
+	}
+
+	ba_AddIM(&ctr->im, 3, imOp, regL ? regL : BA_IM_RAX, 
+		regR ? regR : rhsReplacement);
+
+	if (isShortCirc) {
+		u64 realRegL = regL ? regL : BA_IM_RAX;
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, ba_StkPop(ctr->shortCircLblStk));
+		ba_AddIM(&ctr->im, 2, BA_IM_SETNZ, realRegL - BA_IM_RAX + BA_IM_AL);
+		ba_AddIM(&ctr->im, 3, BA_IM_MOVZX, realRegL,
+			realRegL - BA_IM_RAX + BA_IM_AL);
+	}
+
+	if (regR) {
+		ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+	}
+	else {
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, rhsReplacement);
+	}
+
+	if (regL) {
+		arg->lexemeType = BA_TK_IMREGISTER;
+		arg->val = (void*)regL;
+	}
+	else {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+			lhsStackPos, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+
+		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->val = (void*)ctr->imStackSize;
+	}
+}
+
+// Handle bit shifts with at least one non literal operand
+void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
+	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
+	u8 isRhsLiteral, struct ba_Controller* ctr) 
+{
+	u8 isLhsOriginallyRcx = 0;
+	u64 lhsStackPos = 0;
+	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
+
+	// Return 0 means on the stack
+	(lhs->lexemeType != BA_TK_IMREGISTER) &&
+		(regL = ba_NextIMRegister(ctr));
+
+	if (regL == BA_IM_RCX) {
+		(lhs->lexemeType == BA_TK_IMREGISTER) &&
+			(isLhsOriginallyRcx = 1);
+		regL = ba_NextIMRegister(ctr);
+		ctr->usedRegisters &= ~BA_CTRREG_RCX;
+	}
+
+	if (!regL) {
+		if (!ctr->imStackCnt) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+		}
+		++ctr->imStackCnt;
+		ctr->imStackSize += 8;
+		lhsStackPos = ctr->imStackSize;
+		// First: result location, second: preserve rax
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+	}
+
+	if (lhs->lexemeType == BA_TK_GLOBALID) {
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
+			BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
+	}
+	else if (lhs->lexemeType == BA_TK_LOCALID) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
+			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+			ba_CalcSTValOffset(ctr->currScope, lhs->val));
+	}
+	else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
+			BA_IM_ADRSUB, BA_IM_RBP, (u64)lhs->val);
+	}
+	else if (lhs->lexemeType == BA_TK_IMREGISTER) {
+		if (isLhsOriginallyRcx) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, 
+				regL ? regL : BA_IM_RAX, BA_IM_RCX);
+		}
+	}
+	else { // Literal (immediate) lhs
+		ba_AddIM(&ctr->im, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
+			BA_IM_IMM, (u64)lhs->val);
+	}
+
+	if (isRhsLiteral) {
+		ba_AddIM(&ctr->im, 4, imOp, regL ? regL : BA_IM_RAX, 
+			BA_IM_IMM, (u64)rhs->val & 0x3f);
+	}
+	else {
+		u64 regTmp = BA_IM_RCX;
+		u8 rhsIsRcx = rhs->lexemeType == BA_TK_IMREGISTER &&
+			(u64)rhs->val == BA_IM_RCX;
+
+		if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
+			regTmp = ba_NextIMRegister(ctr);
+			if (!regTmp) {
+				// Don't need to store rhs, only preserve rax
+				ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+			}
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, 
+				regTmp ? regTmp : BA_IM_RAX, BA_IM_RCX);
+		}
+
+		if (rhs->lexemeType == BA_TK_GLOBALID) {
+			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT,
+				((struct ba_STVal*)rhs->val)->address);
+		}
+		else if (rhs->lexemeType == BA_TK_LOCALID) {
+			ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RCX, 
+				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+				ba_CalcSTValOffset(ctr->currScope, rhs->val));
+		}
+		else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
+			ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RCX,
+				BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
+		}
+		else if (!rhsIsRcx) { // Register that isn't rcx
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, 
+				(u64)rhs->val);
+			ctr->usedRegisters &= ~ba_IMToCtrRegister((u64)rhs->val);
+		}
+
+		// The actual shift operation
+		ba_AddIM(&ctr->im, 3, imOp, regL ? regL : BA_IM_RAX, 
+			BA_IM_CL);
+
+		if ((ctr->usedRegisters & BA_CTRREG_RCX) && !rhsIsRcx) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, 
+				regTmp ? regTmp : BA_IM_RAX);
+		}
+
+		if (!regTmp) {
+			ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+		}
+
+		if (regTmp && regTmp != BA_IM_RCX) {
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
+			ctr->usedRegisters &= ~ba_IMToCtrRegister(regTmp);
+		}
+	}
+
+	if (regL) {
+		arg->lexemeType = BA_TK_IMREGISTER;
+		arg->val = (void*)regL;
+	}
+	else {
+		ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+			lhsStackPos, BA_IM_RAX);
+		ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->val = (void*)ctr->imStackSize;
+	}
 }
 
 // Right associative operators don't handle operators of the same precedence
@@ -1522,802 +1694,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	}
 	
 	BA_LBL_OPHANDLE_END:;
-	return 1;
-}
-
-// Any type of expression
-u8 ba_PExp(struct ba_Controller* ctr) {
-	// Reset comparison chain stacks
-	ctr->cmpLblStk->count = 0;
-	ctr->cmpRegStk->count = 1;
-	ctr->cmpRegStk->items[0] = (void*)0;
-
-	// Parse as if following an operator or parse as if following an atom?
-	u8 isAfterAtom = 0;
-
-	// Counts grouping parentheses to make sure they are balanced
-	i64 paren = 0;
-	
-	while (1) {
-		u64 lexType = ctr->lex->type;
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		// Start of an expression or after a binary operator
-		if (!isAfterAtom) {
-			// Prefix operator
-			if (ba_PAccept('+', ctr) || ba_PAccept('-', ctr) || 
-				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) || 
-				ba_PAccept('(', ctr) || ba_PAccept('$', ctr) || 
-				ba_PAccept(BA_TK_INC, ctr) || ba_PAccept(BA_TK_DEC, ctr))
-			{
-				// Left grouping parenthesis
-				if (lexType == '(') {
-					++paren;
-					// Entering a new expression frame (reset whether is cmp chain)
-					ba_StkPush(ctr->cmpRegStk, (void*)0);
-				}
-				ba_POpStkPush(ctr->pOpStk, line, col, lexType, BA_OP_PREFIX);
-			}
-			// Atom: note that ba_PAtom pushes the atom to pTkStk
-			else if (ba_PAtom(ctr)) {
-				isAfterAtom = 1;
-			}
-			else {
-				return 0;
-			}
-		}
-		// After an atom, postfix or grouped expression
-		else {
-			struct ba_POpStkItem* op = malloc(sizeof(*op));
-			if (!op) {
-				return ba_ErrorMallocNoMem();
-			}
-
-			op->line = line;
-			op->col = col;
-			op->lexemeType = lexType;
-			op->syntax = 0;
-
-			u64 nextLexType = ctr->lex->type;
-
-			// Set syntax type
-			if (ba_PAccept(')', ctr)) {
-				op->syntax = BA_OP_POSTFIX;
-			}
-			else if (ba_PAccept('~', ctr)) {
-				op->syntax = BA_OP_POSTFIX;
-
-				if (!ba_PBaseType(ctr)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression "
-						"that is not a type on", op->line, op->col);
-				}
-			}
-			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 
-				ba_PAccept(BA_TK_RSHIFT, ctr) || ba_PAccept('*', ctr) || 
-				ba_PAccept(BA_TK_IDIV, ctr) || ba_PAccept('%', ctr) || 
-				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
-				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
-				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_LOGAND, ctr) || 
-				ba_PAccept(BA_TK_LOGOR, ctr) || ba_PAccept('=', ctr) || 
-				(ba_IsLexemeCompoundAssign(nextLexType) && 
-					ba_PAccept(nextLexType, ctr)) || 
-				(ba_IsLexemeCompare(nextLexType) && 
-					ba_PAccept(nextLexType, ctr)))
-			{
-				op->syntax = BA_OP_INFIX;
-			}
-			else {
-				goto BA_LBL_PEXP_END;
-			}
-
-			// Right grouping parenthesis
-			(lexType == ')') && --paren;
-
-			if (ctr->pOpStk->count) {
-				do {
-					struct ba_POpStkItem* stkTop = ba_StkTop(ctr->pOpStk);
-					u8 stkTopPrec = ba_POpPrecedence(stkTop);
-					u8 opPrec = ba_POpPrecedence(op);
-					u8 willHandle = ba_POpIsRightAssoc(op)
-						? stkTopPrec < opPrec : stkTopPrec <= opPrec;
-
-					if (willHandle) {
-						u8 handleResult = ba_POpHandle(ctr, op);
-						if (!handleResult) {
-							return 0;
-						}
-						// Left grouping parenthesis
-						else if (handleResult == 2) {
-							// Return to previous expression frame
-							ba_StkPop(ctr->cmpRegStk);
-							goto BA_LBL_PEXP_LOOPEND;
-						}
-					}
-					else {
-						break;
-					}
-				}
-				while (ctr->pOpStk->count);
-			}
-
-			// Short circuiting: jmp ahead if right-hand side operand is unnecessary
-			if (lexType == BA_TK_LOGAND || lexType == BA_TK_LOGOR) {
-				struct ba_PTkStkItem* lhs = ba_StkPop(ctr->pTkStk);
-				ba_StkPush(ctr->shortCircLblStk, (void*)ctr->labelCnt);
-
-				u64 reg = (u64)lhs->val; // Kept only if lhs is a register
-				
-				if (lhs->lexemeType != BA_TK_IMREGISTER) {
-					reg = ba_NextIMRegister(ctr);
-				}
-
-				if (!reg) { // Preserve rax
-					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
-				}
-				
-				u64 realReg = reg ? reg : BA_IM_RAX;
-				if (lhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, BA_IM_DATASGMT,
-						((struct ba_STVal*)lhs->val)->address);
-				}
-				else if (lhs->lexemeType == BA_TK_LOCALID) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, 
-						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
-						ba_CalcSTValOffset(ctr->currScope, lhs->val));
-				}
-				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, realReg, BA_IM_ADRSUB,
-						BA_IM_RBP, (u64)lhs->val);
-				}
-				else if (lhs->lexemeType != BA_TK_IMREGISTER) {
-					// Literal
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, realReg, BA_IM_IMM, 
-						(u64)lhs->val);
-				}
-
-				ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
-				if (!reg) {
-					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
-				}
-				ba_AddIM(&ctr->im, 2, 
-					lexType == BA_TK_LOGAND ? BA_IM_LABELJZ : BA_IM_LABELJNZ,
-						ctr->labelCnt);
-
-				lhs->lexemeType = BA_TK_IMREGISTER;
-				lhs->val = (void*)reg;
-				ba_StkPush(ctr->pTkStk, lhs);
-
-				++ctr->labelCnt;
-			}
-
-			ba_StkPush(ctr->pOpStk, op);
-
-			if (op->syntax == BA_OP_INFIX) {
-				isAfterAtom = 0;
-			}
-		}
-
-		BA_LBL_PEXP_LOOPEND:;
-		
-		if (paren < 0) {
-			return ba_ExitMsg(BA_EXIT_ERR, "unmatched ')' on", line, col);
-		}
-
-		line = ctr->lex->line;
-		col = ctr->lex->colStart;
-	}
-
-	BA_LBL_PEXP_END:;
-	
-	if (paren) {
-		return 0;
-	}
-	
-	while (ctr->pOpStk->count) {
-		if (!ba_POpHandle(ctr, 0)) {
-			return 0;
-		}
-	}
-
-	ctr->usedRegisters = BA_IM_RAX;
-	if (ctr->imStackCnt) {
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, ctr->imStackSize);
-	}
-	ctr->imStackCnt = 0;
-	ctr->imStackSize = 0;
-
-	return 1;
-}
-
-// Auxiliary for ba_PStmt
-void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
-	// Round up to nearest 0x10
-	u64 memLen = len & 0xf;
-	if (!len) {
-		memLen = 0x10;
-	}
-	else if (memLen) {
-		memLen ^= len;
-		memLen += 0x10;
-	}
-	else {
-		memLen = len;
-	}
-	
-	// Allocate stack memory
-	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-	ba_AddIM(&ctr->im, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
-
-	u64 val = 0;
-	u64 strIter = 0;
-	u64 adrSub = memLen;
-	
-	// Store the string on the stack
-	while (1) {
-		if ((strIter && !(strIter & 7)) || (strIter >= len)) {
-			ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
-			ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-				adrSub, BA_IM_RAX);
-			
-			if (!(strIter & 7)) {
-				adrSub -= 8;
-				val = 0;
-			}
-			if (strIter >= len) {
-				break;
-			}
-		}
-		val |= (u64)str[strIter] << ((strIter & 7) << 3);
-		++strIter;
-	}
-	
-	// write
-	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
-	ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
-	
-	// deallocate stack memory
-	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-}
-
-// commaStmt = "," stmt
-u8 ba_PCommaStmt(struct ba_Controller* ctr) {
-	if (!ba_PAccept(',', ctr)) {
-		return 0;
-	}
-
-	struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-	ctr->currScope = scope;
-
-	if (!ba_PStmt(ctr)) {
-		return 0;
-	}
-
-	if (scope->dataSize) {
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-			BA_IM_IMM, scope->dataSize);
-	}
-
-	ctr->currScope = scope->parent;
-
-	return 1;
-}
-
-// scope = "{" { stmt } "}"
-u8 ba_PScope(struct ba_Controller* ctr) {
-	if (!ba_PAccept('{', ctr)) {
-		return 0;
-	}
-
-	struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-	ctr->currScope = scope;
-
-	while (ba_PStmt(ctr));
-
-	if (scope->dataSize) {
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-			BA_IM_IMM, scope->dataSize);
-	}
-
-	ctr->currScope = scope->parent;
-
-	return ba_PExpect('}', ctr);
-}
-
-/* stmt = "write" exp ";" 
- *      | "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
- *        [ "else" ( commaStmt | scope ) ]
- *      | "while" exp ( commaStmt | scope )
- *      | "break" ";"
- *      | "goto" identifier ";"
- *      | scope
- *      | base_type identifier [ "=" exp ] ";" 
- *      | identifier ":"
- *      | exp ";"
- *      | ";" 
- */
-u8 ba_PStmt(struct ba_Controller* ctr) {
-	u64 firstLine = ctr->lex->line;
-	u64 firstCol = ctr->lex->colStart;
-
-	// "write" ...
-	if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
-		// TODO: this should eventually be replaced with a Write() function
-		// and a lone string literal statement
-	
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		// ... exp ...
-		if (!ba_PExp(ctr)) {
-			return 0;
-		}
-
-		char* str;
-		u64 len;
-		
-		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
-		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
-		}
-
-		if (stkItem->lexemeType == BA_TK_LITSTR) {
-			str = ((struct ba_Str*)stkItem->val)->str;
-			len = ((struct ba_Str*)stkItem->val)->len;
-		}
-		// Everything is printed as unsigned, this will be removed in the 
-		// future anyway so i don't care about adding signed representation
-		else if (ba_IsTypeIntegral(stkItem->type)) {
-			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				str = ba_U64ToStr((u64)stkItem->val);
-				len = strlen(str);
-			}
-			else {
-				// U64ToStr is needed
-				if (!ba_BltinFlagsTest(BA_BLTIN_U64ToStr)) {
-					ba_BltinU64ToStr(ctr);
-				}
-
-				if (stkItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
-				}
-				else if (stkItem->lexemeType == BA_TK_LOCALID) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
-				}
-				else if (stkItem->lexemeType == BA_TK_IMREGISTER) {
-					if ((u64)stkItem->val != BA_IM_RAX) {
-						ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX, 
-							(u64)stkItem->val);
-					}
-				}
-				/* stkItem->lexemeType won't ever be BA_IM_RBPSUB */
-
-				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
-					ba_BltinLabels[BA_BLTIN_U64ToStr]);
-
-				// write
-				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-				ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-				ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
-
-				// deallocate stack memory
-				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x38);
-
-				// ... ';'
-				ba_PExpect(';', ctr);
-
-				return 1;
-			}
-		}
-		else {
-			return ba_ExitMsg(BA_EXIT_ERR, "expression of incorrect type "
-				"used with 'write' keyword on", line, col);
-		}
-
-		// ... ";"
-		// Generates IM code
-		if (ba_PExpect(';', ctr)) {
-			ba_PStmtWrite(ctr, len, str);
-			free(str);
-			free(stkItem);
-			return 1;
-		}
-	}
-	// "if" ...
-	else if (ba_PAccept(BA_TK_KW_IF, ctr)) {
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		u8 hasReachedElse = 0;
-
-		u64 endLblId = ctr->labelCnt++;
-
-		while (ba_PExp(ctr)) {
-			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
-			if (!stkItem) {
-				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
-			}
-
-			u64 lblId = ctr->labelCnt++;
-			u64 reg = BA_IM_RAX;
-
-			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				if (!ba_IsTypeNumeric(stkItem->type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
-						"as condition on", line, col);
-				}
-
-				if (stkItem->val) {
-					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
-						"be true on", line, col);
-				}
-				else {
-					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
-						"be false on", line, col);
-					ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
-				}
-			}
-			else {
-				if (stkItem->lexemeType == BA_TK_IMREGISTER) {
-					reg = (u64)stkItem->val;
-				}
-				else if (stkItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-						((struct ba_STVal*)stkItem->val)->address);
-				}
-				else if (stkItem->lexemeType == BA_TK_LOCALID) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
-				}
-				ba_AddIM(&ctr->im, 3, BA_IM_TEST, reg, reg);
-				ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, lblId);
-			}
-		
-			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
-				return 0;
-			}
-
-			if (ctr->lex->type == BA_TK_KW_ELIF || ctr->lex->type == BA_TK_KW_ELSE) {
-				ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, endLblId);
-			}
-			
-			ba_AddIM(&ctr->im, 2, BA_IM_LABEL, lblId);
-			
-			if (ba_PAccept(BA_TK_KW_ELSE, ctr)) {
-				hasReachedElse = 1;
-				break;
-			}
-			else if (!ba_PAccept(BA_TK_KW_ELIF, ctr)) {
-				break;
-			}
-		}
-
-		if (hasReachedElse) {
-			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
-				return 0;
-			}
-		}
-
-		// In some cases may be a duplicate label
-		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, endLblId);
-
-		return 1;
-	}
-	// while ...
-	else if (ba_PAccept(BA_TK_KW_WHILE, ctr)) {
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		u64 startLblId = ctr->labelCnt++;
-		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, startLblId);
-
-		// ... exp ...
-		if (!ba_PExp(ctr)) {
-			return 0;
-		}
-
-		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
-		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
-		}
-
-		u64 endLblId = ctr->labelCnt++;
-		u64 reg = BA_IM_RAX;
-
-		if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-			if (!ba_IsTypeNumeric(stkItem->type)) {
-				return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
-					"as while loop condition on", line, col);
-			}
-
-			if (!stkItem->val) {
-				ba_ExitMsg(BA_EXIT_WARN, "while loop condition will always "
-					"be false on", line, col);
-				ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, endLblId);
-			}
-		}
-		else {
-			if (stkItem->lexemeType == BA_TK_IMREGISTER) {
-				reg = (u64)stkItem->val;
-			}
-			else if (stkItem->lexemeType == BA_TK_GLOBALID) {
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-					((struct ba_STVal*)stkItem->val)->address);
-			}
-			else if (stkItem->lexemeType == BA_TK_LOCALID) {
-				ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
-					BA_IM_ADRADD, BA_IM_RSP, 
-					ba_CalcSTValOffset(ctr->currScope, stkItem->val));
-			}
-			ba_AddIM(&ctr->im, 3, BA_IM_TEST, reg, reg);
-			ba_AddIM(&ctr->im, 2, BA_IM_LABELJZ, endLblId);
-		}
-		
-		// ... ( commaStmt | scope ) ...
-		ba_StkPush(ctr->breakLblStk, (void*)endLblId);
-		if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
-			return 0;
-		}
-		ba_StkPop(ctr->breakLblStk);
-
-		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, startLblId);
-		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, endLblId);
-
-		return 1;
-	}
-	// "break" ";"
-	else if (ba_PAccept(BA_TK_KW_BREAK, ctr)) {
-		if (!ctr->breakLblStk->count) {
-			ba_ExitMsg(BA_EXIT_ERR, "keyword 'break' used outside of loop on",
-				firstLine, firstCol);
-		}
-		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, (u64)ba_StkTop(ctr->breakLblStk));
-		return ba_PExpect(';', ctr);
-	}
-	// "goto" identifier ";"
-	else if (ba_PAccept(BA_TK_KW_GOTO, ctr)) {
-		u64 idNameLen = ctr->lex->valLen;
-		char* idName = 0;
-		if (ctr->lex->val) {
-			idName = malloc(idNameLen+1);
-			if (!idName) {
-				return ba_ErrorMallocNoMem();
-			}
-			strcpy(idName, ctr->lex->val);
-		}
-
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
-			return 0;
-		}
-
-		struct ba_STVal* idVal = 
-			ba_SymTableSearchChildren(ctr->globalST, idName);
-
-		if (idVal) {
-			if (idVal->type != BA_TYPE_LABEL) {
-				return ba_ExitMsg(BA_EXIT_ERR, "identifier is not a label on", 
-					line, col);
-			}
-			ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, idVal->address);
-		}
-		else {
-			ba_AddIM(&ctr->im, 4, BA_IM_GOTO, (u64)idName, line, col);
-		}
-		
-		return ba_PExpect(';', ctr);
-	}
-	// scope
-	else if (ba_PScope(ctr)) {
-		return 1;
-	}
-	// base_type identifier [ "=" exp ] ";"
-	else if (ba_PBaseType(ctr)) {
-		struct ba_PTkStkItem* varTypeItem = ba_StkPop(ctr->pTkStk);
-		u64 idNameLen = ctr->lex->valLen;
-		char* idName = 0;
-		if (ctr->lex->val) {
-			idName = malloc(idNameLen+1);
-			if (!idName) {
-				return ba_ErrorMallocNoMem();
-			}
-			strcpy(idName, ctr->lex->val);
-		}
-
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
-			return 0;
-		}
-
-		struct ba_STVal* idVal = ba_STGet(ctr->currScope, idName);
-		
-		if (idVal) {
-			return ba_ErrorVarRedef(idName, line, col);
-		}
-
-		idVal = malloc(sizeof(struct ba_STVal));
-		if (!idVal) {
-			return ba_ErrorMallocNoMem();
-		}
-		idVal->scope = ctr->currScope;
-		idVal->type = ba_GetTypeFromKeyword(varTypeItem->lexemeType);
-		
-		u64 idDataSize = ba_GetSizeOfType(idVal->type);
-		/* For global identifiers, the address of the start is used 
-		 * For non global identifiers, the address of the end is used */
-		idVal->address = ctr->currScope->dataSize + 
-			(ctr->currScope != ctr->globalST) * idDataSize;
-		ctr->currScope->dataSize += idDataSize;
-
-		idVal->initVal = 0;
-		idVal->isInited = 0;
-
-		ba_STSet(ctr->currScope, idName, idVal);
-
-		if (ba_PAccept('=', ctr)) {
-			idVal->isInited = 1;
-
-			line = ctr->lex->line;
-			col = ctr->lex->colStart;
-			
-			if (!ba_PExp(ctr)) {
-				return 0;
-			}
-			struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
-			
-			if (ba_IsTypeNumeric(idVal->type)) {
-				if (!ba_IsTypeNumeric(expItem->type)) {
-					char* expTypeStr = ba_GetTypeStr(expItem->type);
-					char* varTypeStr = ba_GetTypeStr(varTypeItem->type);
-					return ba_ErrorAssignTypes(expTypeStr, idName, 
-						varTypeStr, line, col);
-				}
-
-				if (expItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
-						((struct ba_STVal*)expItem->val)->address);
-				}
-				else if (expItem->lexemeType == BA_TK_LOCALID) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, expItem->val));
-				}
-
-				if (ctr->currScope == ctr->globalST) {
-					if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-						idVal->initVal = expItem->val;
-					}
-					else {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-							idVal->address, 
-							expItem->lexemeType == BA_TK_IMREGISTER ? 
-								(u64)expItem->val : BA_IM_RAX);
-					}
-				}
-				else {
-					if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
-							BA_IM_IMM, (u64)expItem->val);
-					}
-					ba_AddIM(&ctr->im, 2, BA_IM_PUSH,
-						expItem->lexemeType == BA_TK_IMREGISTER ? 
-							(u64)expItem->val : BA_IM_RAX);
-				}
-			}
-		}
-
-		if (!ba_PExpect(';', ctr)) {
-			return 0;
-		}
-
-		if (ctr->currScope != ctr->globalST && !idVal->isInited) {
-			ba_AddIM(&ctr->im, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-		}
-		
-		return 1;
-	}
-	// identifier ":"
-	else if (ctr->lex && ctr->lex->type == BA_TK_IDENTIFIER && 
-		ctr->lex->next && ctr->lex->next->type == ':')
-	{
-		u64 idNameLen = ctr->lex->valLen;
-		char* idName = 0;
-		if (ctr->lex->val) {
-			idName = malloc(idNameLen+1);
-			if (!idName) {
-				return ba_ErrorMallocNoMem();
-			}
-			strcpy(idName, ctr->lex->val);
-		}
-
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		ba_PExpect(BA_TK_IDENTIFIER, ctr);
-		ba_PExpect(':', ctr);
-
-		struct ba_STVal* idVal = 
-			ba_SymTableSearchChildren(ctr->globalST, idName);
-		
-		if (idVal) {
-			return ba_ErrorVarRedef(idName, line, col);
-		}
-
-		idVal = malloc(sizeof(struct ba_STVal));
-		if (!idVal) {
-			return ba_ErrorMallocNoMem();
-		}
-
-		idVal->type = BA_TYPE_LABEL;
-		idVal->address = ctr->labelCnt++;
-		idVal->initVal = 0;
-		idVal->isInited = 1;
-
-		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, idVal->address);
-
-		ba_STSet(ctr->currScope, idName, idVal);
-
-		return 1;
-	}
-	// exp ";"
-	else if (ba_PExp(ctr)) {
-		struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
-
-		// String literals by themselves in statements are written to standard output
-		if (expItem->lexemeType == BA_TK_LITSTR) {
-			char* str = ((struct ba_Str*)expItem->val)->str;
-			ba_PStmtWrite(ctr, ((struct ba_Str*)expItem->val)->len, str);
-			free(str);
-			free(expItem);
-		}
-
-		// TODO
-		
-		if (!ba_PExpect(';', ctr)) {
-			return 0;
-		}
-
-		return 1;
-	}
-	// ";"
-	else if (ba_PAccept(';', ctr)) {
-		ba_AddIM(&ctr->im, 1, BA_IM_NOP);
-		return 1;
-	}
-
-	return 0;
-}
-
-/* program = { stmt } eof */
-u8 ba_Parse(struct ba_Controller* ctr) {
-	while (!ba_PAccept(BA_TK_EOF, ctr)) {
-		if (!ba_PStmt(ctr)) {
-			// doesn't have anything to do with literals, this is just 
-			// a decent buffer size
-			char msg[BA_LITERAL_SIZE+1];
-			sprintf(msg, "unexpected %s at", ba_GetLexemeStr(ctr->lex->type));
-			return ba_ExitMsg(BA_EXIT_ERR, msg, ctr->lex->line, ctr->lex->colStart);
-		}
-	}
-	
-	// Exit
-	ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 60);
-	ba_AddIM(&ctr->im, 3, BA_IM_XOR, BA_IM_RDI, BA_IM_RDI);
-	ba_AddIM(&ctr->im, 1, BA_IM_SYSCALL);
-
 	return 1;
 }
 
