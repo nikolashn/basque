@@ -165,6 +165,7 @@ write a; "\n";
 
 #### Goto and label
 Syntax (goto) `goto <identifier> ;`
+
 Syntax (label) `<identifier> :`
 
 A goto statement jumps to a position in execution specified by a label. Labels cannot have the same identifier as variables in a program.
