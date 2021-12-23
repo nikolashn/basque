@@ -8,7 +8,8 @@ struct ba_SymTable;
 struct ba_STVal {
 	struct ba_SymTable* scope;
 	
-	/* If global, relative to global memory start address
+	/* If a label, the label ID
+	 * If global, relative to global memory start address
 	 * If in a scope, relative to start of scope's stack */
 	u64 address;
 
@@ -105,6 +106,20 @@ struct ba_STVal* ba_STGet(struct ba_SymTable* st, char* key) {
 		}
 	}
 
+	return 0;
+}
+
+struct ba_STVal* ba_SymTableSearchChildren(struct ba_SymTable* st, char* key) {
+	struct ba_STVal* idVal = ba_STGet(st, key);
+	if (idVal) {
+		return idVal;
+	}
+	for (u64 i = 0; i < st->childCnt; i++) {
+		idVal = ba_SymTableSearchChildren(st->children[i], key);
+		if (idVal) {
+			return idVal;
+		}
+	}
 	return 0;
 }
 

@@ -44,6 +44,7 @@ enum {
 	BA_TK_KW_ELSE    = 0x305,
 	BA_TK_KW_WHILE   = 0x306,
 	BA_TK_KW_BREAK   = 0x307,
+	BA_TK_KW_GOTO    = 0x308,
 
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */

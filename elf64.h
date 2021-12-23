@@ -956,6 +956,34 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
+			case BA_IM_GOTO:
+			{
+				if (im->count < 4) {
+					return ba_ErrorIMArgCount(3, im);
+				}
+
+				char* idName = (char*)im->vals[1];
+				u64 line = im->vals[2];
+				u64 col = im->vals[3];
+
+				struct ba_STVal* idVal = 
+					ba_SymTableSearchChildren(ctr->globalST, idName);
+
+				if (idVal) {
+					if (idVal->type != BA_TYPE_LABEL) {
+						return ba_ExitMsg(BA_EXIT_ERR, "identifier is not a "
+							"label on", line, col);
+					}
+					// Fallthrough :)
+					im->vals[0] = BA_IM_LABELJMP;
+					im->vals[1] = idVal->address;
+				}
+				else {
+					return ba_ExitMsg(BA_EXIT_ERR, "goto label not found on",
+						line, col);
+				}
+			}
+
 			case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_LABELJZ: 
 			case BA_IM_LABELJNZ: case BA_IM_LABELJB: case BA_IM_LABELJBE: 
 			case BA_IM_LABELJA: case BA_IM_LABELJAE: case BA_IM_LABELJL: 
@@ -1270,9 +1298,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_CQO:
 			{
-				if (im->count < 1) {
-					return ba_ErrorIMArgCount(0, im);
-				}
 				code->cnt += 2;
 				(code->cnt > code->cap) && ba_ResizeDynArr8(code);
 				code->arr[code->cnt-2] = 0x48;
@@ -1666,7 +1691,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		}
 
 		// JMP/Jcc instructions are all calculated pessimally
-		case BA_IM_LABELCALL: case BA_IM_LABELJMP:
+		case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_GOTO:
 			return 5;
 		case BA_IM_LABELJNZ: case BA_IM_LABELJZ: case BA_IM_LABELJB: 
 		case BA_IM_LABELJBE: case BA_IM_LABELJA: case BA_IM_LABELJAE:

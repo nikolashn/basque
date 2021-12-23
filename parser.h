@@ -1802,7 +1802,6 @@ u8 ba_PCommaStmt(struct ba_Controller* ctr) {
 	}
 
 	ctr->currScope = scope->parent;
-	free(scope);
 
 	return 1;
 }
@@ -1824,7 +1823,6 @@ u8 ba_PScope(struct ba_Controller* ctr) {
 	}
 
 	ctr->currScope = scope->parent;
-	free(scope);
 
 	return ba_PExpect('}', ctr);
 }
@@ -1834,8 +1832,10 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *        [ "else" ( commaStmt | scope ) ]
  *      | "while" exp ( commaStmt | scope )
  *      | "break" ";"
+ *      | "goto" identifier ";"
  *      | scope
  *      | base_type identifier [ "=" exp ] ";" 
+ *      | identifier ":"
  *      | exp ";"
  *      | ";" 
  */
@@ -2083,6 +2083,41 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, (u64)ba_StkTop(ctr->breakLblStk));
 		return ba_PExpect(';', ctr);
 	}
+	// "goto" identifier ";"
+	else if (ba_PAccept(BA_TK_KW_GOTO, ctr)) {
+		u64 idNameLen = ctr->lex->valLen;
+		char* idName = 0;
+		if (ctr->lex->val) {
+			idName = malloc(idNameLen+1);
+			if (!idName) {
+				return ba_ErrorMallocNoMem();
+			}
+			strcpy(idName, ctr->lex->val);
+		}
+
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->colStart;
+
+		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
+			return 0;
+		}
+
+		struct ba_STVal* idVal = 
+			ba_SymTableSearchChildren(ctr->globalST, idName);
+
+		if (idVal) {
+			if (idVal->type != BA_TYPE_LABEL) {
+				return ba_ExitMsg(BA_EXIT_ERR, "identifier is not a label on", 
+					line, col);
+			}
+			ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, idVal->address);
+		}
+		else {
+			ba_AddIM(&ctr->im, 4, BA_IM_GOTO, (u64)idName, line, col);
+		}
+		
+		return ba_PExpect(';', ctr);
+	}
 	// scope
 	else if (ba_PScope(ctr)) {
 		return 1;
@@ -2192,6 +2227,54 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			ba_AddIM(&ctr->im, 3, BA_IM_PUSH, BA_IM_IMM, 0);
 		}
 		
+		return 1;
+	}
+	// identifier ":"
+	else if (ctr->lex && ctr->lex->type == BA_TK_IDENTIFIER && 
+		ctr->lex->next && ctr->lex->next->type == ':')
+	{
+		u64 idNameLen = ctr->lex->valLen;
+		char* idName = 0;
+		if (ctr->lex->val) {
+			idName = malloc(idNameLen+1);
+			if (!idName) {
+				return ba_ErrorMallocNoMem();
+			}
+			strcpy(idName, ctr->lex->val);
+		}
+
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->colStart;
+
+		ba_PExpect(BA_TK_IDENTIFIER, ctr);
+		ba_PExpect(':', ctr);
+
+		struct ba_STVal* idVal = 
+			ba_SymTableSearchChildren(ctr->globalST, idName);
+		
+		if (idVal) {
+			return ba_ErrorVarRedef(idName, line, col);
+		}
+
+		idVal = malloc(sizeof(struct ba_STVal));
+		if (!idVal) {
+			return ba_ErrorMallocNoMem();
+		}
+
+		idVal->type = BA_TYPE_LABEL;
+		idVal->address = ctr->labelCnt++;
+		idVal->initVal = 0;
+		idVal->isInited = 1;
+
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, idVal->address);
+
+		if (!ctr->lex || ctr->lex->type == '}') {
+			// Prevents incorrect fallthrough
+			ba_AddIM(&ctr->im, 1, BA_IM_NOP);
+		}
+
+		ba_STSet(ctr->currScope, idName, idVal);
+
 		return 1;
 	}
 	// exp ";"

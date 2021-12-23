@@ -46,17 +46,18 @@ enum {
 	BA_IM_PUSH         = 0x43,
 	BA_IM_POP          = 0x44,
 	
-	BA_IM_LABELJMP     = 0x50,
-	BA_IM_LABELJZ      = 0x51,
-	BA_IM_LABELJNZ     = 0x52,
-	BA_IM_LABELJB      = 0x53,
-	BA_IM_LABELJBE     = 0x54,
-	BA_IM_LABELJA      = 0x55,
-	BA_IM_LABELJAE     = 0x56,
-	BA_IM_LABELJL      = 0x57,
-	BA_IM_LABELJLE     = 0x58,
-	BA_IM_LABELJG      = 0x59,
-	BA_IM_LABELJGE     = 0x5a,
+	BA_IM_GOTO         = 0x50,
+	BA_IM_LABELJMP     = 0x51,
+	BA_IM_LABELJZ      = 0x52,
+	BA_IM_LABELJNZ     = 0x53,
+	BA_IM_LABELJB      = 0x54,
+	BA_IM_LABELJBE     = 0x55,
+	BA_IM_LABELJA      = 0x56,
+	BA_IM_LABELJAE     = 0x57,
+	BA_IM_LABELJL      = 0x58,
+	BA_IM_LABELJLE     = 0x59,
+	BA_IM_LABELJG      = 0x5a,
+	BA_IM_LABELJGE     = 0x5b,
 
 	BA_IM_MOVZX        = 0x60,
 	BA_IM_CQO          = 0x61,
@@ -221,6 +222,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_POP:
 				strcat(str, "POP ");
+				break;
+			case BA_IM_GOTO:
+				strcat(str, "GOTO ");
+				isImm = 1;
 				break;
 			case BA_IM_LABELJMP:
 				strcat(str, "LABELJMP ");
