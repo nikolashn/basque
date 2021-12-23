@@ -2268,11 +2268,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, idVal->address);
 
-		if (!ctr->lex || ctr->lex->type == '}') {
-			// Prevents incorrect fallthrough
-			ba_AddIM(&ctr->im, 1, BA_IM_NOP);
-		}
-
 		ba_STSet(ctr->currScope, idName, idVal);
 
 		return 1;
