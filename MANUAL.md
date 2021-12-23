@@ -132,7 +132,7 @@ else {
 #### While loops
 Syntax: `while <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` )
 
-Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop block are in a local scope.
+Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop are in a local scope.
 
 ```
 u64 i = 0;
