@@ -3,6 +3,8 @@
 #ifndef BA__SYMTABLE_H
 #define BA__SYMTABLE_H
 
+#include "hashtable.h"
+
 struct ba_SymTable;
 
 struct ba_STVal {
@@ -82,16 +84,6 @@ struct ba_SymTable* ba_SymTableAddChild(struct ba_SymTable* parent) {
 	return child;
 }
 
-u64 ba_Hash(char* str) {
-	u64 hash = 0;
-	u64 c;
-	while ((c = *str)) {
-		hash = c + (hash << 6) + (hash << 16) - hash;
-		++str;
-	}
-	return hash;
-}
-
 struct ba_STVal* ba_STGet(struct ba_SymTable* st, char* key) {
 	u64 hash = ba_Hash(key);
 	u64 index = (u64)(hash & (u64)(st->capacity - 1));
@@ -106,20 +98,6 @@ struct ba_STVal* ba_STGet(struct ba_SymTable* st, char* key) {
 		}
 	}
 
-	return 0;
-}
-
-struct ba_STVal* ba_SymTableSearchChildren(struct ba_SymTable* st, char* key) {
-	struct ba_STVal* idVal = ba_STGet(st, key);
-	if (idVal) {
-		return idVal;
-	}
-	for (u64 i = 0; i < st->childCnt; i++) {
-		idVal = ba_SymTableSearchChildren(st->children[i], key);
-		if (idVal) {
-			return idVal;
-		}
-	}
 	return 0;
 }
 

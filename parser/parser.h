@@ -706,14 +706,14 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	}
 	// "goto" identifier ";"
 	else if (ba_PAccept(BA_TK_KW_GOTO, ctr)) {
-		u64 idNameLen = ctr->lex->valLen;
-		char* idName = 0;
+		u64 lblNameLen = ctr->lex->valLen;
+		char* lblName = 0;
 		if (ctr->lex->val) {
-			idName = malloc(idNameLen+1);
-			if (!idName) {
+			lblName = malloc(lblNameLen+1);
+			if (!lblName) {
 				return ba_ErrorMallocNoMem();
 			}
-			strcpy(idName, ctr->lex->val);
+			strcpy(lblName, ctr->lex->val);
 		}
 
 		u64 line = ctr->lex->line;
@@ -723,18 +723,13 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 
-		struct ba_STVal* idVal = 
-			ba_SymTableSearchChildren(ctr->globalST, idName);
+		u64 lblId = (u64)ba_HTGet(ctr->labelTable, lblName);
 
-		if (idVal) {
-			if (idVal->type != BA_TYPE_LABEL) {
-				return ba_ExitMsg(BA_EXIT_ERR, "identifier is not a label on", 
-					line, col);
-			}
-			ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, idVal->address);
+		if (lblId) {
+			ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, lblId);
 		}
 		else {
-			ba_AddIM(&ctr->im, 4, BA_IM_GOTO, (u64)idName, line, col);
+			ba_AddIM(&ctr->im, 4, BA_IM_GOTO, (u64)lblName, line, col);
 		}
 		
 		return ba_PExpect(';', ctr);
@@ -854,14 +849,14 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	else if (ctr->lex && ctr->lex->type == BA_TK_IDENTIFIER && 
 		ctr->lex->next && ctr->lex->next->type == ':')
 	{
-		u64 idNameLen = ctr->lex->valLen;
-		char* idName = 0;
+		u64 lblNameLen = ctr->lex->valLen;
+		char* lblName = 0;
 		if (ctr->lex->val) {
-			idName = malloc(idNameLen+1);
-			if (!idName) {
+			lblName = malloc(lblNameLen+1);
+			if (!lblName) {
 				return ba_ErrorMallocNoMem();
 			}
-			strcpy(idName, ctr->lex->val);
+			strcpy(lblName, ctr->lex->val);
 		}
 
 		u64 line = ctr->lex->line;
@@ -870,26 +865,13 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		ba_PExpect(BA_TK_IDENTIFIER, ctr);
 		ba_PExpect(':', ctr);
 
-		struct ba_STVal* idVal = 
-			ba_SymTableSearchChildren(ctr->globalST, idName);
-		
-		if (idVal) {
-			return ba_ErrorVarRedef(idName, line, col);
+		if (ba_HTGet(ctr->labelTable, lblName)) {
+			return ba_ErrorVarRedef(lblName, line, col);
 		}
 
-		idVal = malloc(sizeof(struct ba_STVal));
-		if (!idVal) {
-			return ba_ErrorMallocNoMem();
-		}
-
-		idVal->type = BA_TYPE_LABEL;
-		idVal->address = ctr->labelCnt++;
-		idVal->initVal = 0;
-		idVal->isInited = 1;
-
-		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, idVal->address);
-
-		ba_STSet(ctr->currScope, idName, idVal);
+		u64 lblId = ctr->labelCnt++;
+		ba_AddIM(&ctr->im, 2, BA_IM_LABEL, lblId);
+		ba_HTSet(ctr->labelTable, lblName, (void*)lblId);
 
 		return 1;
 	}

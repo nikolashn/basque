@@ -962,21 +962,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					return ba_ErrorIMArgCount(3, im);
 				}
 
-				char* idName = (char*)im->vals[1];
+				char* lblName = (char*)im->vals[1];
 				u64 line = im->vals[2];
 				u64 col = im->vals[3];
 
-				struct ba_STVal* idVal = 
-					ba_SymTableSearchChildren(ctr->globalST, idName);
+				u64 lblId = (u64)ba_HTGet(ctr->labelTable, lblName);
 
-				if (idVal) {
-					if (idVal->type != BA_TYPE_LABEL) {
-						return ba_ExitMsg(BA_EXIT_ERR, "identifier is not a "
-							"label on", line, col);
-					}
+				if (lblId) {
 					// Fallthrough :)
 					im->vals[0] = BA_IM_LABELJMP;
-					im->vals[1] = idVal->address;
+					im->vals[1] = lblId;
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "goto label not found on",
