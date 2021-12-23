@@ -1,0 +1,10 @@
+# Prints the even numbers between 0 and 15
+u64 i = 0;
+while 1 {
+	if i == 15u, break;
+	elif i % 2, goto lbl_LoopEnd;
+	write i; "\n";
+	lbl_LoopEnd:
+	++i;
+}
+
