@@ -163,6 +163,24 @@ write a; "\n";
 # c = 25; # Error
 ```
 
+#### Goto and label
+Syntax (goto) `goto <identifier> ;`
+Syntax (label) `<identifier> :`
+
+A goto statement jumps to a position in execution specified by a label. Labels cannot have the same identifier as variables in a program.
+
+```
+# Prints the even numbers between 0 and 15
+u64 i = 0;
+while 1 {
+	if i == 15u, break;
+	elif i % 2, goto lbl_LoopEnd;
+	write i; "\n";
+	lbl_LoopEnd:
+	++i;
+}
+```
+
 ## The C Basque compiler
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
