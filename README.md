@@ -8,6 +8,7 @@ Run the following command in the root directory (as root user):
 ```
 make install
 ```
+### Vim syntax
 To install the vim syntax, put the following in your .vimrc:
 ```
 au BufRead,BufNewFile *.ba set filetype=basque
