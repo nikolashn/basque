@@ -22,13 +22,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	struct ba_DynArr8* dataSgmt = ba_NewDynArr8(ctr->globalST->dataSize);
 	dataSgmt->cnt = ctr->globalST->dataSize;
 
-	for (u64 i = 0; i < ctr->globalST->capacity; i++) {
-		struct ba_STEntry e = ctr->globalST->entries[i];
+	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
+		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
+		struct ba_STVal* val = (struct ba_STVal*)e.val;
 		if (e.key) {
-			u64 sz = ba_GetSizeOfType(e.val->type);
-			u64 initVal = (u64)e.val->initVal;
+			u64 sz = ba_GetSizeOfType(val->type);
+			u64 initVal = (u64)val->initVal;
 			for (u64 j = 0; j < sz; j++) {
-				dataSgmt->arr[e.val->address+j] = initVal & 0xff;
+				dataSgmt->arr[val->address+j] = initVal & 0xff;
 				initVal >>= 8;
 			}
 		}

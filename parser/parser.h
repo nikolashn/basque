@@ -758,7 +758,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 
-		struct ba_STVal* idVal = ba_STGet(ctr->currScope, idName);
+		struct ba_STVal* idVal = ba_HTGet(ctr->currScope->ht, idName);
 		
 		if (idVal) {
 			return ba_ErrorVarRedef(idName, line, col);
@@ -781,7 +781,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		idVal->initVal = 0;
 		idVal->isInited = 0;
 
-		ba_STSet(ctr->currScope, idName, idVal);
+		ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
 		if (ba_PAccept('=', ctr)) {
 			idVal->isInited = 1;

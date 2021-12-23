@@ -30,12 +30,12 @@ struct ba_HashTable* ba_NewHashTable() {
 		ba_ErrorMallocNoMem();
 	}
 	
-	ht->entries = calloc(BA_SYMTABLE_CAPACITY, sizeof(*ht->entries));
+	ht->entries = calloc(BA_HASHTABLE_CAPACITY, sizeof(*ht->entries));
 	if (!ht->entries) {
 		ba_ErrorMallocNoMem();
 	}
 
-	ht->capacity = BA_SYMTABLE_CAPACITY;
+	ht->capacity = BA_HASHTABLE_CAPACITY;
 	ht->count = 0;
 
 	return ht;

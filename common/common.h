@@ -17,7 +17,7 @@
 // Must be at least 4 kiB
 #define BA_FILE_BUF_SIZE 128 * 1024
 
-#define BA_SYMTABLE_CAPACITY 1024
+#define BA_HASHTABLE_CAPACITY 1024
 #define BA_STACK_SIZE 2 * 1024 * 1024
 
 // Don't include the final '\0'
