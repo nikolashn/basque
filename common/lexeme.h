@@ -181,6 +181,10 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "integer literal";
 		case BA_TK_IDENTIFIER:
 			return "identifier";
+		case BA_TK_KW_U64:
+			return "keyword 'u64'";
+		case BA_TK_KW_I64:
+			return "keyword 'i64'";
 		case BA_TK_KW_WRITE:
 			return "keyword 'write'";
 		case BA_TK_KW_IF:
@@ -191,10 +195,10 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "keyword 'else'";
 		case BA_TK_KW_WHILE:
 			return "keyword 'while'";
-		case BA_TK_KW_U64:
-			return "keyword 'u64'";
-		case BA_TK_KW_I64:
-			return "keyword 'i64'";
+		case BA_TK_KW_BREAK:
+			return "keyword 'break'";
+		case BA_TK_KW_GOTO:
+			return "keyword 'goto'";
 	}
 	return 0;
 }
