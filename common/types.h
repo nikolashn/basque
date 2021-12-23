@@ -16,7 +16,6 @@ enum {
 	BA_TYPE_F32 = 0x6,
 	
 	BA_TYPE_TYPE = 0x1000, // ooo meta
-	BA_TYPE_LABEL = 0x1001,
 };
 
 bool ba_IsTypeUnsigned(u64 type) {
@@ -66,8 +65,6 @@ char* ba_GetTypeStr(u64 type) {
 			return "'f32'";
 		case BA_TYPE_TYPE:
 			return "type";
-		case BA_TYPE_LABEL:
-			return "label";
 	}
 	return 0;
 }
