@@ -24,7 +24,7 @@ syn match baNumber "\<-\?0b[01_]\+\(u\|U\)\?\>"
 syn region baString start='"' end='"' skip='\\"' contains=baEscape
 syn match baEscape contained '\\\(["ntvfrb0\n]\|\'\|\(x\o\x\)\)'
 
-syn keyword baKeyword write if elif else while break
+syn keyword baKeyword write if elif else while break goto
 syn keyword baType u64 i64
 
 hi def link baMLComment Comment
