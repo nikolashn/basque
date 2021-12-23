@@ -27,12 +27,15 @@ syn match baEscape contained '\\\(["ntvfrb0\n]\|\'\|\(x\o\x\)\)'
 syn keyword baKeyword write if elif else while break goto
 syn keyword baType u64 i64
 
+syn match baLabel "\<[a-zA-Z_][a-zA-Z0-9_]*:"
+
 hi def link baMLComment Comment
 hi def link baComment Comment
 hi def link baNumber Number
 hi def link baEscape Special
 hi def link baString String
 hi def link baKeyword Keyword
+hi def link baLabel Label
 hi def link baType Type
 hi def link baTodo Todo
 
