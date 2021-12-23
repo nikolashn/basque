@@ -4,7 +4,7 @@ Basque is extremely extremely alpha. The current features are very limited and r
 
 ## Program structure
 
-Basque has no entry point function as there is in C. Code in the outer body of a program can be executed as if it were in a main function.
+Basque has no entry point function as there is in C. Code in the outer body of a program is executed as if it were in a main function.
 
 ## Types
 Currently only string (string literal), `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `u8` (unsigned byte) exist. The last one, `u8`, only exists as the result of some operations and currently variables cannot be defined as `u8`. The string type will eventually be removed once pointers are added, and more types will be added like `i8` (signed byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
