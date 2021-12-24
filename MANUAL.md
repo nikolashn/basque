@@ -48,7 +48,7 @@ Basque's operators are the following (each line is ordered from high to low prec
 #### Notes about specific operators
 Only prefix increment and decrement are available in Basque. The operand of such operations must be an L-value.
 
-The `$` operator is an operator that evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
+The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
 
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
 
