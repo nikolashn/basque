@@ -11,8 +11,13 @@ enum {
 	BA_TYPE_U8   = 0x3,
 	BA_TYPE_I8   = 0x4,
 	BA_TYPE_BOOL = 0x5,
-	BA_TYPE_F64  = 0x6,
-	BA_TYPE_F32  = 0x7,
+
+	BA_TYPE_F64  = 0x10,
+	BA_TYPE_F32  = 0x11,
+
+	BA_TYPE_VOID = 0x20,
+
+	BA_TYPE_FUNC = 0x30,
 	
 	BA_TYPE_TYPE = 0x1000, // ooo meta
 };

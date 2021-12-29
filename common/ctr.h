@@ -4,6 +4,7 @@
 #define BA__CTR_H
 
 #include "stack.h"
+#include "func.h"
 
 struct ba_Controller {
 	// Lexer
@@ -24,8 +25,10 @@ struct ba_Controller {
 	struct ba_Stk* cmpLblStk; // Takes u64 (label IDs) as items
 	struct ba_Stk* cmpRegStk; // Takes u64 (im enum for registers) as items
 
-	// Used in breaking out of loops
+	// Used in breaking out of loops and returning from funcs
 	struct ba_Stk* breakLblStk; // Takes u64 (label IDs) as items
+	// Used with return statements
+	struct ba_Func* currFunc;
 
 	// Code generation
 	struct ba_IM* startIM;
@@ -89,6 +92,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->imStackCnt = 0;
 	ctr->imStackSize = 0;
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
+	ctr->currFunc = 0;
 	return ctr;
 }
 

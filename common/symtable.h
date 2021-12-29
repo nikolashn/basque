@@ -16,7 +16,7 @@ struct ba_STVal {
 	u64 address;
 
 	u64 type;
-	void* initVal;
+	void* initVal; // For funcs, stores a struct ba_Func*
 	bool isInited;
 };
 

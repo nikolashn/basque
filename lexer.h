@@ -6,7 +6,7 @@
 #include "common/common.h"
 
 int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
-	enum StateType {
+	enum {
 		ST_NONE = 0,
 		ST_CMNT,
 		ST_CMNT_SG,
@@ -358,8 +358,14 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					else if (!strcmp(idBuf, "if")) {
 						nextLex->type = BA_TK_KW_IF;
 					}
+					else if (!strcmp(idBuf, "return")) {
+						nextLex->type = BA_TK_KW_RETURN;
+					}
 					else if (!strcmp(idBuf, "u64")) {
 						nextLex->type = BA_TK_KW_U64;
+					}
+					else if (!strcmp(idBuf, "void")) {
+						nextLex->type = BA_TK_KW_VOID;
 					}
 					else if (!strcmp(idBuf, "while")) {
 						nextLex->type = BA_TK_KW_WHILE;

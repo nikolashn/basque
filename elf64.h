@@ -25,7 +25,24 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
 		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
 		struct ba_STVal* val = (struct ba_STVal*)e.val;
-		if (e.key) {
+
+		if (!val || !e.key) {
+			goto BA_LBL_GENFUNCS_LOOPEND;
+		}
+
+		// Put functions in their place
+		// TODO: search through named scopes as well
+		/* Because of optimization passes in the future, perhaps this should be
+		   at the end of the parser instead? */
+		if (val->type == BA_TYPE_FUNC) {
+			struct ba_Func* func = ((struct ba_Func*)val->initVal);
+			if (!func->isCalled) {
+				goto BA_LBL_GENFUNCS_LOOPEND;
+			}
+			memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
+			ctr->im = func->imEnd;
+		}
+		else {
 			u64 sz = ba_GetSizeOfType(val->type);
 			u64 initVal = (u64)val->initVal;
 			for (u64 j = 0; j < sz; j++) {
@@ -33,6 +50,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				initVal >>= 8;
 			}
 		}
+		// Normal variables
+		BA_LBL_GENFUNCS_LOOPEND:;
 	}
 
 	// Array of addresses in code that need to be turned 
@@ -46,7 +65,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	if (!labels) {
 		return ba_ErrorMallocNoMem();
 	}
-	
+
 	// Generate binary code
 	struct ba_DynArr8* code = ba_NewDynArr8(0x1000);
 

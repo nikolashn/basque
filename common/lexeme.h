@@ -45,6 +45,8 @@ enum {
 	BA_TK_KW_WHILE   = 0x306,
 	BA_TK_KW_BREAK   = 0x307,
 	BA_TK_KW_GOTO    = 0x308,
+	BA_TK_KW_RETURN  = 0x309,
+	BA_TK_KW_VOID    = 0x30a,
 
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */
@@ -111,6 +113,8 @@ u8 ba_GetTypeFromKeyword(u64 lexType) {
 			return BA_TYPE_U64;
 		case BA_TK_KW_I64:
 			return BA_TYPE_I64;
+		case BA_TK_KW_VOID:
+			return BA_TYPE_VOID;
 	}
 	return 0;
 }
@@ -199,6 +203,10 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "keyword 'break'";
 		case BA_TK_KW_GOTO:
 			return "keyword 'goto'";
+		case BA_TK_KW_RETURN:
+			return "keyword 'return'";
+		case BA_TK_KW_VOID:
+			return "keyword 'void'";
 	}
 	return 0;
 }

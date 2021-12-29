@@ -4,6 +4,7 @@
 #define BA__PARSER_H
 
 #include "op.h"
+#include "funcvar.h"
 
 // ----- Forward declarations -----
 u8 ba_PStmt(struct ba_Controller* ctr);
@@ -33,10 +34,12 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* base_type = "u64" | "i64" */
+/* base_type = "u64" | "i64" | "void" */
 u8 ba_PBaseType(struct ba_Controller* ctr) {
 	u64 lexType = ctr->lex->type;
-	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr)) {
+	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
+		ba_PAccept(BA_TK_KW_VOID, ctr)) 
+	{
 		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, BA_TYPE_TYPE, lexType, 
 			/* isLValue = */ 0);
 	}
@@ -203,7 +206,11 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			u64 nextLexType = ctr->lex->type;
 
 			// Set syntax type
-			if (ba_PAccept(')', ctr)) {
+			if (ctr->lex->type == ')') {
+				if (paren <= 0) {
+					goto BA_LBL_PEXP_END;
+				}
+				ba_PAccept(')', ctr);
 				op->syntax = BA_OP_POSTFIX;
 			}
 			else if (ba_PAccept('~', ctr)) {
@@ -453,10 +460,13 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *        [ "else" ( commaStmt | scope ) ]
  *      | "while" exp ( commaStmt | scope )
  *      | "break" ";"
- *      | "return" ";"
+ *      | "return" [ exp ] ";"
  *      | "goto" identifier ";"
  *      | scope
- *      | base_type identifier [ "=" exp ] ";" 
+ *      | base_type identifier "(" [ { base_type "," } base_type ] ")" ";"
+ *      | base_type identifier "(" [ { base_type identifier [ "=" exp ] "," } 
+ *        base_type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
+ *      | base_type identifier [ "=" exp ] ";" a
  *      | identifier ":"
  *      | exp ";"
  *      | ";" 
@@ -518,7 +528,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 							(u64)stkItem->val);
 					}
 				}
-				/* stkItem->lexemeType won't ever be BA_IM_RBPSUB */
+				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
 
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
 					ba_BltinLabels[BA_BLTIN_U64ToStr]);
@@ -634,7 +644,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		return 1;
 	}
-	// while ...
+	// "while" ...
 	else if (ba_PAccept(BA_TK_KW_WHILE, ctr)) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
@@ -699,10 +709,68 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	// "break" ";"
 	else if (ba_PAccept(BA_TK_KW_BREAK, ctr)) {
 		if (!ctr->breakLblStk->count) {
-			ba_ExitMsg(BA_EXIT_ERR, "keyword 'break' used outside of loop on",
-				firstLine, firstCol);
+			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'break' used outside of "
+				"loop on", firstLine, firstCol);
 		}
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, (u64)ba_StkTop(ctr->breakLblStk));
+		return ba_PExpect(';', ctr);
+	}
+	// "return" [ exp ] ";"
+	else if (ba_PAccept(BA_TK_KW_RETURN, ctr)) {
+		if (!ctr->currFunc) {
+			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'return' used outside of "
+				"function on", firstLine, firstCol);
+		}
+		if (!ctr->lex) {
+			ba_PExpect(';', ctr);
+		}
+
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->colStart;
+
+		if (ba_PExp(ctr)) {
+			if (ctr->currFunc->retType == BA_TYPE_VOID) {
+				return ba_ExitMsg(BA_EXIT_ERR, "returning value from func with "
+					"return type 'void' on", line, col);
+			}
+
+			// Move return value into rax
+			// TODO: or onto stack if too big
+			
+			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
+			if (!stkItem) {
+				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+			}
+			if (stkItem->lexemeType == BA_TK_LITSTR) {
+				return ba_ExitMsg(BA_EXIT_ERR, "returning string literal from "
+					"a function currently not implemented,", line, col);
+			}
+			if (ba_IsTypeIntegral(stkItem->type)) {
+				if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_IMM, (u64)stkItem->val);
+				}
+				else if (stkItem->lexemeType == BA_TK_GLOBALID) {
+					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
+				}
+				else if (stkItem->lexemeType == BA_TK_LOCALID) {
+					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_ADRADD, BA_IM_RSP,
+						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
+				}
+				else if (stkItem->lexemeType == BA_TK_IMREGISTER) {
+					ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX,
+						(u64)stkItem->val);
+				}
+				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
+			}
+		}
+		else if (ctr->currFunc->retType != BA_TYPE_VOID) {
+			return ba_ExitMsg(BA_EXIT_ERR, "returning without value from func "
+				"that does not have return type 'void' on", line, col);
+		}
+		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
 		return ba_PExpect(';', ctr);
 	}
 	// "goto" identifier ";"
@@ -739,9 +807,11 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	else if (ba_PScope(ctr)) {
 		return 1;
 	}
-	// base_type identifier [ "=" exp ] ";"
+	// base_type identifier ...
 	else if (ba_PBaseType(ctr)) {
-		struct ba_PTkStkItem* varTypeItem = ba_StkPop(ctr->pTkStk);
+		u64 type = ba_GetTypeFromKeyword(
+			((struct ba_PTkStkItem*)ba_StkPop(ctr->pTkStk))->lexemeType);
+
 		u64 idNameLen = ctr->lex->valLen;
 		char* idName = 0;
 		if (ctr->lex->val) {
@@ -759,92 +829,15 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 
-		struct ba_STVal* idVal = ba_HTGet(ctr->currScope->ht, idName);
-		
-		if (idVal) {
-			return ba_ErrorVarRedef(idName, line, col);
+		// Function:
+		// ... "(" ...
+		if (ba_PAccept('(', ctr)) {
+			return ba_PFuncDef(ctr, idName, line, col, type);
 		}
 
-		idVal = malloc(sizeof(struct ba_STVal));
-		if (!idVal) {
-			return ba_ErrorMallocNoMem();
-		}
-		idVal->scope = ctr->currScope;
-		idVal->type = ba_GetTypeFromKeyword(varTypeItem->lexemeType);
-		
-		u64 idDataSize = ba_GetSizeOfType(idVal->type);
-		/* For global identifiers, the address of the start is used 
-		 * For non global identifiers, the address of the end is used */
-		idVal->address = ctr->currScope->dataSize + 
-			(ctr->currScope != ctr->globalST) * idDataSize;
-		ctr->currScope->dataSize += idDataSize;
-
-		idVal->initVal = 0;
-		idVal->isInited = 0;
-
-		ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
-
-		if (ba_PAccept('=', ctr)) {
-			idVal->isInited = 1;
-
-			line = ctr->lex->line;
-			col = ctr->lex->colStart;
-			
-			if (!ba_PExp(ctr)) {
-				return 0;
-			}
-			struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
-			
-			if (ba_IsTypeNumeric(idVal->type)) {
-				if (!ba_IsTypeNumeric(expItem->type)) {
-					char* expTypeStr = ba_GetTypeStr(expItem->type);
-					char* varTypeStr = ba_GetTypeStr(varTypeItem->type);
-					return ba_ErrorAssignTypes(expTypeStr, idName, 
-						varTypeStr, line, col);
-				}
-
-				if (expItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
-						((struct ba_STVal*)expItem->val)->address);
-				}
-				else if (expItem->lexemeType == BA_TK_LOCALID) {
-					ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, expItem->val));
-				}
-
-				if (ctr->currScope == ctr->globalST) {
-					if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-						idVal->initVal = expItem->val;
-					}
-					else {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-							idVal->address, 
-							expItem->lexemeType == BA_TK_IMREGISTER ? 
-								(u64)expItem->val : BA_IM_RAX);
-					}
-				}
-				else {
-					if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-						ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
-							BA_IM_IMM, (u64)expItem->val);
-					}
-					ba_AddIM(&ctr->im, 2, BA_IM_PUSH,
-						expItem->lexemeType == BA_TK_IMREGISTER ? 
-							(u64)expItem->val : BA_IM_RAX);
-				}
-			}
-		}
-
-		if (!ba_PExpect(';', ctr)) {
-			return 0;
-		}
-
-		if (ctr->currScope != ctr->globalST && !idVal->isInited) {
-			ba_AddIM(&ctr->im, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-		}
-		
-		return 1;
+		// Variable:
+		// ... [ "=" exp ] ";"
+		return ba_PVarDef(ctr, idName, line, col, type);
 	}
 	// identifier ":"
 	else if (ctr->lex && ctr->lex->type == BA_TK_IDENTIFIER && 
@@ -888,8 +881,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			free(expItem);
 		}
 
-		// TODO
-		
 		if (!ba_PExpect(';', ctr)) {
 			return 0;
 		}

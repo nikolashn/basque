@@ -6,7 +6,6 @@
 #include "../lexer.h"
 #include "../bltin/bltin.h"
 
-// Operator precedence
 u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	if (!op) {
 		return 255;
@@ -1672,9 +1671,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				u64 newType = ba_GetTypeFromKeyword(typeArg->lexemeType);
 
-				if (!newType) {
+				if (!newType || newType == BA_TYPE_VOID) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that is "
-						"not a type on", op->line, op->col);
+						"not a (castable) type on", op->line, op->col);
 				}
 
 				if (ba_IsTypeNumeric(newType) != 

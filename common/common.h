@@ -49,6 +49,7 @@ struct ba_Str {
 #include "exitmsg_im.h"
 #include "ctr.h"
 #include "types.h"
+#include "func.h"
 
 // ----- Other useful functions -----
 

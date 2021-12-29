@@ -90,10 +90,15 @@ u8 ba_ErrorIdUndef(char* var, u64 line, u64 col) {
 }
 
 u8 ba_ErrorVarRedef(char* var, u64 line, u64 col) {
-	fprintf(stderr, "Error: redefinition of variable '%s' on line %llu:%llu\n", var, 
+	fprintf(stderr, "Error: redefinition of '%s' on line %llu:%llu\n", var, 
 		line, col);
 	exit(-1);
 	return 0;
+}
+
+u8 ba_ErrorVarVoid(u64 line, u64 col) {
+	return ba_ExitMsg(BA_EXIT_ERR, "variable cannot be of type 'void', "
+		/*"did you mean 'void*'?"*/, line, col);
 }
 
 #endif
