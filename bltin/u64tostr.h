@@ -6,8 +6,7 @@
 #include "bltinflags.h"
 
 /* Params (rax): int to convert
- * Returns (rax): string length; (stack): string (0x18)
- */
+ * Returns (rax): string length; (stack): string (0x18) */
 void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_U64ToStr);
 	ba_BltinLabels[BA_BLTIN_U64ToStr] = ctr->labelCnt;
