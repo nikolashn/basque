@@ -4,7 +4,7 @@
 #define BA__PARSER_H
 
 #include "op.h"
-#include "funcvar.h"
+#include "func+var.h"
 
 // ----- Forward declarations -----
 u8 ba_PStmt(struct ba_Controller* ctr);
@@ -151,17 +151,12 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 
 // Any type of expression
 u8 ba_PExp(struct ba_Controller* ctr) {
-	// Reset comparison chain stacks
-	ctr->cmpLblStk->count = 0;
-	ctr->cmpRegStk->count = 1;
-	ctr->cmpRegStk->items[0] = (void*)0;
-
 	// Parse as if following an operator or parse as if following an atom?
 	bool isAfterAtom = 0;
 
-	// Counts grouping parentheses to make sure they are balanced
-	i64 paren = 0;
-	
+	// Initial level of parenthesization
+	i64 initParen = ctr->paren;
+
 	while (1) {
 		u64 lexType = ctr->lex->type;
 		u64 line = ctr->lex->line;
@@ -177,7 +172,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			{
 				// Left grouping parenthesis
 				if (lexType == '(') {
-					++paren;
+					++ctr->paren;
 					// Entering a new expression frame (reset whether is cmp chain)
 					ba_StkPush(ctr->cmpRegStk, (void*)0);
 				}
@@ -186,6 +181,10 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			// Atom: note that ba_PAtom pushes the atom to pTkStk
 			else if (ba_PAtom(ctr)) {
 				isAfterAtom = 1;
+			}
+			else if (ctr->pOpStk->count) {
+				return ba_ExitMsg(BA_EXIT_ERR, "expected expression on", 
+					line, col);
 			}
 			else {
 				return 0;
@@ -207,15 +206,46 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 			// Set syntax type
 			if (ctr->lex->type == ')') {
-				if (paren <= 0) {
+				if (ctr->paren <= initParen) {
 					goto BA_LBL_PEXP_END;
 				}
 				ba_PAccept(')', ctr);
 				op->syntax = BA_OP_POSTFIX;
 			}
+			else if (ba_PAccept('(', ctr)) {
+				op->syntax = BA_OP_POSTFIX;
+				++ctr->paren;
+				ba_StkPush(ctr->cmpRegStk, (void*)0);
+
+				struct ba_Stk* originalOpStk = ctr->pOpStk;
+
+				u64 funcArgsCnt = 0;
+				while (1) {
+					ctr->pOpStk = ba_NewStk();
+					bool isExpFound = ba_PExp(ctr);
+					ba_DelStk(ctr->pOpStk);
+					bool isComma = ba_PAccept(',', ctr);
+
+					if (funcArgsCnt || isExpFound || isComma) {
+						++funcArgsCnt;
+					}
+
+					if (funcArgsCnt && !isExpFound) {
+						// Represents no argument (default argument used)
+						ba_StkPush(ctr->pTkStk, (void*)0);
+					}
+
+					if (!isComma) {
+						break;
+					}
+				}
+				// 1 is added since arg cant be 0
+				ba_StkPush(ctr->pTkStk, (void*)(1 + funcArgsCnt));
+				
+				ctr->pOpStk = originalOpStk;
+			}
 			else if (ba_PAccept('~', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
-
 				if (!ba_PBaseType(ctr)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression "
 						"that is not a type on", op->line, op->col);
@@ -240,7 +270,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 
 			// Right grouping parenthesis
-			(lexType == ')') && --paren;
+			(lexType == ')') && --ctr->paren;
 
 			if (ctr->pOpStk->count) {
 				do {
@@ -253,9 +283,10 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 					if (willHandle) {
 						u8 handleResult = ba_POpHandle(ctr, op);
 						if (!handleResult) {
-							return 0;
+							return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 
+								line, col);
 						}
-						// Left grouping parenthesis
+						// Left parenthesis
 						else if (handleResult == 2) {
 							// Return to previous expression frame
 							ba_StkPop(ctr->cmpRegStk);
@@ -328,7 +359,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 		BA_LBL_PEXP_LOOPEND:;
 		
-		if (paren < 0) {
+		if (ctr->paren < 0) {
 			return ba_ExitMsg(BA_EXIT_ERR, "unmatched ')' on", line, col);
 		}
 
@@ -338,7 +369,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 	BA_LBL_PEXP_END:;
 	
-	if (paren) {
+	if (ctr->paren != initParen) {
 		return 0;
 	}
 	
@@ -348,12 +379,22 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		}
 	}
 
-	ctr->usedRegisters = BA_IM_RAX;
+	if (ctr->paren) {
+		return 1;
+	}
+
+	ctr->usedRegisters = 0;
 	if (ctr->imStackCnt) {
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, ctr->imStackSize);
+		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
+			ctr->imStackSize);
 	}
 	ctr->imStackCnt = 0;
 	ctr->imStackSize = 0;
+
+	ctr->cmpLblStk->count = 0;
+	ctr->cmpRegStk->count = 1;
+	ctr->cmpRegStk->items[0] = (void*)0;
+	ctr->paren = 0;
 
 	return 1;
 }
@@ -466,7 +507,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | base_type identifier "(" [ { base_type "," } base_type ] ")" ";"
  *      | base_type identifier "(" [ { base_type identifier [ "=" exp ] "," } 
  *        base_type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
- *      | base_type identifier [ "=" exp ] ";" a
+ *      | base_type identifier [ "=" exp ] ";"
  *      | identifier ":"
  *      | exp ";"
  *      | ";" 
@@ -530,6 +571,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				}
 				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
 
+				if (ctr->currFunc) {
+					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RBX);
+				}
+
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
 					ba_BltinLabels[BA_BLTIN_U64ToStr]);
 
@@ -542,6 +587,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 				// deallocate stack memory
 				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x38);
+
+				if (ctr->currFunc) {
+					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RBX);
+				}
 
 				// ... ';'
 				ba_PExpect(';', ctr);
@@ -719,7 +768,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	else if (ba_PAccept(BA_TK_KW_RETURN, ctr)) {
 		if (!ctr->currFunc) {
 			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'return' used outside of "
-				"function on", firstLine, firstCol);
+				"func on", firstLine, firstCol);
 		}
 		if (!ctr->lex) {
 			ba_PExpect(';', ctr);
@@ -743,7 +792,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			}
 			if (stkItem->lexemeType == BA_TK_LITSTR) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning string literal from "
-					"a function currently not implemented,", line, col);
+					"a func currently not implemented,", line, col);
 			}
 			if (ba_IsTypeIntegral(stkItem->type)) {
 				if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
@@ -769,6 +818,11 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		else if (ctr->currFunc->retType != BA_TYPE_VOID) {
 			return ba_ExitMsg(BA_EXIT_ERR, "returning without value from func "
 				"that does not have return type 'void' on", line, col);
+		}
+		if (ctr->currScope->dataSize && 
+			ctr->currScope != ctr->currFunc->childScope) 
+		{
+			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 		}
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
 		return ba_PExpect(';', ctr);

@@ -19,7 +19,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 {
 	// TODO: once named scopes are added, change this
 	if (ctr->currScope != ctr->globalST) {
-		return ba_ExitMsg(BA_EXIT_ERR, "function can only be defined in "
+		return ba_ExitMsg(BA_EXIT_ERR, "func can only be defined in "
 			"the outer scope,", line, col);
 	}
 
@@ -43,13 +43,13 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	funcIdVal->initVal = func;
 
 	func->retType = retType;
-	func->scope = ba_SymTableAddChild(ctr->currScope);
+	func->childScope = ba_SymTableAddChild(ctr->currScope);
 
 	struct ba_FuncParam* param = ba_NewFuncParam();
 	char* paramName = 0;
-	func->params = param;
+	func->firstParam = param;
 
-	ctr->currScope = func->scope;
+	ctr->currScope = func->childScope;
 	ctr->currFunc = func;
 
 	struct ba_IM* oldIM = ctr->im;
@@ -92,6 +92,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					return 0;
 				}
 				
+				++func->paramCnt;
 				param->type = ba_GetTypeFromKeyword(
 					((struct ba_PTkStkItem*)ba_StkPop(ctr->pTkStk))->lexemeType);
 
@@ -115,7 +116,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 				stmtType = TP_FULLDEC;
 				
-				if (ba_HTGet(func->scope->ht, paramName)) {
+				if (ba_HTGet(func->childScope->ht, paramName)) {
 					return ba_ErrorVarRedef(paramName, line, col);
 				}
 
@@ -124,16 +125,16 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					return ba_ErrorMallocNoMem();
 				}
 
-				paramVal->scope = func->scope;
+				paramVal->scope = func->childScope;
 				paramVal->type = param->type;
 
 				u64 paramSize = ba_GetSizeOfType(paramVal->type);
-				func->scope->dataSize += paramSize;
-				paramVal->address = func->scope->dataSize;
+				func->childScope->dataSize += paramSize;
+				paramVal->address = func->childScope->dataSize;
 
 				paramVal->isInited = 1;
 				
-				ba_HTSet(func->scope->ht, paramName, (void*)paramVal);
+				ba_HTSet(func->childScope->ht, paramName, (void*)paramVal);
 
 				state = ST_PARAM;
 			}
@@ -176,10 +177,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					(!ba_IsTypeNumeric(param->type) && 
 					param->type != expItem->type))
 				{
-					char* expTypeStr = ba_GetTypeStr(expItem->type);
-					char* paramTypeStr = ba_GetTypeStr(param->type);
-					return ba_ErrorAssignTypes(expTypeStr, paramName, 
-						paramTypeStr, line, col);
+					return ba_ErrorAssignTypes(ba_GetTypeStr(expItem->type), 
+						paramName, ba_GetTypeStr(param->type), line, col);
 				}
 
 				param->defaultVal = expItem->val;
@@ -238,7 +237,12 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	}
 
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblEnd);
-	// TODO: restore registers + fix stack
+	// Fix stack
+	if (func->childScope->dataSize) {
+		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+			BA_IM_IMM, func->childScope->dataSize);
+	}
+	// TODO: restore registers
 	// Push return location
 	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RBX);
 	ba_AddIM(&ctr->im, 1, BA_IM_RET);
@@ -246,7 +250,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	func->imEnd = ctr->im;
 	ctr->im = oldIM;
 	ctr->currFunc = 0;
-	ctr->currScope = func->scope->parent;
+	ctr->currScope = func->childScope->parent;
 	return 1;
 }
 
@@ -274,7 +278,6 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	 * For non global identifiers, the address of the end is used */
 	idVal->address = ctr->currScope->dataSize + 
 		(ctr->currScope != ctr->globalST) * idDataSize;
-	ctr->currScope->dataSize += idDataSize;
 
 	idVal->initVal = 0;
 	idVal->isInited = 0;
@@ -332,6 +335,8 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 			}
 		}
 	}
+	
+	ctr->currScope->dataSize += idDataSize;
 
 	if (ctr->currScope != ctr->globalST && !idVal->isInited) {
 		ba_AddIM(&ctr->im, 3, BA_IM_PUSH, BA_IM_IMM, 0);

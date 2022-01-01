@@ -20,13 +20,12 @@ struct ba_Controller {
 
 	// Stores labels used in short circuiting (&& and || operators)
 	struct ba_Stk* shortCircLblStk; // Takes u64 (label IDs) as items
-
 	// Used in comparison chains
 	struct ba_Stk* cmpLblStk; // Takes u64 (label IDs) as items
 	struct ba_Stk* cmpRegStk; // Takes u64 (im enum for registers) as items
-
 	// Used in breaking out of loops and returning from funcs
 	struct ba_Stk* breakLblStk; // Takes u64 (label IDs) as items
+
 	// Used with return statements
 	struct ba_Func* currFunc;
 
@@ -35,10 +34,13 @@ struct ba_Controller {
 	struct ba_IM* im;
 	struct ba_IM* entryIM;
 	
+	// Parser
 	u64 usedRegisters;
 	u64 imStackCnt;
 	u64 imStackSize;
 	u64 labelCnt;
+	// Counts expression parentheses to make sure they are balanced
+	i64 paren;
 };
 
 void ba_PTkStkPush(struct ba_Stk* stk, void* val, 
@@ -81,6 +83,8 @@ struct ba_Controller* ba_NewController() {
 	ctr->shortCircLblStk = ba_NewStk();
 	ctr->cmpLblStk = ba_NewStk();
 	ctr->cmpRegStk = ba_NewStk();
+	ctr->cmpRegStk->count = 1;
+	ctr->cmpRegStk->items[0] = (void*)0;
 	ctr->breakLblStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
@@ -93,6 +97,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->imStackSize = 0;
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->currFunc = 0;
+	ctr->paren = 0;
 	return ctr;
 }
 

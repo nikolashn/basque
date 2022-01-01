@@ -68,6 +68,9 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			if (op->lexemeType == ')') {
 				return 100;
 			}
+			else if (op->lexemeType == '(') {
+				return 99;
+			}
 			else if (op->lexemeType == '~') {
 				return 0;
 			}
@@ -400,7 +403,7 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 	if (op->syntax == BA_OP_INFIX) {
 		return op->lexemeType == '=' || ba_IsLexemeCompoundAssign(op->lexemeType);
 	}
-	else if (op->syntax == BA_OP_PREFIX) {
+	else if (op->syntax == BA_OP_PREFIX || op->syntax == BA_OP_POSTFIX) {
 		return op->lexemeType == '(';
 	}
 	return 0;
@@ -432,7 +435,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			else if (op->lexemeType == '$') {
 				arg->val = (void*)ba_GetSizeOfType(arg->type);
@@ -446,7 +449,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				arg->lexemeType = BA_TK_LITINT;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			else if (op->lexemeType == '-' || op->lexemeType == '~' ||
 				op->lexemeType == '!')
@@ -491,7 +494,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			// Note: assumes arg is an identifier
 			else if (op->lexemeType == BA_TK_INC || 
@@ -560,7 +563,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			else if (op->lexemeType == '(') {
 				ba_StkPush(ctr->pTkStk, arg);
@@ -599,7 +602,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// If rhs is 0, there is no change in in lhs
 				if (isRhsLiteral && !rhs->val) {
 					ba_StkPush(ctr->pTkStk, lhs);
-					goto BA_LBL_OPHANDLE_END;
+					return 1;
 				}
 
 				if (isLhsLiteral && isRhsLiteral) {
@@ -616,7 +619,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			
 			// Multiplication/addition/subtraction
@@ -722,7 +725,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 
 			// Division
@@ -941,7 +944,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 
 			// Modulo
@@ -1181,7 +1184,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			
 			// Bitwise operations
@@ -1220,7 +1223,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			
 			// Logical short-circuiting operators
@@ -1248,7 +1251,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 			
 			// Assignment
@@ -1463,7 +1466,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				arg->type = lhs->type;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 
 			// Comparison
@@ -1649,7 +1652,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 				}
 
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 
 			break;
@@ -1660,6 +1663,143 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			// This should never occur
 			if (op->lexemeType == ')') {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, op->col);
+			}
+			else if (op->lexemeType == '(') {
+				u64 funcArgsCnt = (u64)arg - 1;
+
+				struct ba_Stk* argsStk = ba_NewStk();
+				for (u64 i = 0; i < funcArgsCnt; i++) {
+					ba_StkPush(argsStk, ba_StkPop(ctr->pTkStk));
+				}
+				
+				struct ba_PTkStkItem* funcTk = ba_StkPop(ctr->pTkStk);
+				if (!funcTk || funcTk->type != BA_TYPE_FUNC) {
+					return ba_ExitMsg(BA_EXIT_ERR, "attempt to call "
+						"non-func on", op->line, op->col);
+				}
+
+				struct ba_Func* func = 
+					((struct ba_STVal*)funcTk->val)->initVal;
+				func->isCalled = 1;
+
+				if (!funcArgsCnt && func->paramCnt == 1 && 
+					func->firstParam->hasDefaultVal)
+				{
+					struct ba_PTkStkItem* defaultParam = 
+						malloc(sizeof(*defaultParam));
+					defaultParam->val = func->firstParam->defaultVal;
+					defaultParam->type = func->firstParam->type;
+					defaultParam->lexemeType = BA_TK_LITINT;
+					defaultParam->isLValue = 0;
+
+					ba_StkPush(argsStk, defaultParam);
+					funcArgsCnt = 1;
+				}
+				
+				if (funcArgsCnt != func->paramCnt) {
+					fprintf(stderr, "Error: func on line %llu:%llu "
+						"takes %llu parameter%s, but %llu argument%s passed "
+						"(including implicits)\n", op->line, op->col, 
+						func->paramCnt, func->paramCnt == 1 ? "" : "s", 
+						funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
+					exit(-1);
+				}
+				
+				struct ba_FuncParam* param = func->firstParam;
+				while (argsStk->count) {
+					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
+					if (funcArg) {
+						bool isArgNum = ba_IsTypeNumeric(funcArg->type);
+						bool isParamNum = ba_IsTypeNumeric(param->type);
+						if ((isArgNum ^ isParamNum) || 
+							(!isArgNum && !isParamNum && 
+							funcArg->type != param->type))
+						{
+							return fprintf(stderr, "Error: argument passed to "
+								"func on line %llu:%llu has invalid type (%s) "
+								"for parameter of type %s", op->line, op->col,
+								ba_GetTypeStr(funcArg->type), 
+								ba_GetTypeStr(param->type));
+						}
+						
+						u64 reg = (u64)funcArg->val;
+						if (funcArg->lexemeType != BA_TK_IMREGISTER) {
+							reg = ba_NextIMRegister(ctr);
+						}
+
+						if (!reg) {
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+						}
+						
+						if (ba_IsLexemeLiteral(funcArg->lexemeType)) {
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg, BA_IM_IMM, 
+								(u64)funcArg->val);
+						}
+						else if (funcArg->lexemeType == BA_TK_IMRBPSUB) {
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg, 
+								BA_IM_ADRSUB, BA_IM_RBP, (u64)funcArg->val);
+						}
+						else if (funcArg->lexemeType == BA_TK_GLOBALID) {
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg, 
+								BA_IM_DATASGMT, 
+								((struct ba_STVal*)funcArg->val)->address);
+						}
+						else if (funcArg->lexemeType == BA_TK_LOCALID) {
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, reg, BA_IM_ADRADD, 
+								ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+								ba_CalcSTValOffset(ctr->currScope, funcArg->val));
+						}
+
+						if (reg) {
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, reg);
+						}
+						else {
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRADD,
+								BA_IM_RSP, 0x8, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+						}
+					}
+					// Default param
+					else {
+						if (!param->hasDefaultVal) {
+							return ba_ExitMsg2(BA_EXIT_ERR, "func called on", 
+								op->line, op->col, "with implicit argument"
+								"for parameter that has no default");
+						}
+						u64 reg = ba_NextIMRegister(ctr);
+						if (reg) {
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, reg, BA_IM_IMM, 
+								(u64)param->defaultVal);
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, reg);
+						}
+						else {
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+								BA_IM_IMM, (u64)param->defaultVal);
+							ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_ADRADD, 
+								BA_IM_RSP, 0x8, BA_IM_RAX);
+							ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+						}
+					}
+					param = param->next;
+				}
+				
+				ba_DelStk(argsStk);
+				// TODO: Preserve+restore registers
+				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, func->lblStart);
+
+				// Get return value from rax
+				// TODO: or from stack if too big
+				struct ba_PTkStkItem* retVal = malloc(sizeof(*retVal));
+				retVal->val = (void*)BA_IM_RAX;
+				retVal->type = func->retType;
+				retVal->lexemeType = BA_TK_IMREGISTER;
+				retVal->isLValue = 0;
+				ba_StkPush(ctr->pTkStk, retVal);
+
+				return 2; // Because it is a left parenthesis
 			}
 			else if (op->lexemeType == '~') {
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
@@ -1687,14 +1827,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				arg->type = newType;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
-				goto BA_LBL_OPHANDLE_END;
+				return 1;
 			}
 
 			break;
 		}
 	}
 	
-	BA_LBL_OPHANDLE_END:;
 	return 1;
 }
 

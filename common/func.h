@@ -24,8 +24,9 @@ struct ba_Func {
 	u64 retType;
 	u64 lblStart;
 	u64 lblEnd;
-	struct ba_SymTable* scope;
-	struct ba_FuncParam* params;
+	struct ba_SymTable* childScope;
+	struct ba_FuncParam* firstParam;
+	u64 paramCnt;
 	struct ba_IM* imBegin;
 	struct ba_IM* imEnd;
 	bool isCalled;
@@ -36,16 +37,17 @@ struct ba_Func* ba_NewFunc() {
 	func->retType = 0;
 	func->lblStart = 0;
 	func->lblEnd = 0;
-	func->scope = 0;
-	func->params = 0;
+	func->childScope = 0;
+	func->firstParam = 0;
+	func->paramCnt = 0;
 	func->imBegin = ba_NewIM();
 	func->imEnd = 0;
-	func->isCalled = 1; // TODO: change to 0 when calls are added
+	func->isCalled = 0;
 	return func;
 }
 
 void ba_DelFunc(struct ba_Func* func) {
-	struct ba_FuncParam* param = func->params;
+	struct ba_FuncParam* param = func->firstParam;
 	while (param) {
 		struct ba_FuncParam* next = param->next;
 		free(param);

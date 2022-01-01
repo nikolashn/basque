@@ -1,3 +1,10 @@
+void Hello() {
+	write "Hello world!\n";
+}
+
+Hello(); # Hello world!
+Hello(); # Hello world!
+
 void WriteI64(i64 x = 0) {
 	if x < 0 {
 		write "-";
@@ -6,17 +13,25 @@ void WriteI64(i64 x = 0) {
 	write x;
 }
 
-u64 Pow(u64 x, u64 y) {
-	if y == 0u, return 1;
-	if y == 1u, return x;
-	#if y & 1, return x * Pow(x * x, (y - 1) // 2);
-	#return Pow(x * x, y //2);
-	return 0;
+WriteI64(); "\n"; # 0
+WriteI64(5); "\n"; # 5
+WriteI64(-21); "\n"; # -21
+
+i64 n = -1 * 2 * -3 * 4 * -5;
+WriteI64(n); "\n"; # -120
+
+i64 Mul(i64 x, i64 y) {
+	i64 a = x * y;
+	return a;
 }
 
-u64 i = 0;
-while i <= 10u {
-	# write Pow(2, i);
-	++i;
-}
+# 9 * 10 = 90
+"9 * 10 = ";
+write Mul(9, 10); "\n";
+
+# -120 * -120 * -120 = -1728000
+WriteI64(n); " * ";
+WriteI64(n); " * ";
+WriteI64(n); " = ";
+WriteI64(Mul(Mul(n,n), n)); "\n";
 
