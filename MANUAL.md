@@ -7,7 +7,19 @@ Basque is extremely extremely alpha. The current features are very limited and r
 Basque has no entry point function as there is in C. Code in the outer body of a program is executed as if it were in a main function.
 
 ## Types
-Currently only string (string literal), `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `bool` (Boolean) exist. The last one, `bool`, only exists as the result of some operations and currently variables cannot be defined as `bool`. The string type will eventually be removed once pointers are added, and more types will be added like `i8` (signed byte), `f32` (32-bit floating-point number), as well as pointers, structures, functions, etc.
+### Integer types
+The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer) and `bool` (8-bit Boolean). Variables can be defined as `i64` or `u64` but currently not `bool`. Integer types are all commensurate with each other.
+
+In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, `i8`, `u8`.
+
+### String type
+String (string literal) currently exists as a temporary type to represent string literals, but will eventually be removed once pointers are added.
+
+### Functions
+Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value).
+
+### Other future types
+In the future there will be support for many other types: floating point numbers, pointers, structures, enumerations, and more.
 
 ## Syntax
 ### Comments
@@ -32,7 +44,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
-- type cast postfix `~ <type>`
+- type cast postfix `~ <type>`, func call `(,)`
 - unary prefixes `+ - ! ~ ++ -- $` and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
@@ -46,6 +58,8 @@ Basque's operators are the following (each line is ordered from high to low prec
 - assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### Notes about specific operators
+Func calls are a func followed by a comma-seperated list of expressions (arguments) enclosed in parentheses, which may be empty. If the func has default parameters, then some arguments may be omitted. The following are some syntactically valid func calls: `foo()`, `bar(a, b)`, `baz(5 * SIZE, )`, `fleure(f(), , g(,))`
+
 Only prefix increment and decrement are available in Basque. The operand of such operations must be an L-value.
 
 The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
@@ -59,8 +73,9 @@ The `&&` and `||` operators are short-circuiting and always result in type `bool
 Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`. Comparison operators result in type `bool`.
 
 All assignment operators are right-associative. The left-hand side of an assignment must be an L-value (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
+
 ### Statements
-Statements are combinations of expressions that together form a program. In this section, square brackets signify optionality, parentheses signify grouping, braces signify that a string can be repeated from 0 to infinite times, a bar signifies alternation, and words in angle brackets represent a group or class of expressions or tokens.
+Statements are combinations of expressions that can be sequentially laid out to form a program. In this section, square brackets signify optionality, parentheses signify grouping, braces signify that a string can be repeated from 0 to infinite times, a bar signifies alternation, and words in angle brackets represent a group or class of expressions or tokens.
 
 #### Write statements
 Syntax: `write <expression>;`
@@ -75,7 +90,7 @@ write -1; # 18446744073709551615
 #### Expression statements
 Syntax: `<expression>;`
 
-Does nothing generally, unless the expression is made up of string literals, in which case it is like a write statement.
+Normally, just evaluates the expression. If the expression is made up of string literals, the string literals are written to standard output as if it were a write statement.
 ```
 5+2; # Does nothing
 "yo\n"; # yo
@@ -84,15 +99,25 @@ Does nothing generally, unless the expression is made up of string literals, in 
 #### Variable definition
 Syntax: `<type> <identifier>` [ `= <expression>` ] `;`
 
-Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Identifiers are always initialized to 0.
+Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Variables are always initialized to 0.
 ```
 u64 col = 0xfcf4d0u;
 i64 _1234567;
 u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
 
+#### Func definition
+Syntax: `<type> <identifier> (` { } `)` ( `"," <statement>` | `{` { `<statement>` } `}` )
+
+Defines a func. The first token is the return type of the func, which may be `void`.
+
+#### Return statement
+Syntax: `return` [ `<expression>` ] `;`
+
+Returns from a function, possibly with a return value. Can only be used in a function definition.
+
 #### Semicolon
-`;`
+Syntax: `;`
 
 Does nothing (compiles to NOP).
 
@@ -186,5 +211,5 @@ while 1 {
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
 ### Calling convention
-For built in functions, the C Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. For user made functions, all arguments are passed on the stack. RBX is used to store the return location of a call. RSP, RBP, and R8 - R15 must be preserved by functions. Return values, like arguments, are stored first in RAX, then on the stack.
+For built in funcs, the C Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. For user made funcs, all arguments are passed on the stack. RBX is used to store the return location of a call. RSP, RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
 
