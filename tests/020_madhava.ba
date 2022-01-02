@@ -1,0 +1,23 @@
+# Generates the Madhava-Leibniz serapproximations for pi
+void Madhava(u64 x) {
+	u64 num = 1;
+	u64 denom = 1;
+	while x {
+		u64 term = 2 * x + 1;
+		num *= term;
+		if x % 2, num -= denom;
+		else, num += denom;
+		denom *= term;
+		--x;
+	}
+	num *= 4;
+	write num; "/";
+	write denom; "\n";
+}
+
+u64 i = 0;
+while i < 10u {
+	Madhava(i);
+	++i;
+}
+
