@@ -571,10 +571,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				}
 				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
 
-				if (ctr->currFunc) {
-					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RBX);
-				}
-
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, 
 					ba_BltinLabels[BA_BLTIN_U64ToStr]);
 
@@ -587,10 +583,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 				// deallocate stack memory
 				ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x38);
-
-				if (ctr->currFunc) {
-					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RBX);
-				}
 
 				// ... ';'
 				ba_PExpect(';', ctr);
