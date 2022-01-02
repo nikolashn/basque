@@ -1,4 +1,4 @@
-##--- Increment and decrement ---##
+#{--- Increment and decrement ---}#
 
 i64 a = 9;
 
@@ -22,7 +22,7 @@ write ++a; "\n"; # 2
 a = --a;
 write a; "\n"; # 1
 
-##--- $ (sizeof) operator ---##
+#{--- $ (sizeof) operator ---}#
 
 # 8,40,1,1
 write $123; ",";
