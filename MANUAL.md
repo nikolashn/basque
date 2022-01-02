@@ -23,14 +23,14 @@ In the future there will be support for many other types: floating point numbers
 
 ## Syntax
 ### Comments
-Single-line comments use a `#` symbol; multi-line comments begin and end with `##`, and do not nest.
+Single-line comments use a `#` symbol; multi-line comments begin with `#{` and end with `}#`, and do not nest.
 ```
 # Single line comment
 write "b a s q u e\n"; # Another single line comment
-##
+#{
 Multiline
 comment
-##
+}#
 ```
 ### Atoms
 An atom is one of the following:
