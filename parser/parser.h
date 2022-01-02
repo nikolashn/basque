@@ -825,6 +825,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 		}
 		ba_AddIM(&ctr->im, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
+		ctr->currFunc->doesReturn = 1;
 		return ba_PExpect(';', ctr);
 	}
 	// "goto" identifier ";"

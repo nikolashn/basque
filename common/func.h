@@ -30,6 +30,7 @@ struct ba_Func {
 	struct ba_IM* imBegin;
 	struct ba_IM* imEnd;
 	bool isCalled;
+	bool doesReturn;
 };
 
 struct ba_Func* ba_NewFunc() {
@@ -43,6 +44,7 @@ struct ba_Func* ba_NewFunc() {
 	func->imBegin = ba_NewIM();
 	func->imEnd = 0;
 	func->isCalled = 0;
+	func->doesReturn = 0;
 	return func;
 }
 

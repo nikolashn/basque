@@ -251,6 +251,14 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	ctr->im = oldIM;
 	ctr->currFunc = 0;
 	ctr->currScope = func->childScope->parent;
+
+	if (retType != BA_TYPE_VOID && !func->doesReturn) {
+		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu with "
+			"return type %s) does not return a value\n", funcName, line, col,
+			ba_GetTypeStr(retType));
+		exit(-1);
+	}
+
 	return 1;
 }
 
