@@ -6,6 +6,11 @@
 #include "../lexer.h"
 #include "../bltin/bltin.h"
 
+// Some operators cannot handle other operators
+bool ba_POpIsHandler(struct ba_POpStkItem* op) {
+	return !(op->syntax == BA_OP_POSTFIX && op->lexemeType == '(');
+}
+
 u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	if (!op) {
 		return 255;

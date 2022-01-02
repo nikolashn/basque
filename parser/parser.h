@@ -272,7 +272,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			// Right grouping parenthesis
 			(lexType == ')') && --ctr->paren;
 
-			if (ctr->pOpStk->count) {
+			if (ctr->pOpStk->count && ba_POpIsHandler(op)) {
 				do {
 					struct ba_POpStkItem* stkTop = ba_StkTop(ctr->pOpStk);
 					u8 stkTopPrec = ba_POpPrecedence(stkTop);
