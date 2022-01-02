@@ -1799,7 +1799,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, func->lblStart);
 
 				// Clear func args from the stack
-				if (func->childScope->dataSize) {
+				if (func->paramStackSize) {
 					ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
 						BA_IM_IMM, func->paramStackSize);
 				}

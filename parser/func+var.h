@@ -241,7 +241,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblEnd);
 	// TODO: restore registers
 	// Fix stack
-	if (func->childScope->dataSize) {
+	if (func->childScope->dataSize - func->paramStackSize - 8) {
 		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
 			func->childScope->dataSize - func->paramStackSize - 8);
 	}
