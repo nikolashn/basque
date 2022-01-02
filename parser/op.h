@@ -1669,6 +1669,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			if (op->lexemeType == ')') {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, op->col);
 			}
+			// Func call
 			else if (op->lexemeType == '(') {
 				u64 funcArgsCnt = (u64)arg - 1;
 
@@ -1792,8 +1793,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				ba_DelStk(argsStk);
+
 				// TODO: Preserve+restore registers (ctr->usedRegisters)
+
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, func->lblStart);
+
+				// Clear func args from the stack
+				if (func->childScope->dataSize) {
+					ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
+						BA_IM_IMM, func->paramStackSize);
+				}
 
 				// Get return value from rax
 				// TODO: or from stack if too big

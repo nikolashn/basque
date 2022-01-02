@@ -27,6 +27,7 @@ struct ba_Func {
 	struct ba_SymTable* childScope;
 	struct ba_FuncParam* firstParam;
 	u64 paramCnt;
+	u64 paramStackSize;
 	struct ba_IM* imBegin;
 	struct ba_IM* imEnd;
 	bool isCalled;
@@ -41,6 +42,7 @@ struct ba_Func* ba_NewFunc() {
 	func->childScope = 0;
 	func->firstParam = 0;
 	func->paramCnt = 0;
+	func->paramStackSize = 0;
 	func->imBegin = ba_NewIM();
 	func->imEnd = 0;
 	func->isCalled = 0;

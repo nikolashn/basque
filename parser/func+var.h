@@ -130,6 +130,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 				u64 paramSize = ba_GetSizeOfType(paramVal->type);
 				func->childScope->dataSize += paramSize;
+				func->paramStackSize += paramSize;
 				paramVal->address = func->childScope->dataSize;
 
 				paramVal->isInited = 1;
@@ -220,9 +221,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	funcIdVal->isInited = 1;
 
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblStart);
-	// Store return location in RBX
-	ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RBX);
 	// TODO: preserve registers
+	func->childScope->dataSize += 8; // For the return location
 	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 
 	if (!stmtType && ba_PAccept(';', ctr)) {
@@ -239,15 +239,13 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	}
 
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblEnd);
+	// TODO: restore registers
+	ba_AddIM(&ctr->im, 1, BA_IM_RET);
 	// Fix stack
 	if (func->childScope->dataSize) {
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, 
-			BA_IM_IMM, func->childScope->dataSize);
+		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
+			func->childScope->dataSize - func->paramStackSize - 8);
 	}
-	// TODO: restore registers
-	// Push return location
-	ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RBX);
-	ba_AddIM(&ctr->im, 1, BA_IM_RET);
 
 	func->imEnd = ctr->im;
 	ctr->im = oldIM;
