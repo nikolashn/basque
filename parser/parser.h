@@ -808,7 +808,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 						BA_IM_ADRADD, BA_IM_RSP,
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
 				}
-				else if (stkItem->lexemeType == BA_TK_IMREGISTER) {
+				else if (stkItem->lexemeType == BA_TK_IMREGISTER &&
+					(u64)stkItem->val != BA_IM_RAX)
+				{
 					ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RAX,
 						(u64)stkItem->val);
 				}
