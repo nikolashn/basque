@@ -211,5 +211,5 @@ while 1 {
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
 ### Calling convention
-For built in funcs, the C Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. For user made funcs, all arguments are passed on the stack. RBX is used to store the return location of a call. RSP, RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
+For built in funcs, the C Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. For user made funcs, all arguments are passed on the stack. RSP, RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
 
