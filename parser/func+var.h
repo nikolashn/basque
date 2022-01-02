@@ -216,6 +216,9 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 	func->lblStart = ctr->labelCnt++;
 	func->lblEnd = ctr->labelCnt++;
+
+	funcIdVal->isInited = 1;
+
 	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblStart);
 	// Store return location in RBX
 	ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RBX);
@@ -230,7 +233,6 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	}
 	else if (ba_PCommaStmt(ctr) || ba_PScope(ctr)) {
 		stmtType = TP_FULLDEC;
-		funcIdVal->isInited = 1;
 	}
 	else {
 		return 0;
