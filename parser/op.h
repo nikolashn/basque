@@ -508,7 +508,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				if (!ba_IsTypeNumeric(arg->type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric"
+					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric "
 						"lvalue on", op->line, op->col);
 				}
 
@@ -1787,7 +1787,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				ba_DelStk(argsStk);
-				// TODO: Preserve+restore registers
+				// TODO: Preserve+restore registers (ctr->usedRegisters)
 				ba_AddIM(&ctr->im, 2, BA_IM_LABELCALL, func->lblStart);
 
 				// Get return value from rax
