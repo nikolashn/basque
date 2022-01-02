@@ -11,7 +11,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 		ST_CMNT,
 		ST_CMNT_SG,
 		ST_CMNT_ML,
-		ST_CMNT_MLHASH,
+		ST_CMNT_MLBRAC,
 		ST_ID,
 		ST_STR,
 		ST_STR_ESC,
@@ -277,7 +277,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			}
 			// Comments
 			else if (state == ST_CMNT) {
-				if (c == '#') {
+				if (c == '{') {
 					state = ST_CMNT_ML;
 				}
 				else {
@@ -301,11 +301,11 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					++fileIter;
 					goto BA_LBL_LEX_LOOPEND;
 				}
-				else if (c == '#') {
-					state = ST_CMNT_MLHASH;
+				else if (c == '}') {
+					state = ST_CMNT_MLBRAC;
 				}
 			}
-			else if (state == ST_CMNT_MLHASH) {
+			else if (state == ST_CMNT_MLBRAC) {
 				if (c == '\n') {
 					++line;
 					col = 1;
