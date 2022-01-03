@@ -125,26 +125,25 @@ void ba_DelController(struct ba_Controller* ctr) {
 	free(ctr);
 }
 
-void ba_AddIM(struct ba_IM** imPtr, u64 count, ...) {
-	struct ba_IM* im = *imPtr;
-	im->vals = malloc(sizeof(u64) * count);
-	if (!im->vals) {
+void ba_AddIM(struct ba_Controller* ctr, u64 count, ...) {
+	ctr->im->vals = malloc(sizeof(u64) * count);
+	if (!ctr->im->vals) {
 		ba_ErrorMallocNoMem();
 	}
 	
 	va_list vals;
 	va_start(vals, count);
 	for (u64 i = 0; i < count; i++) {
-		im->vals[i] = va_arg(vals, u64);
+		ctr->im->vals[i] = va_arg(vals, u64);
 	}
 	va_end(vals);
 
-	im->count = count;
-	im->next = ba_NewIM();
+	ctr->im->count = count;
+	ctr->im->next = ba_NewIM();
 	
-	//printf("%s\n", ba_IMToStr(im)); // DEBUG
+	//printf("%s\n", ba_IMToStr(ctr->im)); // DEBUG
 
-	*imPtr = im->next;
+	ctr->im = ctr->im->next;
 }
 
 enum {

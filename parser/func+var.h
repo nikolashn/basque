@@ -220,10 +220,10 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 	funcIdVal->isInited = 1;
 
-	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblStart);
+	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblStart);
 	// TODO: preserve registers
 	func->childScope->dataSize += 8; // For the return location
-	ba_AddIM(&ctr->im, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 
 	if (!stmtType && ba_PAccept(';', ctr)) {
 		stmtType = TP_FWDDEC;
@@ -238,14 +238,14 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 		return 0;
 	}
 
-	ba_AddIM(&ctr->im, 2, BA_IM_LABEL, func->lblEnd);
+	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblEnd);
 	// TODO: restore registers
 	// Fix stack
 	if (func->childScope->dataSize - func->paramStackSize - 8) {
-		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
+		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
 			func->childScope->dataSize - func->paramStackSize - 8);
 	}
-	ba_AddIM(&ctr->im, 1, BA_IM_RET);
+	ba_AddIM(ctr, 1, BA_IM_RET);
 
 	func->imEnd = ctr->im;
 	ctr->im = oldIM;
@@ -312,11 +312,11 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 			}
 
 			if (expItem->lexemeType == BA_TK_GLOBALID) {
-				ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
 					((struct ba_STVal*)expItem->val)->address);
 			}
 			else if (expItem->lexemeType == BA_TK_LOCALID) {
-				ba_AddIM(&ctr->im, 5, BA_IM_MOV, BA_IM_RAX, 
+				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
 					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 					ba_CalcSTValOffset(ctr->currScope, expItem->val));
 			}
@@ -326,7 +326,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 					idVal->initVal = expItem->val;
 				}
 				else {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_DATASGMT, 
+					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_DATASGMT, 
 						idVal->address, 
 						expItem->lexemeType == BA_TK_IMREGISTER ? 
 							(u64)expItem->val : BA_IM_RAX);
@@ -334,10 +334,10 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 			}
 			else {
 				if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-					ba_AddIM(&ctr->im, 4, BA_IM_MOV, BA_IM_RAX, 
+					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_IMM, (u64)expItem->val);
 				}
-				ba_AddIM(&ctr->im, 2, BA_IM_PUSH,
+				ba_AddIM(ctr, 2, BA_IM_PUSH,
 					expItem->lexemeType == BA_TK_IMREGISTER ? 
 						(u64)expItem->val : BA_IM_RAX);
 			}
@@ -347,7 +347,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	ctr->currScope->dataSize += idDataSize;
 
 	if (ctr->currScope != ctr->globalST && !idVal->isInited) {
-		ba_AddIM(&ctr->im, 3, BA_IM_PUSH, BA_IM_IMM, 0);
+		ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
 	}
 
 	return ba_PExpect(';', ctr);
