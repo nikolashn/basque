@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 	// ----- Handle args ------
 	
 	if (argc < 2) {
-		printf("%s", usageStr);
+		fprintf(stderr, "%s", usageStr);
 		return 0;
 	}
 
@@ -79,11 +79,11 @@ int main(int argc, char* argv[]) {
 		}
 		
 		if (isCLOHelp || !strcmp(argv[i], "--help")) {
-			printf("%s", usageStr);
+			fprintf(stderr, "%s", usageStr);
 			return 0;
 		}
 		else if (isCLOVersion || !strcmp(argv[i], "--version")) {
-			printf("basque " BA_VERSION "\n");
+			fprintf(stderr, "basque " BA_VERSION "\n");
 			return 0;
 		}
 		else if (!strcmp(argv[i], "--run")) {
@@ -138,7 +138,7 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 	if (!srcFile) {
-		printf("%s", usageStr);
+		fprintf(stderr, "%s", usageStr);
 		return 0;
 	}
 
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
 	/*
 	struct ba_Lexeme* lex = ctr->startLex;
 	while (lex) {
-		printf("%llx %s\n", lex->type, lex->val);
+		fprintf(stderr, "%llx %s\n", lex->type, lex->val);
 		lex = lex->next;
 	}
 	*/
