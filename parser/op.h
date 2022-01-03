@@ -1208,7 +1208,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize -= 8;
 					}
 
-					if (isRdxPushed) {
+					if (isRaxPushed) {
 						ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
 						ctr->imStackSize -= 8;
 					}
