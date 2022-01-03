@@ -119,7 +119,7 @@ int main(int argc, char* argv[]) {
 			if (!outFileName) {
 				if ((len > 3) && !strcmp(argv[i]+len-3, ".ba")) {
 					outFileName = argv[i];
-					*(outFileName+len-3) = '\0';
+					outFileName[len-3] = 0;
 				}
 				else {
 					outFileName = "out";
@@ -174,8 +174,24 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (isRunCode) {
-		char* args[] = { outFileName, NULL };
-		execvp(outFileName, args);
+		char* runFileName = outFileName;
+		// Relative path
+		if (outFileName[0] != '/') {
+			// Add "./" to the start
+			runFileName = malloc(strlen(outFileName)+2);
+			runFileName[0] = '.';
+			runFileName[1] = '/';
+			runFileName[2] = 0;
+			strcat(runFileName, outFileName);
+		}
+		// File cannot be read or executed
+		if (access(outFileName, R_OK|X_OK)) {
+			fprintf(stderr, "Error: cannot read or cannot execute "
+				"written binary file\n");
+			exit(-1);
+		}
+		char* args[] = { runFileName, NULL };
+		execvp(runFileName, args);
 	}
 	
 	return 0;
