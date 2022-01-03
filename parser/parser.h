@@ -313,6 +313,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 				if (!reg) { // Preserve rax
 					ba_AddIM(&ctr->im, 2, BA_IM_PUSH, BA_IM_RAX);
+					ctr->imStackSize += 8;
 				}
 				
 				u64 realReg = reg ? reg : BA_IM_RAX;
@@ -338,6 +339,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				ba_AddIM(&ctr->im, 3, BA_IM_TEST, realReg, realReg);
 				if (!reg) {
 					ba_AddIM(&ctr->im, 2, BA_IM_POP, BA_IM_RAX);
+					ctr->imStackSize -= 8;
 				}
 				ba_AddIM(&ctr->im, 2, 
 					lexType == BA_TK_LOGAND ? BA_IM_LABELJZ : BA_IM_LABELJNZ,
@@ -384,11 +386,10 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 	}
 
 	ctr->usedRegisters = 0;
-	if (ctr->imStackCnt) {
+	if (ctr->imStackSize) {
 		ba_AddIM(&ctr->im, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
 			ctr->imStackSize);
 	}
-	ctr->imStackCnt = 0;
 	ctr->imStackSize = 0;
 
 	ctr->cmpLblStk->count = 0;

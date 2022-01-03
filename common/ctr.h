@@ -36,7 +36,6 @@ struct ba_Controller {
 	
 	// Parser
 	u64 usedRegisters;
-	u64 imStackCnt;
 	u64 imStackSize;
 	u64 labelCnt;
 	// Counts expression parentheses to make sure they are balanced
@@ -93,7 +92,6 @@ struct ba_Controller* ba_NewController() {
 	ctr->currScope = ctr->globalST;
 	ctr->labelTable = ba_NewHashTable();
 	ctr->usedRegisters = 0;
-	ctr->imStackCnt = 0;
 	ctr->imStackSize = 0;
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->currFunc = 0;
