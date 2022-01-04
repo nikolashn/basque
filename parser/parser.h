@@ -500,7 +500,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | base_type identifier "(" [ { base_type "," } base_type ] ")" ";"
  *      | base_type identifier "(" [ { base_type identifier [ "=" exp ] "," } 
  *        base_type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
- *      | base_type identifier [ "=" exp ] ";"
+ *      | base_type identifier "=" exp ";"
  *      | identifier ":"
  *      | exp ";"
  *      | ";" 
@@ -927,7 +927,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 
 		// Variable:
-		// ... [ "=" exp ] ";"
+		// ... "=" exp ";"
 		return ba_PVarDef(ctr, idName, line, col, type);
 	}
 	// identifier ":"

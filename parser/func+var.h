@@ -265,6 +265,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 u8 ba_PVarDef(struct ba_Controller* ctr, char* idName, 
 	u64 line, u64 col, u64 type)
 {
+	ba_PExpect('=', ctr);
+
 	if (ba_HTGet(ctr->currScope->ht, idName)) {
 		return ba_ErrorVarRedef(idName, line, col);
 	}
@@ -287,6 +289,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 
 	idVal->scope = ctr->currScope;
 	idVal->type = type;
+	idVal->isInited = 0;
 
 	if (idVal->type == BA_TYPE_VOID) {
 		return ba_ErrorVarVoid(line, col);
@@ -295,53 +298,44 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	u64 idDataSize = ba_GetSizeOfType(idVal->type);
 	idVal->address = ctr->currScope->dataSize + idDataSize;
 
-	idVal->initVal = 0;
-	idVal->isInited = 0;
-
 	ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
-	if (ba_PAccept('=', ctr)) {
-		idVal->isInited = 1;
-
-		line = ctr->lex->line;
-		col = ctr->lex->colStart;
-		
-		if (!ba_PExp(ctr)) {
-			return 0;
+	line = ctr->lex->line;
+	col = ctr->lex->colStart;
+	
+	if (!ba_PExp(ctr)) {
+		return 0;
+	}
+	
+	struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
+	
+	if (ba_IsTypeNumeric(idVal->type)) {
+		if (!ba_IsTypeNumeric(expItem->type)) {
+			char* expTypeStr = ba_GetTypeStr(expItem->type);
+			char* varTypeStr = ba_GetTypeStr(idVal->type);
+			return ba_ErrorAssignTypes(expTypeStr, idName, 
+				varTypeStr, line, col);
 		}
-		struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
-		
-		if (ba_IsTypeNumeric(idVal->type)) {
-			if (!ba_IsTypeNumeric(expItem->type)) {
-				char* expTypeStr = ba_GetTypeStr(expItem->type);
-				char* varTypeStr = ba_GetTypeStr(idVal->type);
-				return ba_ErrorAssignTypes(expTypeStr, idName, 
-					varTypeStr, line, col);
-			}
 
-			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-					ba_CalcSTValOffset(ctr->currScope, expItem->val));
-			}
-
-			if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-				idVal->initVal = expItem->val;
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-					BA_IM_IMM, (u64)expItem->val);
-			}
-			
-			ba_AddIM(ctr, 2, BA_IM_PUSH,
-				expItem->lexemeType == BA_TK_IMREGISTER ? 
-					(u64)expItem->val : BA_IM_RAX);
+		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
+			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
+				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+				ba_CalcSTValOffset(ctr->currScope, expItem->val));
 		}
+
+		if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+			idVal->initVal = expItem->val;
+			idVal->isInited = 1;
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
+				BA_IM_IMM, (u64)expItem->val);
+		}
+		
+		ba_AddIM(ctr, 2, BA_IM_PUSH,
+			expItem->lexemeType == BA_TK_IMREGISTER ? 
+				(u64)expItem->val : BA_IM_RAX);
 	}
 	
 	ctr->currScope->dataSize += idDataSize;
-
-	if (ctr->currScope != ctr->globalST && !idVal->isInited) {
-		ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-	}
 
 	return ba_PExpect(';', ctr);
 }
