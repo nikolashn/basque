@@ -863,7 +863,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 
 		{
-			struct ba_STVal* foundIn = 0;
+			struct ba_SymTable* foundIn = 0;
 			if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
 				fprintf(stderr, "Warning: shadowing variable '%s' on "
 					"line %llu:%llu\n", idName, line, col);
