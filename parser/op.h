@@ -703,6 +703,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 1;
 			}
 
+			// TODO: clean up / merge with modulo
 			// Division
 
 			else if (op->lexemeType == BA_TK_IDIV) {
@@ -831,7 +832,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 					if ((ctr->usedRegisters & BA_CTRREG_RDX) && (regL != BA_IM_RDX)) {
 						if (rhs->lexemeType == BA_TK_IMREGISTER && 
-							(u64)rhs->val == BA_IM_RAX) 
+							(u64)rhs->val == BA_IM_RDX) 
 						{
 							ba_AddIM(ctr, 3, BA_IM_MOV, regR, BA_IM_RDX);
 						}
@@ -872,7 +873,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX, 
+						ba_AddIM(ctr, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX, 
 							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 							ba_CalcSTValOffset(ctr->currScope, rhs->val));
 					}
@@ -929,6 +930,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 1;
 			}
 
+			// TODO: clean up / merge with division
 			// Modulo
 
 			else if (op->lexemeType == '%') {
@@ -1065,7 +1067,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 					if ((ctr->usedRegisters & BA_CTRREG_RDX) && (regL != BA_IM_RDX)) {
 						if (rhs->lexemeType == BA_TK_IMREGISTER && 
-							(u64)rhs->val == BA_IM_RAX) 
+							(u64)rhs->val == BA_IM_RDX) 
 						{
 							ba_AddIM(ctr, 3, BA_IM_MOV, regR, BA_IM_RDX);
 						}
@@ -1239,6 +1241,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			
 			// Assignment
 			// Note: assumes lhs is an identifier
+			// TODO: rewrite to clean up division and modulo
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType)) 
 			{
@@ -1268,10 +1271,27 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"used with non integral operand(s) on", op->line, op->col);
 				}
 
+				bool isUsingDiv = opLex == BA_TK_IDIVEQ || opLex == BA_TK_MODEQ;
+				u64 originalUsedRaxRdx = ctr->usedRegisters & 
+					(BA_CTRREG_RAX | BA_CTRREG_RDX);
+				
+				if (isUsingDiv) {
+					ctr->usedRegisters |= BA_CTRREG_RAX | BA_CTRREG_RDX;
+				}
+
 				u64 stackPos = 0;
 				u64 reg = (u64)rhs->val; // Kept only if rhs is a register
-				if (rhs->lexemeType != BA_TK_IMREGISTER) {
+
+				if (rhs->lexemeType != BA_TK_IMREGISTER || (isUsingDiv && 
+					((u64)rhs->val == BA_IM_RAX || (u64)rhs->val == BA_IM_RDX)))
+				{
 					reg = ba_NextIMRegister(ctr);
+				}
+
+				if (isUsingDiv) {
+					ctr->usedRegisters &= 
+						(ctr->usedRegisters & ~BA_CTRREG_RAX & ~BA_CTRREG_RDX) | 
+						originalUsedRaxRdx;
 				}
 				
 				if (!reg) {
@@ -1315,7 +1335,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				u64 lhsOffset = 
 					ba_CalcSTValOffset(ctr->currScope, lhs->val);
 
-				if (opLex == BA_TK_IDIVEQ || opLex == BA_TK_MODEQ) {
+				if (isUsingDiv) {
 					if (isRhsLiteral && !rhs->val) {
 						return ba_ExitMsg(BA_EXIT_ERR, "division or modulo by "
 							"zero on", op->line, op->col);
