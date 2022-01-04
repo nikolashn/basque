@@ -1,0 +1,4 @@
+write SumDigits(123); ",";
+write SumDigits(0); ",";
+write SumDigits(59291); "\n";
+
