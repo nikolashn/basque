@@ -244,7 +244,7 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	}
 
 	if (regR) {
-		ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+		ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
 	}
 	else {
 		ba_AddIM(ctr, 2, BA_IM_POP, rhsReplacement);
@@ -349,7 +349,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 		else if (!rhsIsRcx) { // Register that isn't rcx
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RCX, 
 				(u64)rhs->val);
-			ctr->usedRegisters &= ~ba_IMToCtrRegister((u64)rhs->val);
+			ctr->usedRegisters &= ~ba_IMToCtrReg((u64)rhs->val);
 		}
 
 		// The actual shift operation
@@ -368,7 +368,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 
 		if (regTmp && regTmp != BA_IM_RCX) {
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RCX, regTmp);
-			ctr->usedRegisters &= ~ba_IMToCtrRegister(regTmp);
+			ctr->usedRegisters &= ~ba_IMToCtrReg(regTmp);
 		}
 	}
 
@@ -843,7 +843,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					if (regR) {
-						ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+						ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
 					}
 					else {
 						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RCX);
@@ -1077,7 +1077,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					if (regR) {
-						ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+						ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
 					}
 					else {
 						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RCX);
@@ -1571,7 +1571,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							(void*)realRegL;
 					}
 					else if (regL) {
-						ctr->usedRegisters &= ~ba_IMToCtrRegister(regL);
+						ctr->usedRegisters &= ~ba_IMToCtrReg(regL);
 					}
 
 					ba_StkPush(ctr->pTkStk, rhsCopy);
@@ -1584,7 +1584,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_StkPush(ctr->pTkStk, arg);
 					}
 					if (regR) {
-						ctr->usedRegisters &= ~ba_IMToCtrRegister(regR);
+						ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
 					}
 					else {
 						ba_AddIM(ctr, 2, BA_IM_POP, realRegR);
