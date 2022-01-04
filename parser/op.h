@@ -588,7 +588,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				else {
 					// Handle non literal bit shifts
-					u64 imOp = op->lexemeType == BA_TK_LSHIFT ? BA_IM_SHL : BA_IM_SAR;
+					u64 imOp = op->lexemeType == BA_TK_LSHIFT ? BA_IM_SHL : BA_IM_SHR;
 					ba_POpNonLitBitShift(imOp, arg, lhs, rhs, isRhsLiteral, ctr);
 				}
 
@@ -1327,7 +1327,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				((opLex == BA_TK_SUBEQ) && (imOp = BA_IM_SUB)) ||
 				((opLex == BA_TK_MULEQ) && (imOp = BA_IM_IMUL)) ||
 				((opLex == BA_TK_LSHIFTEQ) && (imOp = BA_IM_SHL)) ||
-				((opLex == BA_TK_RSHIFTEQ) && (imOp = BA_IM_SAR)) ||
+				((opLex == BA_TK_RSHIFTEQ) && (imOp = BA_IM_SHR)) ||
 				((opLex == BA_TK_BITANDEQ) && (imOp = BA_IM_AND)) ||
 				((opLex == BA_TK_BITXOREQ) && (imOp = BA_IM_XOR)) ||
 				((opLex == BA_TK_BITOREQ) && (imOp = BA_IM_OR));
