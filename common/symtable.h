@@ -74,14 +74,14 @@ struct ba_SymTable* ba_SymTableAddChild(struct ba_SymTable* parent) {
 	return child;
 }
 
-// stFoundIn must be a real pointer otherwise null pointer dereferencing
+// stFoundInPtr must be a real pointer otherwise null pointer dereferencing
 struct ba_STVal* ba_STParentFind(struct ba_SymTable* st, 
-	struct ba_SymTable** stFoundIn, char* key)
+	struct ba_SymTable** stFoundInPtr, char* key)
 {
 	while (st) {
 		struct ba_STVal* get = ba_HTGet(st->ht, key);
 		if (get) {
-			*stFoundIn = st;
+			*stFoundInPtr = st;
 			return get;
 		}
 		st = st->parent;
