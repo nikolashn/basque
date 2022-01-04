@@ -1,0 +1,8 @@
+u64 Double(u64);
+include "022_include_helper.ba";
+
+# 246,0,118582
+write Double(123); ",";
+write Double(0); ",";
+write Double(59291); "\n";
+
