@@ -5,6 +5,7 @@
 
 #include "../lexer.h"
 #include "../bltin/bltin.h"
+#include "../common/reg.h"
 
 // Some operators cannot handle other operators
 bool ba_POpIsHandler(struct ba_POpStkItem* op) {
@@ -652,7 +653,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						(argVal = (u64)lhs->val - (u64)rhs->val));
 					arg->val = (void*)argVal;
 				}
-				// TODO: add and sub optimization to inc and dec
 				// Multiplication optimizations
 				else if ((op->lexemeType == '*') && (isLhsLiteral || isRhsLiteral)) {
 					// Since multiplication is commutative

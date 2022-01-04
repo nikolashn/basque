@@ -11,8 +11,7 @@ struct ba_STVal {
 	struct ba_SymTable* scope;
 	
 	/* If a label, the label ID
-	 * If global, relative to global memory start address
-	 * If in a scope, relative to start of scope's stack */
+	 * If a variable, relative to start of scope's stack */
 	u64 address;
 
 	u64 type;
@@ -22,15 +21,11 @@ struct ba_STVal {
 
 struct ba_SymTable {
 	struct ba_HashTable* ht;
-
 	struct ba_SymTable* parent;
 	struct ba_SymTable** children;
 	u64 childCnt;
 	u64 childCap;
-	
-	/* If global, size of the data segment
-	 * If in a scope, size of stack */
-	u64 dataSize;
+	u64 dataSize; // Size of the stack
 };
 
 struct ba_SymTable* ba_NewSymTable() {
