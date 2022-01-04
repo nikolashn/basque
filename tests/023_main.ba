@@ -1,5 +1,5 @@
 include "023_sumdigits.ba";
-#{ Executing the following file on its own will give 
+#{ Compiling the following file on its own will give 
    an error stating SumDigits is not defined, however 
    once the above file is included, it should run 
    fine, outputting "6,0,26" }#
