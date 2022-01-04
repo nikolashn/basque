@@ -116,6 +116,11 @@ Syntax: `return` [ `<expression>` ] `;`
 
 Returns from a function, possibly with a return value. Can only be used in a function definition.
 
+#### Include statement
+Syntax: `include <string literal>` { `<string literal>` }
+
+Includes a Basque source file at a given path. As there is no preprocessor in the C Basque compiler, include statements are resolved by the parser.
+
 #### Semicolon
 Syntax: `;`
 
