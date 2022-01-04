@@ -15,7 +15,6 @@ enum {
 	BA_IM_64ADRADD     = 0x6,
 	BA_IM_64ADRSUB     = 0x7,
 	BA_IM_LABEL        = 0x8,
-	BA_IM_DATASGMT     = 0x9,
 	
 	// Normal assembly instructions
 	BA_IM_MOV          = 0x10,
@@ -173,10 +172,6 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_IMM:
 				strcat(str, "IMM ");
-				isImm = 1;
-				break;
-			case BA_IM_DATASGMT:
-				strcat(str, "DATASGMT ");
 				isImm = 1;
 				break;
 			case BA_IM_LABEL:

@@ -282,10 +282,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	}
 	
 	u64 idDataSize = ba_GetSizeOfType(idVal->type);
-	/* For global identifiers, the address of the start is used 
-	 * For non global identifiers, the address of the end is used */
-	idVal->address = ctr->currScope->dataSize + 
-		(ctr->currScope != ctr->globalST) * idDataSize;
+	idVal->address = ctr->currScope->dataSize + idDataSize;
 
 	idVal->initVal = 0;
 	idVal->isInited = 0;
@@ -311,36 +308,21 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 					varTypeStr, line, col);
 			}
 
-			if (expItem->lexemeType == BA_TK_GLOBALID) {
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT, 
-					((struct ba_STVal*)expItem->val)->address);
-			}
-			else if (expItem->lexemeType == BA_TK_LOCALID) {
+			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
 				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
 					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 					ba_CalcSTValOffset(ctr->currScope, expItem->val));
 			}
 
-			if (ctr->currScope == ctr->globalST) {
-				if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-					idVal->initVal = expItem->val;
-				}
-				else {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						idVal->address, 
-						expItem->lexemeType == BA_TK_IMREGISTER ? 
-							(u64)expItem->val : BA_IM_RAX);
-				}
+			if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+				idVal->initVal = expItem->val;
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
+					BA_IM_IMM, (u64)expItem->val);
 			}
-			else {
-				if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_IMM, (u64)expItem->val);
-				}
-				ba_AddIM(ctr, 2, BA_IM_PUSH,
-					expItem->lexemeType == BA_TK_IMREGISTER ? 
-						(u64)expItem->val : BA_IM_RAX);
-			}
+			
+			ba_AddIM(ctr, 2, BA_IM_PUSH,
+				expItem->lexemeType == BA_TK_IMREGISTER ? 
+					(u64)expItem->val : BA_IM_RAX);
 		}
 	}
 	

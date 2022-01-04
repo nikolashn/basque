@@ -52,8 +52,6 @@ enum {
 	 * the parser for intermediate values */
 	BA_TK_IMREGISTER = 0x1000,
 	BA_TK_IMRBPSUB   = 0x1001,
-	BA_TK_GLOBALID   = 0x1002,
-	BA_TK_LOCALID    = 0x1003,
 };
 
 struct ba_Lexeme {
@@ -101,8 +99,7 @@ bool ba_IsLexemeCompare(u64 lexType) {
 }
 
 bool ba_IsLexemeLiteral(u64 lexType) {
-	return lexType != BA_TK_GLOBALID && 
-		lexType != BA_TK_LOCALID && 
+	return lexType != BA_TK_IDENTIFIER && 
 		lexType != BA_TK_IMRBPSUB && 
 		lexType != BA_TK_IMREGISTER;
 }

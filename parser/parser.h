@@ -136,8 +136,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
 				lexLine, lexColStart);
 		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, 
-			id->scope == ctr->globalST ? BA_TK_GLOBALID : BA_TK_LOCALID, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
 			/* isLValue = */ 1);
 	}
 	// Other
@@ -317,11 +316,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				}
 				
 				u64 realReg = reg ? reg : BA_IM_RAX;
-				if (lhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, realReg, BA_IM_DATASGMT,
-						((struct ba_STVal*)lhs->val)->address);
-				}
-				else if (lhs->lexemeType == BA_TK_LOCALID) {
+				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, realReg, 
 						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 						ba_CalcSTValOffset(ctr->currScope, lhs->val));
@@ -555,11 +550,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					ba_BltinU64ToStr(ctr);
 				}
 
-				if (stkItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
-				}
-				else if (stkItem->lexemeType == BA_TK_LOCALID) {
+				if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_ADRADD, BA_IM_RSP, 
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
@@ -643,11 +634,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				if (stkItem->lexemeType == BA_TK_IMREGISTER) {
 					reg = (u64)stkItem->val;
 				}
-				else if (stkItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-						((struct ba_STVal*)stkItem->val)->address);
-				}
-				else if (stkItem->lexemeType == BA_TK_LOCALID) {
+				else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_ADRADD, BA_IM_RSP, 
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
@@ -723,11 +710,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			if (stkItem->lexemeType == BA_TK_IMREGISTER) {
 				reg = (u64)stkItem->val;
 			}
-			else if (stkItem->lexemeType == BA_TK_GLOBALID) {
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-					((struct ba_STVal*)stkItem->val)->address);
-			}
-			else if (stkItem->lexemeType == BA_TK_LOCALID) {
+			else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
 				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
 					BA_IM_ADRADD, BA_IM_RSP, 
 					ba_CalcSTValOffset(ctr->currScope, stkItem->val));
@@ -792,11 +775,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_IMM, (u64)stkItem->val);
 				}
-				else if (stkItem->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_DATASGMT, ((struct ba_STVal*)stkItem->val)->address);
-				}
-				else if (stkItem->lexemeType == BA_TK_LOCALID) {
+				else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_ADRADD, BA_IM_RSP,
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));

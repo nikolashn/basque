@@ -16,12 +16,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// use this as an offset
 	u64 entryPoint = memStart+0x1000;
 	
-	// Generate data segment
-	u64 dataSgmtAddr = 0;
-
-	struct ba_DynArr8* dataSgmt = ba_NewDynArr8(ctr->globalST->dataSize);
-	dataSgmt->cnt = ctr->globalST->dataSize;
-
 	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
 		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
 		struct ba_STVal* val = (struct ba_STVal*)e.val;
@@ -42,23 +36,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
 			ctr->im = func->imEnd;
 		}
-		else {
-			u64 sz = ba_GetSizeOfType(val->type);
-			u64 initVal = (u64)val->initVal;
-			for (u64 j = 0; j < sz; j++) {
-				dataSgmt->arr[val->address+j] = initVal & 0xff;
-				initVal >>= 8;
-			}
-		}
 		// Normal variables
 		BA_LBL_GENFUNCS_LOOPEND:;
 	}
-
-	// Array of addresses in code that need to be turned 
-	// into relative data segment addresses
-	struct ba_DynArr64* relDSOffsets = ba_NewDynArr64(0x100);
-	// Array of addresses of the instruction pointer afterwards
-	struct ba_DynArr64* relDSRips = ba_NewDynArr64(0x100);
 
 	// Addresses are relative to the start of the code segment
 	struct ba_IMLabel* labels = calloc(ctr->labelCnt, sizeof(*labels));
@@ -199,18 +179,19 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgInvalid(im);
 						}
 
-						u8 sub = im->vals[2] == BA_IM_ADRSUB;
+						bool sub = im->vals[2] == BA_IM_ADRSUB;
 						u64 offset = im->vals[4];
 
-						u8 byte2 = (offset != 0) * 0x40 + 
-							(offset >= 0x80) * 0x40;
 						u8 reg1 = im->vals[3] - BA_IM_RAX;
+						u8 byte2 = (offset != 0 || (reg1 & 7) == 5) * 0x40 + 
+							(offset >= 0x80) * 0x40;
 						
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 
 						bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
-						u64 ofstSz = (offset != 0) + (offset >= 0x80) * 3;
+						u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
+							(offset >= 0x80) * 3;
 						
 						code->cnt += 3 + ofstSz + isReg1Mod4;
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -218,7 +199,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-ofstSz-3-isReg1Mod4] = byte0;
 						code->arr[code->cnt-ofstSz-2-isReg1Mod4] = 0x8b;
 						code->arr[code->cnt-ofstSz-1-isReg1Mod4] = byte2;
-						(isReg1Mod4) && (code->arr[code->cnt-ofstSz-1] = 0x24);
+						isReg1Mod4 && (code->arr[code->cnt-ofstSz-1] = 0x24);
 						
 						if (offset && offset < 0x80) {
 							sub && (offset = -offset);
@@ -230,40 +211,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 								code->arr[code->cnt-i] = offset & 0xff;
 								offset >>= 8;
 							}
-						}
-					}
-
-					// GPR, DATASGMT
-					else if (im->vals[2] == BA_IM_DATASGMT) {
-						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
-						}
-
-						// Addr. rel. to start of data segment
-						u64 imm = im->vals[3];
-						u8 byte2 = 0x5 | ((reg0 & 7) << 3);
-						byte0 |= (reg0 >= 8) << 2;
-
-						// Ensure enough space in data sgmt addr related arrays
-						(++relDSOffsets->cnt > relDSOffsets->cap) &&
-							ba_ResizeDynArr64(relDSOffsets);
-						(++relDSRips->cnt > relDSRips->cap) &&
-							ba_ResizeDynArr64(relDSRips);
-
-						// Where imm (data location) is stored; instruction ptr
-						// (Looks like dereferencing NULL, but shouldn't occur)
-						*ba_TopDynArr64(relDSOffsets) = code->cnt + 3;
-						*ba_TopDynArr64(relDSRips) = code->cnt + 7;
-
-						code->cnt += 7;
-						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-
-						code->arr[code->cnt-7] = byte0;
-						code->arr[code->cnt-6] = 0x8b;
-						code->arr[code->cnt-5] = byte2;
-						for (u64 i = 4; i > 0; i--) {
-							code->arr[code->cnt-i] = imm & 0xff;
-							imm >>= 8;
 						}
 					}
 
@@ -484,45 +431,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 				}
 
-				// Into DATASGMT
-				else if (im->vals[1] == BA_IM_DATASGMT) {
-					if (im->count < 4) {
-						return ba_ErrorIMArgCount(2, im);
-					}
-
-					// DATASGMT, GPR
-					if ((BA_IM_RAX <= im->vals[3]) && (BA_IM_R15 >= im->vals[3])) {
-						// Addr. rel. to start of data segment
-						u64 imm = im->vals[2];
-
-						u8 reg0 = im->vals[3] - BA_IM_RAX;
-						u8 byte0 = 0x48 | ((reg0 >= 8) << 2);
-						u8 byte2 = 0x5 | ((reg0 & 7) << 3);
-
-						// Ensure enough space in data sgmt addr related arrays
-						(++relDSOffsets->cnt > relDSOffsets->cap) &&
-							ba_ResizeDynArr64(relDSOffsets);
-						(++relDSRips->cnt > relDSRips->cap) &&
-							ba_ResizeDynArr64(relDSRips);
-
-						// Where imm (data location) is stored; instruction ptr
-						// (Looks like dereferencing NULL, but shouldn't occur)
-						*ba_TopDynArr64(relDSOffsets) = code->cnt + 3;
-						*ba_TopDynArr64(relDSRips) = code->cnt + 7;
-
-						code->cnt += 7;
-						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-
-						code->arr[code->cnt-7] = byte0;
-						code->arr[code->cnt-6] = 0x89;
-						code->arr[code->cnt-5] = byte2;
-						for (u64 i = 4; i > 0; i--) {
-							code->arr[code->cnt-i] = imm & 0xff;
-							imm >>= 8;
-						}
-					}
-				}
-				
 				else {
 					return ba_ErrorIMArgInvalid(im);
 				}
@@ -1167,43 +1075,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					(reg0 >= 8) && (code->arr[code->cnt-2] = 0x41);
 					code->arr[code->cnt-1] = byte2;
 				}
-				// DATASGMT
-				else if (im->vals[1] == BA_IM_DATASGMT) {
-					if (im->count < 3) {
-						return ba_ErrorIMArgCount(1, im);
-					}
-
-					// Addr. rel. to start of data segment
-					u64 imm = im->vals[2];
-
-					// Ensure enough space in data sgmt addr related arrays
-					(++relDSOffsets->cnt > relDSOffsets->cap) &&
-						ba_ResizeDynArr64(relDSOffsets);
-					(++relDSRips->cnt > relDSRips->cap) &&
-						ba_ResizeDynArr64(relDSRips);
-
-					// Where imm (data location) is stored; instruction ptr
-					// (Looks like dereferencing NULL, but shouldn't occur)
-					*ba_TopDynArr64(relDSOffsets) = code->cnt + 2;
-					*ba_TopDynArr64(relDSRips) = code->cnt + 6;
-
-					code->cnt += 6;
-					(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-
-					if (isInstrPop) {
-						code->arr[code->cnt-6] = 0x8f;
-						code->arr[code->cnt-5] = 0x05;
-					}
-					else {
-						code->arr[code->cnt-6] = 0xff;
-						code->arr[code->cnt-5] = 0x35;
-					}
-
-					for (u64 i = 4; i > 0; i--) {
-						code->arr[code->cnt-i] = imm & 0xff;
-						imm >>= 8;
-					}
-				}
 				// IMM
 				else if ((!isInstrPop) && (im->vals[1] == BA_IM_IMM)) {
 					if (im->count < 3) {
@@ -1335,28 +1206,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	}
 	free(labels);
 
-	// Data segment
-	dataSgmtAddr = 0x1000 + code->cnt;
-	tmp = dataSgmtAddr & 0xfff;
-	// Round up to nearest 0x1000
-	if (tmp) {
-		dataSgmtAddr ^= tmp;
-		dataSgmtAddr += 0x1000;
-	}
-	
-	// Fix RIP relative addresses
-	for (u64 i = 0; i < relDSRips->cnt; i++) {
-		u64 codeLoc = relDSOffsets->arr[i];
-		// Subtract 0x1000 because code starts at file byte 0x1000
-		u64 ripRelAddr = dataSgmtAddr - relDSRips->arr[i] - 0x1000 + 
-			code->arr[codeLoc] + (code->arr[codeLoc+1] << 8) +
-			(code->arr[codeLoc+2] << 16) + (code->arr[codeLoc+3] << 24);
-		for (u64 loc = codeLoc; loc < codeLoc+4; loc++) {
-			code->arr[loc] = ripRelAddr & 0xff;
-			ripRelAddr >>= 8;
-		}
-	}
-
 	// Generate file header
 	u8 fileHeader[64] = {
 		0x7f, 'E',  'L',  'F',  2,    1,    1,    3,
@@ -1396,14 +1245,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		0,    0,    0,    0,    0,    0,    0,    0,    // {code->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
-
-		1,    0,    0,    0,    6,    0,    0,    0,    // LOAD, Read+Write
-		0,    0,    0,    0,    0,    0,    0,    0,    // {dataSgmtAddr}
-		0,    0,    0,    0,    0,    0,    0,    0,    // {memStart+dataSgmtAddr} in mem
-		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		0,    0,    0,    0,    0,    0,    0,    0,    // {dataSgmt->cnt}
-		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
 	};
 
 	for (u64 i = 0; i < 16; i += 8) {
@@ -1434,28 +1275,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		tmp >>= 8;
 	}
 
-	// {dataSgmtAddr} in third header (data)
-	tmp = dataSgmtAddr;
-	for (u64 i = 0; i < 8; i++) {
-		programHeader[0x78+i] = tmp & 0xff;
-		tmp >>= 8;
-	}
-
-	for (u64 i = 0; i < 16; i += 8) {
-		// {memStart+dataSgmtAddr} in third header (data)
-		tmp = memStart + dataSgmtAddr;
-		for (u64 j = 0; j < 8; j++) {
-			programHeader[0x80+i+j] = tmp & 0xff;
-			tmp >>= 8;
-		}
-		// {dataSgmt->cnt} in third header (data)
-		tmp = dataSgmt->cnt;
-		for (u64 j = 0; j < 8; j++) {
-			programHeader[0x90+i+j] = tmp & 0xff;
-			tmp >>= 8;
-		}
-	}
-	
 	// String this together into a file
 	
 	// Create the initial file
@@ -1503,26 +1322,11 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		fwrite(buf, 1, 0x1000-tmp, file);
 	}
 
-	// Write data segment
-	u64 bufDataSgmtSize = dataSgmt->cnt >= BA_FILE_BUF_SIZE ? 
-		BA_FILE_BUF_SIZE : dataSgmt->cnt;
-	fwrite(dataSgmt->arr, 1, bufDataSgmtSize, file);
-
-	// Write more data segment, if not everything can fit in the buffer
-	u8* dataSgmtPtr = dataSgmt->arr + BA_FILE_BUF_SIZE;
-	while (dataSgmtPtr - dataSgmt->arr < dataSgmt->cnt) {
-		fwrite(dataSgmtPtr, 1, dataSgmt->cnt >= BA_FILE_BUF_SIZE ? 
-			BA_FILE_BUF_SIZE : dataSgmt->cnt, file);
-	}
-
 	if (!isFileStdout) {
 		fclose(file);
 		chmod(fileName, 0755);
 	}
 
-	ba_DelDynArr8(dataSgmt);
-	ba_DelDynArr64(relDSOffsets);
-	ba_DelDynArr64(relDSRips);
 	ba_DelDynArr8(code);
 
 	return 1;
@@ -1560,11 +1364,9 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				{
 					u64 offset = im->vals[4];
 					u8 reg1 = im->vals[3] - BA_IM_RAX;
-					u64 ofstSz = (offset != 0) + (offset >= 0x80) * 3;
+					u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
+						(offset >= 0x80) * 3;
 					return 3 + ((reg1 & 7) == 4 || (reg1 & 7) == 5) + ofstSz;
-				}
-				else if (im->vals[2] == BA_IM_DATASGMT) {
-					return 7;
 				}
 				else if (im->vals[2] == BA_IM_IMM) {
 					u64 imm = im->vals[3];
@@ -1596,11 +1398,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				else if (im->vals[4] == BA_IM_IMM) {
 					return adrAddDestSize + 4 + 3 * (offset >= 0x80) + 
 						((reg0 & 7) == 4);
-				}
-			}
-			else if (im->vals[1] == BA_IM_DATASGMT) {
-				if ((BA_IM_RAX <= im->vals[3]) && (BA_IM_R15 >= im->vals[3])) {
-					return 7;
 				}
 			}
 
@@ -1692,10 +1489,6 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				u8 reg0 = im->vals[1] - BA_IM_RAX;
 				return 1 + (reg0 >= 8);
-			}
-			// DATASGMT
-			else if (im->vals[1] == BA_IM_DATASGMT) {
-				return 6;
 			}
 			// IMM
 			else if (im->vals[1] == BA_IM_IMM) {

@@ -128,12 +128,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 
 	u64 realReg = reg ? reg : BA_IM_RAX;
 
-	if (arg->lexemeType == BA_TK_GLOBALID) {
-		ba_AddIM(ctr, 4, BA_IM_MOV, realReg, 
-			BA_IM_DATASGMT, 
-			((struct ba_STVal*)arg->val)->address);
-	}
-	else if (arg->lexemeType == BA_TK_LOCALID) {
+	if (arg->lexemeType == BA_TK_IDENTIFIER) {
 		ba_AddIM(ctr, 5, BA_IM_MOV, realReg, 
 			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 			ba_CalcSTValOffset(ctr->currScope, arg->val));
@@ -206,11 +201,7 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 		ctr->imStackSize += 8;
 	}
 
-	if (lhs->lexemeType == BA_TK_GLOBALID) {
-		ba_AddIM(ctr, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX,
-			BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
-	}
-	else if (lhs->lexemeType == BA_TK_LOCALID) {
+	if (lhs->lexemeType == BA_TK_IDENTIFIER) {
 		ba_AddIM(ctr, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX,
 			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 			ba_CalcSTValOffset(ctr->currScope, lhs->val));
@@ -224,11 +215,7 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 			BA_IM_IMM, (u64)lhs->val);
 	}
 
-	if (rhs->lexemeType == BA_TK_GLOBALID) {
-		ba_AddIM(ctr, 4, BA_IM_MOV, regR ? regR : rhsReplacement,
-			BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
-	}
-	else if (rhs->lexemeType == BA_TK_LOCALID) {
+	if (rhs->lexemeType == BA_TK_IDENTIFIER) {
 		ba_AddIM(ctr, 5, BA_IM_MOV, regR ? regR : rhsReplacement,
 			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 			ba_CalcSTValOffset(ctr->currScope, rhs->val));
@@ -309,11 +296,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 		ctr->imStackSize += 16;
 	}
 
-	if (lhs->lexemeType == BA_TK_GLOBALID) {
-		ba_AddIM(ctr, 4, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
-			BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
-	}
-	else if (lhs->lexemeType == BA_TK_LOCALID) {
+	if (lhs->lexemeType == BA_TK_IDENTIFIER) {
 		ba_AddIM(ctr, 5, BA_IM_MOV, regL ? regL : BA_IM_RAX, 
 			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 			ba_CalcSTValOffset(ctr->currScope, lhs->val));
@@ -353,11 +336,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 				regTmp ? regTmp : BA_IM_RAX, BA_IM_RCX);
 		}
 
-		if (rhs->lexemeType == BA_TK_GLOBALID) {
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_DATASGMT,
-				((struct ba_STVal*)rhs->val)->address);
-		}
-		else if (rhs->lexemeType == BA_TK_LOCALID) {
+		if (rhs->lexemeType == BA_TK_IDENTIFIER) {
 			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX, 
 				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 				ba_CalcSTValOffset(ctr->currScope, rhs->val));
@@ -508,9 +487,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == BA_TK_INC || 
 				op->lexemeType == BA_TK_DEC)
 			{
-				if (!arg->isLValue || (arg->lexemeType != BA_TK_GLOBALID && 
-					arg->lexemeType != BA_TK_LOCALID))
-				{
+				if (!arg->isLValue || arg->lexemeType != BA_TK_IDENTIFIER) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment/decrement of "
 						"non-lvalue on", op->line, op->col);
 				}
@@ -535,23 +512,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ctr->imStackSize += 16;
 				}
 
-				if (arg->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX,
-						BA_IM_DATASGMT, ((struct ba_STVal*)arg->val)->address);
-					ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						((struct ba_STVal*)arg->val)->address, 
-						reg ? reg : BA_IM_RAX);
-				}
-				else {
-					u64 ofst = ba_CalcSTValOffset(ctr->currScope, arg->val);
-					ba_AddIM(ctr, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
-						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, ofst);
-					ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-						ofst, reg ? reg : BA_IM_RAX);
-				}
+				u64 ofst = ba_CalcSTValOffset(ctr->currScope, arg->val);
+				ba_AddIM(ctr, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, ofst);
+				ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
+				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
+					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+					ofst, reg ? reg : BA_IM_RAX);
 
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
@@ -883,11 +850,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize += 8;
 					}
 
-					if (lhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX,
-							BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
-					}
-					else if (lhs->lexemeType == BA_TK_LOCALID) {
+					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
 						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX,
 							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 							ba_CalcSTValOffset(ctr->currScope, lhs->val));
@@ -908,12 +871,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							BA_IM_IMM, (u64)lhs->val);
 					}
 
-					if (rhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
-							BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
-					}
-					else if (rhs->lexemeType == BA_TK_LOCALID) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX,
+					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX, 
 							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 							ba_CalcSTValOffset(ctr->currScope, rhs->val));
 					}
@@ -1125,11 +1084,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize += 8;
 					}
 
-					if (lhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX,
-							BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
-					}
-					else if (lhs->lexemeType == BA_TK_LOCALID) {
+					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
 						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX,
 							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 							ba_CalcSTValOffset(ctr->currScope, lhs->val));
@@ -1143,11 +1098,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							BA_IM_IMM, (u64)lhs->val);
 					}
 
-					if (rhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
-							BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
-					}
-					else if (rhs->lexemeType == BA_TK_LOCALID) {
+					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
 						ba_AddIM(ctr, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX,
 							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 							ba_CalcSTValOffset(ctr->currScope, rhs->val));
@@ -1291,9 +1242,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType)) 
 			{
-				if (!lhs->isLValue || (lhs->lexemeType != BA_TK_GLOBALID &&
-						lhs->lexemeType != BA_TK_LOCALID)) 
-				{
+				if (!lhs->isLValue || lhs->lexemeType != BA_TK_IDENTIFIER) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment to non-lvalue on", 
 						op->line, op->col);
 				}
@@ -1336,11 +1285,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ctr->imStackSize += 16;
 				}
 
-				if (rhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, reg ? reg : BA_IM_RCX,
-						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
-				}
-				else if (rhs->lexemeType == BA_TK_LOCALID) {
+				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, reg ? reg : BA_IM_RCX,
 						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 						ba_CalcSTValOffset(ctr->currScope, rhs->val));
@@ -1385,15 +1330,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize += 8;
 					}
 
-					if (lhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_DATASGMT,
-							((struct ba_STVal*)lhs->val)->address);
-					}
-					else {
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-							lhsOffset);
-					}
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						lhsOffset);
 
 					ba_AddIM(ctr, 1, BA_IM_CQO);
 					ba_AddIM(ctr, 2, areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV, 
@@ -1405,15 +1344,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							divResultReg);
 					}
 
-					if (lhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-							((struct ba_STVal*)lhs->val)->address, 
-							reg ? reg : BA_IM_RCX);
-					}
-					else {
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-							BA_IM_RBP, lhsOffset, reg ? reg : BA_IM_RCX);
-					}
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
+						BA_IM_RBP, lhsOffset, reg ? reg : BA_IM_RCX);
 
 					if (ctr->usedRegisters & BA_CTRREG_RDX) {
 						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
@@ -1437,14 +1369,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize += 8;
 					}
 
-					if (lhs->lexemeType == BA_TK_GLOBALID) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, opResultReg, BA_IM_DATASGMT, 
-							((struct ba_STVal*)lhs->val)->address);
-					}
-					else {
-						ba_AddIM(ctr, 5, BA_IM_MOV, opResultReg, BA_IM_ADRADD, 
-							ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, lhsOffset);
-					}
+					ba_AddIM(ctr, 5, BA_IM_MOV, opResultReg, BA_IM_ADRADD, 
+						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, lhsOffset);
 
 					if (opLex == BA_TK_LSHIFTEQ || opLex == BA_TK_RSHIFTEQ) {
 						if (reg != BA_IM_RCX) {
@@ -1476,16 +1402,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 				}
 
-				if (lhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_DATASGMT, 
-						((struct ba_STVal*)lhs->val)->address, 
-						reg ? reg : BA_IM_RCX);
-				}
-				else {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-						lhsOffset, reg ? reg : BA_IM_RCX);
-				}
+				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
+					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+					lhsOffset, reg ? reg : BA_IM_RCX);
 
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
@@ -1595,11 +1514,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ctr->imStackSize += 8;
 				}
 
-				if (lhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, realRegL,
-						BA_IM_DATASGMT, ((struct ba_STVal*)lhs->val)->address);
-				}
-				else if (lhs->lexemeType == BA_TK_LOCALID) {
+				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, realRegL,
 						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 						ba_CalcSTValOffset(ctr->currScope, lhs->val));
@@ -1613,12 +1528,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_IMM, (u64)lhs->val);
 				}
 
-				if (rhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, realRegR,
-						BA_IM_DATASGMT, ((struct ba_STVal*)rhs->val)->address);
-				}
-				else if (rhs->lexemeType == BA_TK_GLOBALID) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, realRegR,
+				if (rhs->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(ctr, 5, BA_IM_MOV, realRegR,
 						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
 						ba_CalcSTValOffset(ctr->currScope, rhs->val));
 				}
@@ -1746,6 +1657,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					exit(-1);
 				}
 				
+				if (!ctr->imStackSize) {
+					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+				}
+
 				struct ba_FuncParam* param = func->firstParam;
 				u64 originalImStackSize = ctr->imStackSize;
 
@@ -1784,12 +1699,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							ba_AddIM(ctr, 5, BA_IM_MOV, reg, 
 								BA_IM_ADRSUB, BA_IM_RBP, (u64)funcArg->val);
 						}
-						else if (funcArg->lexemeType == BA_TK_GLOBALID) {
-							ba_AddIM(ctr, 4, BA_IM_MOV, reg, 
-								BA_IM_DATASGMT, 
-								((struct ba_STVal*)funcArg->val)->address);
-						}
-						else if (funcArg->lexemeType == BA_TK_LOCALID) {
+						else if (funcArg->lexemeType == BA_TK_IDENTIFIER) {
 							ba_AddIM(ctr, 5, BA_IM_MOV, reg, BA_IM_ADRADD, 
 								ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 								ba_CalcSTValOffset(ctr->currScope, funcArg->val));
