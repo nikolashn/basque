@@ -10,6 +10,7 @@ struct ba_Controller {
 	// Lexer
 	struct ba_Lexeme* startLex;
 	struct ba_Lexeme* lex;
+	char* dir;
 
 	// Parser
 	struct ba_Stk* pTkStk; // Takes ba_PTkStkItem as items
@@ -77,6 +78,7 @@ struct ba_Controller* ba_NewController() {
 	}
 	ctr->startLex = ba_NewLexeme();
 	ctr->lex = ctr->startLex;
+	ctr->dir = 0;
 	ctr->pTkStk = ba_NewStk();
 	ctr->pOpStk = ba_NewStk();
 	ctr->shortCircLblStk = ba_NewStk();

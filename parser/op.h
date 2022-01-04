@@ -1634,6 +1634,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					((struct ba_STVal*)funcTk->val)->initVal;
 				func->isCalled = 1;
 
+				if (!((struct ba_STVal*)funcTk->val)->isInited) {
+					return ba_ExitMsg(BA_EXIT_ERR, "calling forward declared "
+						"func that has not been given a definition on", 
+						op->line, op->col);
+				}
+
 				if (!funcArgsCnt && func->paramCnt == 1 && 
 					func->firstParam->hasDefaultVal)
 				{

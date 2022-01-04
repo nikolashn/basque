@@ -132,10 +132,6 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		if (!id) {
 			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart);
 		}
-		if (!id->isInited) {
-			ba_ExitMsg(BA_EXIT_WARN, "using uninitialized identifier on", 
-				lexLine, lexColStart);
-		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
 			/* isLValue = */ 1);
 	}
@@ -499,6 +495,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | "break" ";"
  *      | "return" [ exp ] ";"
  *      | "goto" identifier ";"
+ *      | "include" lit_str { lit_str } ";"
  *      | scope
  *      | base_type identifier "(" [ { base_type "," } base_type ] ")" ";"
  *      | base_type identifier "(" [ { base_type identifier [ "=" exp ] "," } 
@@ -832,6 +829,67 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		
 		return ba_PExpect(';', ctr);
 	}
+	// "include" lit_str { lit_str } ";"
+	else if (ba_PAccept(BA_TK_KW_INCLUDE, ctr)) {
+		u64 len = ctr->lex->valLen;
+		char* fileName = malloc(len + 1);
+		if (!fileName) {
+			return ba_ErrorMallocNoMem();
+		}
+		strcpy(fileName, ctr->lex->val);
+		ba_PExpect(BA_TK_LITSTR, ctr);
+
+		// do-while prevents 1 more str literal from being consumed than needed
+		do {
+			if (ctr->lex->type != BA_TK_LITSTR) {
+				break;
+			}
+			u64 oldLen = len;
+			len += ctr->lex->valLen;
+			
+			if (len > BA_STACK_SIZE) {
+				return ba_ExitMsg2(BA_EXIT_ERR, "string at", ctr->lex->line, 
+					ctr->lex->colStart, " too large to fit on the stack");
+			}
+
+			fileName = realloc(fileName, len+1);
+			if (!fileName) {
+				return ba_ErrorMallocNoMem();
+			}
+			strcpy(fileName+oldLen, ctr->lex->val);
+			fileName[len] = 0;
+		}
+		while (ba_PAccept(BA_TK_LITSTR, ctr));
+
+		if (ctr->dir && fileName[0] != '/') {
+			u64 dirLen = strlen(ctr->dir);
+			char* relFileName = malloc(dirLen + len + 1);
+			memcpy(relFileName, ctr->dir, dirLen+1);
+			relFileName[dirLen] = '/';
+			relFileName[dirLen+1] = 0;
+			strcat(relFileName, fileName);
+			free(fileName);
+			fileName = relFileName;
+		}
+		FILE* includeFile = fopen(fileName, "r");
+		if (!includeFile) {
+			fprintf(stderr, "Error: cannot find file '%s' included on "
+				"line %llu:%llu\n", fileName, firstLine, firstCol);
+			exit(-1);
+		}
+
+		ba_PExpect(';', ctr);
+
+		struct ba_Lexeme* oldNextLex = ctr->lex;
+		ctr->lex = ba_NewLexeme();
+		ba_Tokenize(includeFile, ctr);
+		struct ba_Lexeme* nextLex = ctr->lex;
+		while (nextLex->next) {
+			nextLex = nextLex->next;
+		}
+		memcpy(nextLex, oldNextLex, sizeof(*nextLex));
+		return 1;
+	}
 	// scope
 	else if (ba_PScope(ctr)) {
 		return 1;
@@ -860,19 +918,6 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
 			return 0;
-		}
-
-		{
-			struct ba_SymTable* foundIn = 0;
-			if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
-				if (!ba_IsSilenceWarnings) {
-					fprintf(stderr, "Warning: shadowing variable '%s' on "
-						"line %llu:%llu\n", idName, line, col);
-				}
-				if (ba_IsWarningsAsErrors) {
-					exit(-1);
-				}
-			}
 		}
 
 		// Function:

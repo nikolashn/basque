@@ -47,6 +47,7 @@ enum {
 	BA_TK_KW_GOTO    = 0x308,
 	BA_TK_KW_RETURN  = 0x309,
 	BA_TK_KW_VOID    = 0x30a,
+	BA_TK_KW_INCLUDE = 0x30b,
 
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */
@@ -204,6 +205,8 @@ char* ba_GetLexemeStr(u64 lex) {
 			return "keyword 'return'";
 		case BA_TK_KW_VOID:
 			return "keyword 'void'";
+		case BA_TK_KW_INCLUDE:
+			return "keyword 'include'";
 	}
 	return 0;
 }

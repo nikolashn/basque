@@ -71,6 +71,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	}
 	state = 0;
 
+	funcIdVal->isInited = 1;
+
 	while (state != ST_RPAREN) {
 		switch (state) {
 			case ST_RPAREN: return 0;
@@ -133,8 +135,6 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 				func->paramStackSize += paramSize;
 				paramVal->address = func->childScope->dataSize;
 
-				paramVal->isInited = 1;
-				
 				ba_HTSet(func->childScope->ht, paramName, (void*)paramVal);
 
 				state = ST_PARAM;
@@ -218,17 +218,17 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	func->lblStart = ctr->labelCnt++;
 	func->lblEnd = ctr->labelCnt++;
 
-	funcIdVal->isInited = 1;
-
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblStart);
 	// TODO: preserve registers
 	func->childScope->dataSize += 8; // For the return location
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 
 	if (!stmtType && ba_PAccept(';', ctr)) {
+		funcIdVal->isInited = 0;
 		stmtType = TP_FWDDEC;
 	}
 	else if (stmtType == TP_FWDDEC) {
+		funcIdVal->isInited = 0;
 		ba_PExpect(';', ctr);
 	}
 	else if (ba_PCommaStmt(ctr) || ba_PScope(ctr)) {
@@ -252,7 +252,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	ctr->currFunc = 0;
 	ctr->currScope = func->childScope->parent;
 
-	if (retType != BA_TYPE_VOID && !func->doesReturn) {
+	if (stmtType == TP_FULLDEC && retType != BA_TYPE_VOID && !func->doesReturn) {
 		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu with "
 			"return type %s) does not return a value\n", funcName, line, col,
 			ba_GetTypeStr(retType));
@@ -267,6 +267,17 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 {
 	if (ba_HTGet(ctr->currScope->ht, idName)) {
 		return ba_ErrorVarRedef(idName, line, col);
+	}
+
+	struct ba_SymTable* foundIn = 0;
+	if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
+		if (!ba_IsSilenceWarnings) {
+			fprintf(stderr, "Warning: shadowing variable '%s' on "
+				"line %llu:%llu\n", idName, line, col);
+		}
+		if (ba_IsWarningsAsErrors) {
+			exit(-1);
+		}
 	}
 
 	struct ba_STVal* idVal = malloc(sizeof(struct ba_STVal));

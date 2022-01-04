@@ -27,6 +27,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	FILE* srcFile = 0;
+	char* srcFileName = 0;
 	char* outFileName = 0;
 
 	bool isRunCode = 0;
@@ -107,10 +108,12 @@ int main(int argc, char* argv[]) {
 		}
 		else if (!srcFile) {
 			if (!strcmp(argv[i], "-")) {
+				srcFileName = ".";
 				srcFile = stdin;
 			}
 			else {
-				srcFile = fopen(argv[i], "r");
+				srcFileName = argv[i];
+				srcFile = fopen(srcFileName, "r");
 			}
 			if (!srcFile) {
 				fprintf(stderr, "Error: Cannot find %s: no such file\n", argv[i]);
@@ -145,6 +148,9 @@ int main(int argc, char* argv[]) {
 	// ----- Begin parsing -----
 	
 	struct ba_Controller* ctr = ba_NewController();
+	ctr->dir = malloc(strlen(srcFileName)+1);
+	strcpy(ctr->dir, srcFileName);
+	ctr->dir = dirname(ctr->dir);
 
 	if (!ba_Tokenize(srcFile, ctr)) {
 		return -1;

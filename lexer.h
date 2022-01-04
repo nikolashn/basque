@@ -5,7 +5,7 @@
 
 #include "common/common.h"
 
-int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
+u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 	enum {
 		ST_NONE = 0,
 		ST_CMNT,
@@ -27,7 +27,7 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 	char litBuf[BA_LITERAL_SIZE+1] = {0};
 	char idBuf[BA_IDENTIFIER_SIZE+1] = {0};
 	u64 fileIter = 0, litIter = 0, idIter = 0, line = 1, col = 1, colStart = 1;
-	struct ba_Lexeme* nextLex = ctr->startLex;
+	struct ba_Lexeme* nextLex = ctr->lex;
 	
 	while (fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile)) {
 		fileIter = 0;
@@ -357,6 +357,9 @@ int ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					}
 					else if (!strcmp(idBuf, "if")) {
 						nextLex->type = BA_TK_KW_IF;
+					}
+					else if (!strcmp(idBuf, "include")) {
+						nextLex->type = BA_TK_KW_INCLUDE;
 					}
 					else if (!strcmp(idBuf, "return")) {
 						nextLex->type = BA_TK_KW_RETURN;
