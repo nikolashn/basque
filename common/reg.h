@@ -7,8 +7,9 @@ enum {
 	BA_CTRREG_RAX = 0x1,
 	BA_CTRREG_RCX = 0x2,
 	BA_CTRREG_RDX = 0x4,
-	BA_CTRREG_RSI = 0x8,
-	BA_CTRREG_RDI = 0x10,
+	BA_CTRREG_RBX = 0x8,
+	BA_CTRREG_RSI = 0x10,
+	BA_CTRREG_RDI = 0x20,
 };
 
 u64 ba_IMToCtrRegister(u64 imReg) {
@@ -19,6 +20,8 @@ u64 ba_IMToCtrRegister(u64 imReg) {
 			return BA_CTRREG_RCX;
 		case BA_IM_RDX:
 			return BA_CTRREG_RDX;
+		case BA_IM_RBX:
+			return BA_CTRREG_RBX;
 		case BA_IM_RSI:
 			return BA_CTRREG_RSI;
 		case BA_IM_RDI:
@@ -41,6 +44,10 @@ u64 ba_NextIMRegister(struct ba_Controller* ctr) {
 		ctr->usedRegisters |= BA_CTRREG_RDX;
 		return BA_IM_RDX;
 	}
+	if (!(ctr->usedRegisters & BA_CTRREG_RBX)) {
+		ctr->usedRegisters |= BA_CTRREG_RBX;
+		return BA_IM_RBX;
+	}
 	if (!(ctr->usedRegisters & BA_CTRREG_RSI)) {
 		ctr->usedRegisters |= BA_CTRREG_RSI;
 		return BA_IM_RSI;
@@ -62,6 +69,8 @@ u64 ba_GetIMRegisterFlag(u64 reg) {
 			return BA_CTRREG_RCX;
 		case BA_IM_RDX:
 			return BA_CTRREG_RDX;
+		case BA_IM_RBX:
+			return BA_CTRREG_RBX;
 		case BA_IM_RSI:
 			return BA_CTRREG_RSI;
 		case BA_IM_RDI:
