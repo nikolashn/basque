@@ -97,12 +97,12 @@ Normally, just evaluates the expression. If the expression is made up of string 
 ```
 
 #### Variable definition
-Syntax: `<type> <identifier>` [ `= <expression>` ] `;`
+Syntax: `<type> <identifier> = <expression>;`
 
-Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores. Variables are always initialized to 0.
+Types currently are only `i64` and `u64`. An identifier begins with a letter and then may contain a series of letters, numbers and underscores.
 ```
 u64 col = 0xfcf4d0u;
-i64 _1234567;
+i64 _1234567 = 8;
 u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
 
