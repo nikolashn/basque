@@ -841,6 +841,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 type = ba_GetTypeFromKeyword(
 			((struct ba_PTkStkItem*)ba_StkPop(ctr->pTkStk))->lexemeType);
 
+		if (!ctr->lex) {
+			return 0;
+		}
+		
 		u64 idNameLen = ctr->lex->valLen;
 		char* idName = 0;
 		if (ctr->lex->val) {
@@ -856,6 +860,14 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
 			return 0;
+		}
+
+		{
+			struct ba_STVal* foundIn = 0;
+			if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
+				fprintf(stderr, "Warning: shadowing variable '%s' on "
+					"line %llu:%llu\n", idName, line, col);
+			}
 		}
 
 		// Function:
