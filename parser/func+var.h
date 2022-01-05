@@ -113,6 +113,9 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 				// ... identifier ...
 				if (!ba_PAccept(BA_TK_IDENTIFIER, ctr)) {
+					if (stmtType == TP_FULLDEC) {
+						return 0;
+					}
 					stmtType = TP_FWDDEC;
 					state = ST_PARAM;
 					break;
