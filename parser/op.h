@@ -1639,12 +1639,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '(') {
 				u64 funcArgsCnt = (u64)arg - 1;
 
-				struct ba_Stk* argsStk = ba_NewStk();
-				for (u64 i = 0; i < funcArgsCnt; i++) {
-					ba_StkPush(argsStk, ba_StkPop(ctr->pTkStk));
-				}
-				
-				struct ba_PTkStkItem* funcTk = ba_StkPop(ctr->pTkStk);
+				struct ba_PTkStkItem* funcTk = 
+					ctr->pTkStk->items[ctr->pTkStk->count-(u64)arg];
 				if (!funcTk || funcTk->type != BA_TYPE_FUNC) {
 					return ba_ExitMsg(BA_EXIT_ERR, "attempt to call "
 						"non-func on", op->line, op->col);
@@ -1654,26 +1650,30 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					((struct ba_STVal*)funcTk->val)->initVal;
 				func->isCalled = 1;
 
+				if (funcArgsCnt <= 1 && funcArgsCnt < func->paramCnt) {
+					struct ba_FuncParam* param = func->firstParam;
+					funcArgsCnt && (param = param->next);
+
+					while (param && param->hasDefaultVal) {
+						ba_StkPush(ctr->pTkStk, (void*)0);
+						++funcArgsCnt;
+						param = param->next;
+					}
+				}
+				
+				struct ba_Stk* argsStk = ba_NewStk();
+				for (u64 i = 0; i < funcArgsCnt; i++) {
+					ba_StkPush(argsStk, ba_StkPop(ctr->pTkStk));
+				}
+
+				ba_StkPop(ctr->pTkStk); // Pop funcTk
+				
 				if (!((struct ba_STVal*)funcTk->val)->isInited) {
 					return ba_ExitMsg(BA_EXIT_ERR, "calling forward declared "
 						"func that has not been given a definition on", 
 						op->line, op->col);
 				}
 
-				if (!funcArgsCnt && func->paramCnt == 1 && 
-					func->firstParam->hasDefaultVal)
-				{
-					struct ba_PTkStkItem* defaultParam = 
-						malloc(sizeof(*defaultParam));
-					defaultParam->val = func->firstParam->defaultVal;
-					defaultParam->type = func->firstParam->type;
-					defaultParam->lexemeType = BA_TK_LITINT;
-					defaultParam->isLValue = 0;
-
-					ba_StkPush(argsStk, defaultParam);
-					funcArgsCnt = 1;
-				}
-				
 				if (funcArgsCnt != func->paramCnt) {
 					fprintf(stderr, "Error: func on line %llu:%llu "
 						"takes %llu parameter%s, but %llu argument%s passed "
@@ -1699,11 +1699,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							(!isArgNum && !isParamNum && 
 							funcArg->type != param->type))
 						{
-							return fprintf(stderr, "Error: argument passed to "
+							fprintf(stderr, "Error: argument passed to " 
 								"func on line %llu:%llu has invalid type (%s) "
-								"for parameter of type %s", op->line, op->col,
+								"for parameter of type %s\n", op->line, op->col,
 								ba_GetTypeStr(funcArg->type), 
 								ba_GetTypeStr(param->type));
+							exit(-1);
 						}
 						
 						u64 reg = (u64)funcArg->val;

@@ -43,7 +43,9 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	funcIdVal->initVal = func;
 
 	func->retType = retType;
-	func->childScope = ba_SymTableAddChild(ctr->currScope);
+	if (!func->childScope) {
+		func->childScope = ba_SymTableAddChild(ctr->currScope);
+	}
 
 	struct ba_FuncParam* param = ba_NewFuncParam();
 	char* paramName = 0;
@@ -200,9 +202,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					return 0;
 				}
 				state = ST_COMMA;
-				param->next = ba_NewFuncParam();
-				param = param->next;
-				goto BA_LBL_PFUNCDEF_ENDPARAM;
+				goto BA_LBL_FUNCDEF_LOOPEND;
 			}
 		}
 
