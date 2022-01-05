@@ -255,7 +255,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						}
 						else {
 							return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid "
-								"character at", line, col);
+								"character at", line, col, ctr->currPath);
 						}
 					}
 
@@ -328,7 +328,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				{
 					if (idIter > BA_IDENTIFIER_SIZE) {
 						return ba_ErrorTknOverflow("identifier", line, colStart, 
-							BA_IDENTIFIER_SIZE);
+							ctr->currPath, BA_IDENTIFIER_SIZE);
 					}
 
 					idBuf[idIter++] = c;
@@ -397,8 +397,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			// String literals
 			else if (state == ST_STR) {
 				if (litIter > BA_LITERAL_SIZE) {
-					return ba_ErrorTknOverflow("string literal", line, colStart, 
-						BA_LITERAL_SIZE);
+					return ba_ErrorTknOverflow("string literal", line, 
+						colStart, ctr->currPath, BA_LITERAL_SIZE);
 				}
 				
 				if (c == '"') {
@@ -498,7 +498,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-						line, col);
+						line, col, ctr->currPath);
 				}
 
 				val <<= 4;
@@ -522,7 +522,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-						line, col);
+						line, col, ctr->currPath);
 				}
 
 				litBuf[litIter++] = val;
@@ -533,8 +533,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			else if (state == ST_NUM_DEC) {
 				if ((c >= '0') && (c <= '9')) {
 					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("string literal", line, colStart,
-							BA_LITERAL_SIZE);
+						return ba_ErrorTknOverflow("string literal", line, 
+							colStart, ctr->currPath, BA_LITERAL_SIZE);
 					}
 
 					litBuf[litIter++] = c;
@@ -576,8 +576,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					((c >= 'A') && (c <= 'F')))
 				{
 					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("string literal", line, colStart,
-							BA_LITERAL_SIZE);
+						return ba_ErrorTknOverflow("string literal", line, 
+							colStart, ctr->currPath, BA_LITERAL_SIZE);
 					}
 
 					litBuf[litIter++] = c;
@@ -616,8 +616,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			else if (state == ST_NUM_OCT) {
 				if ((c >= '0') && (c <= '7')) {
 					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("integer literal", line, colStart,
-							BA_LITERAL_SIZE);
+						return ba_ErrorTknOverflow("integer literal", line, 
+							colStart, ctr->currPath, BA_LITERAL_SIZE);
 					}
 
 					litBuf[litIter++] = c;
@@ -626,7 +626,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					// Ignore
 				}
 				else if ((c >= '8') && (c <= '9')) {
-					return ba_ErrorIntLitChar(line, col);
+					return ba_ErrorIntLitChar(line, col, ctr->currPath);
 				}
 				else {
 					if ((c == 'u') || (c == 'U')) {
@@ -659,8 +659,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			else if (state == ST_NUM_BIN) {
 				if ((c == '0') || (c == '1')) {
 					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("string literal", line, colStart,
-							BA_LITERAL_SIZE);
+						return ba_ErrorTknOverflow("string literal", line, 
+							colStart, ctr->currPath, BA_LITERAL_SIZE);
 					}
 
 					litBuf[litIter++] = c;
@@ -669,7 +669,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					// Ignore
 				}
 				else if ((c >= '2') && (c <= '9')) {
-					return ba_ErrorIntLitChar(line, col);
+					return ba_ErrorIntLitChar(line, col, ctr->currPath);
 				}
 				else {
 					if ((c == 'u') || (c == 'U')) {

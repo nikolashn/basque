@@ -19,6 +19,7 @@ struct ba_Controller {
 	struct ba_HashTable* labelTable;
 	struct ba_DynArr64* inclInodes;
 	char* dir;
+	char* currPath;
 
 	// Stores labels used in short circuiting (&& and || operators)
 	struct ba_Stk* shortCircLblStk; // Takes u64 (label IDs) as items
@@ -80,6 +81,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->startLex = ba_NewLexeme();
 	ctr->lex = ctr->startLex;
 	ctr->dir = 0;
+	ctr->currPath = 0;
 	ctr->pTkStk = ba_NewStk();
 	ctr->pOpStk = ba_NewStk();
 	ctr->shortCircLblStk = ba_NewStk();

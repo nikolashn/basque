@@ -12,6 +12,8 @@ u8 ba_PStmt(struct ba_Controller* ctr);
 
 u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
 	if (!ctr->lex || (ctr->lex->type != type)) {
+		(ctr->lex->type == BA_TK_FILECHANGE) && 
+			(ctr->currPath = ctr->lex->val);
 		return 0;
 	}
 	ctr->lex = ba_DelLexeme(ctr->lex);
@@ -21,12 +23,13 @@ u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
 u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	if (!ba_PAccept(type, ctr)) {
 		if (!ctr->lex->line) {
-			fprintf(stderr, "Error: expected %s at end of file\n", 
-				ba_GetLexemeStr(type));
+			fprintf(stderr, "Error: expected %s at end of file in %s\n", 
+				ba_GetLexemeStr(type), ctr->currPath);
 		}
 		else {
-			fprintf(stderr, "Error: expected %s at line %llu:%llu\n",
-				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->colStart);
+			fprintf(stderr, "Error: expected %s at line %llu:%llu in %s\n",
+				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->colStart,
+				ctr->currPath);
 		}
 		exit(-1);
 		return 0;
@@ -86,7 +89,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			
 			if (len > BA_STACK_SIZE) {
 				return ba_ExitMsg2(BA_EXIT_ERR, "string at", ctr->lex->line, 
-					ctr->lex->colStart, " too large to fit on the stack");
+					ctr->lex->colStart, ctr->currPath, 
+					" too large to fit on the stack");
 			}
 
 			str = realloc(str, len+1);
@@ -114,10 +118,10 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		if (lexVal[lexValLen-1] == 'u') {
 			// ba_StrToU64 cannot parse the 'u' suffix so it must be removed
 			lexVal[--lexValLen] = 0;
-			num = ba_StrToU64(lexVal, lexLine, lexColStart);
+			num = ba_StrToU64(lexVal, lexLine, lexColStart, ctr->currPath);
 		}
 		else {
-			num = ba_StrToU64(lexVal, lexLine, lexColStart);
+			num = ba_StrToU64(lexVal, lexLine, lexColStart, ctr->currPath);
 			if (num < (1llu << 63)) {
 				type = BA_TYPE_I64;
 			}
@@ -130,7 +134,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		struct ba_SymTable* stFoundIn = 0;
 		struct ba_STVal* id = ba_STParentFind(ctr->currScope, &stFoundIn, lexVal);
 		if (!id) {
-			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart);
+			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart, ctr->currPath);
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
 			/* isLValue = */ 1);
@@ -179,7 +183,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 			else if (ctr->pOpStk->count) {
 				return ba_ExitMsg(BA_EXIT_ERR, "expected expression on", 
-					line, col);
+					line, col, ctr->currPath);
 			}
 			else {
 				return 0;
@@ -242,8 +246,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			else if (ba_PAccept('~', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
 				if (!ba_PBaseType(ctr)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression "
-						"that is not a type on", op->line, op->col);
+					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that is "
+						"not a type on", op->line, op->col, ctr->currPath);
 				}
 			}
 			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 
@@ -279,7 +283,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 						u8 handleResult = ba_POpHandle(ctr, op);
 						if (!handleResult) {
 							return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 
-								line, col);
+								line, col, ctr->currPath);
 						}
 						// Left parenthesis
 						else if (handleResult == 2) {
@@ -353,7 +357,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		BA_LBL_PEXP_LOOPEND:;
 		
 		if (ctr->paren < 0) {
-			return ba_ExitMsg(BA_EXIT_ERR, "unmatched ')' on", line, col);
+			return ba_ExitMsg(BA_EXIT_ERR, "unmatched ')' on", line, col, 
+				ctr->currPath);
 		}
 
 		line = ctr->lex->line;
@@ -509,8 +514,14 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	u64 firstLine = ctr->lex->line;
 	u64 firstCol = ctr->lex->colStart;
 
+	// <file change>
+	if (ctr->lex->type == BA_TK_FILECHANGE) {
+		ctr->currPath = malloc(ctr->lex->valLen+1);
+		strcpy(ctr->currPath, ctr->lex->val);
+		return ba_PAccept(BA_TK_FILECHANGE, ctr);
+	}
 	// "write" ...
-	if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
+	else if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
 		// TODO: this should eventually be replaced with a Write() function
 		// and a lone string literal statement
 	
@@ -527,7 +538,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		
 		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
 		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col, 
+				ctr->currPath);
 		}
 
 		if (stkItem->lexemeType == BA_TK_LITSTR) {
@@ -581,7 +593,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 		else {
 			return ba_ExitMsg(BA_EXIT_ERR, "expression of incorrect type "
-				"used with 'write' keyword on", line, col);
+				"used with 'write' keyword on", line, col, ctr->currPath);
 		}
 
 		// ... ";"
@@ -605,7 +617,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		while (ba_PExp(ctr)) {
 			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
 			if (!stkItem) {
-				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
+					ctr->currPath);
 			}
 
 			u64 lblId = ctr->labelCnt++;
@@ -614,16 +627,16 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 				if (!ba_IsTypeNumeric(stkItem->type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
-						"as condition on", line, col);
+						"as condition on", line, col, ctr->currPath);
 				}
 
 				if (stkItem->val) {
 					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
-						"be true on", line, col);
+						"be true on", line, col, ctr->currPath);
 				}
 				else {
 					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
-						"be false on", line, col);
+						"be false on", line, col, ctr->currPath);
 					ba_AddIM(ctr, 2, BA_IM_LABELJMP, lblId);
 				}
 			}
@@ -685,7 +698,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
 		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col, 
+				ctr->currPath);
 		}
 
 		u64 endLblId = ctr->labelCnt++;
@@ -694,12 +708,12 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 			if (!ba_IsTypeNumeric(stkItem->type)) {
 				return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
-					"as while loop condition on", line, col);
+					"as while loop condition on", line, col, ctr->currPath);
 			}
 
 			if (!stkItem->val) {
 				ba_ExitMsg(BA_EXIT_WARN, "while loop condition will always "
-					"be false on", line, col);
+					"be false on", line, col, ctr->currPath);
 				ba_AddIM(ctr, 2, BA_IM_LABELJMP, endLblId);
 			}
 		}
@@ -732,7 +746,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	else if (ba_PAccept(BA_TK_KW_BREAK, ctr)) {
 		if (!ctr->breakLblStk->count) {
 			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'break' used outside of "
-				"loop on", firstLine, firstCol);
+				"loop on", firstLine, firstCol, ctr->currPath);
 		}
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, (u64)ba_StkTop(ctr->breakLblStk));
 		return ba_PExpect(';', ctr);
@@ -741,7 +755,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	else if (ba_PAccept(BA_TK_KW_RETURN, ctr)) {
 		if (!ctr->currFunc) {
 			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'return' used outside of "
-				"func on", firstLine, firstCol);
+				"func on", firstLine, firstCol, ctr->currPath);
 		}
 		if (!ctr->lex) {
 			ba_PExpect(';', ctr);
@@ -753,7 +767,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		if (ba_PExp(ctr)) {
 			if (ctr->currFunc->retType == BA_TYPE_VOID) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning value from func with "
-					"return type 'void' on", line, col);
+					"return type 'void' on", line, col, ctr->currPath);
 			}
 
 			// Move return value into rax
@@ -761,11 +775,12 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			
 			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
 			if (!stkItem) {
-				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
+					ctr->currPath);
 			}
 			if (stkItem->lexemeType == BA_TK_LITSTR) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning string literal from "
-					"a func currently not implemented,", line, col);
+					"a func currently not implemented,", line, col, ctr->currPath);
 			}
 			if (ba_IsTypeIntegral(stkItem->type)) {
 				if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
@@ -788,7 +803,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 		else if (ctr->currFunc->retType != BA_TYPE_VOID) {
 			return ba_ExitMsg(BA_EXIT_ERR, "returning without value from func "
-				"that does not have return type 'void' on", line, col);
+				"that does not have return type 'void' on", line, col, 
+				ctr->currPath);
 		}
 		if (ctr->currScope->dataSize && 
 			ctr->currScope != ctr->currFunc->childScope) 
@@ -824,7 +840,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			ba_AddIM(ctr, 2, BA_IM_LABELJMP, lblId);
 		}
 		else {
-			ba_AddIM(ctr, 4, BA_IM_GOTO, (u64)lblName, line, col);
+			ba_AddIM(ctr, 5, BA_IM_GOTO, (u64)lblName, line, col, 
+				(u64)ctr->currPath);
 		}
 		
 		return ba_PExpect(';', ctr);
@@ -849,7 +866,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			
 			if (len > BA_STACK_SIZE) {
 				return ba_ExitMsg2(BA_EXIT_ERR, "string at", ctr->lex->line, 
-					ctr->lex->colStart, " too large to fit on the stack");
+					ctr->lex->colStart, ctr->currPath, 
+					" too large to fit on the stack");
 			}
 
 			fileName = realloc(fileName, len+1);
@@ -863,7 +881,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		if (ctr->dir && fileName[0] != '/') {
 			u64 dirLen = strlen(ctr->dir);
-			char* relFileName = malloc(dirLen + len + 1);
+			char* relFileName = malloc(dirLen + len + 2);
 			memcpy(relFileName, ctr->dir, dirLen+1);
 			relFileName[dirLen] = '/';
 			relFileName[dirLen+1] = 0;
@@ -875,7 +893,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		FILE* includeFile = fopen(fileName, "r");
 		if (!includeFile) {
 			fprintf(stderr, "Error: cannot find file '%s' included on "
-				"line %llu:%llu\n", fileName, firstLine, firstCol);
+				"line %llu:%llu in %s\n", fileName, firstLine, firstCol, 
+				ctr->currPath);
 			exit(-1);
 		}
 		
@@ -893,6 +912,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			ba_ResizeDynArr64(ctr->inclInodes);
 		ctr->inclInodes->arr[ctr->inclInodes->cnt-1] = inclFileStat.st_ino;
 
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->colStart;
+
 		struct ba_Lexeme* oldNextLex = ctr->lex;
 		ctr->lex = ba_NewLexeme();
 		ba_Tokenize(includeFile, ctr);
@@ -900,7 +922,16 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		while (nextLex->next) {
 			nextLex = nextLex->next;
 		}
-		memcpy(nextLex, oldNextLex, sizeof(*nextLex));
+		nextLex->type = BA_TK_FILECHANGE;
+		nextLex->line = line;
+		nextLex->colStart = col;
+
+		nextLex->valLen = strlen(ctr->currPath);
+		nextLex->val = malloc(nextLex->valLen+1);
+		strcpy(nextLex->val, ctr->currPath);
+
+		nextLex->next = oldNextLex;
+		ctr->currPath = fileName;
 		return 1;
 	}
 	// scope
@@ -964,7 +995,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		ba_PExpect(':', ctr);
 
 		if (ba_HTGet(ctr->labelTable, lblName)) {
-			return ba_ErrorVarRedef(lblName, line, col);
+			return ba_ErrorVarRedef(lblName, line, col, ctr->currPath);
 		}
 
 		u64 lblId = ctr->labelCnt++;
@@ -1004,11 +1035,20 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 u8 ba_Parse(struct ba_Controller* ctr) {
 	while (!ba_PAccept(BA_TK_EOF, ctr)) {
 		if (!ba_PStmt(ctr)) {
-			// doesn't have anything to do with literals, this is just 
-			// a decent buffer size
+			// doesn't have anything to do with literals, 
+			// this is just a decent buffer size
 			char msg[BA_LITERAL_SIZE+1];
-			sprintf(msg, "unexpected %s at", ba_GetLexemeStr(ctr->lex->type));
-			return ba_ExitMsg(BA_EXIT_ERR, msg, ctr->lex->line, ctr->lex->colStart);
+			if (ctr->lex->type == BA_TK_FILECHANGE) {
+				sprintf(msg, "unexpected end of file %s, included on", 
+					ctr->currPath);
+				ctr->currPath = ctr->lex->val;
+			}
+			else {
+				sprintf(msg, "unexpected %s at", 
+					ba_GetLexemeStr(ctr->lex->type));
+			}
+			return ba_ExitMsg(BA_EXIT_ERR, msg, ctr->lex->line, 
+				ctr->lex->colStart, ctr->currPath);
 		}
 	}
 	

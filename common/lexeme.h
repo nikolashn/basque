@@ -49,6 +49,9 @@ enum {
 	BA_TK_KW_VOID    = 0x30a,
 	BA_TK_KW_INCLUDE = 0x30b,
 
+	// Used to change ctr->currPath
+	BA_TK_FILECHANGE = 0xfff,
+
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */
 	BA_TK_IMREGISTER = 0x1000,

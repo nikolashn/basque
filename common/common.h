@@ -55,7 +55,7 @@ struct ba_Str {
 
 // ----- Other useful functions -----
 
-u64 ba_StrToU64(char* str, u64 line, u64 col) {
+u64 ba_StrToU64(char* str, u64 line, u64 col, char* path) {
 	u64 len = 0;
 	u64 finalInt = 0;
 	u64 base = 10;
@@ -83,7 +83,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 		len = strlen(str);
 		if (base == 10) {
 			if (len > 20) {
-				return ba_ErrorIntLitTooLong(line, col);
+				return ba_ErrorIntLitTooLong(line, col, path);
 			}
 			else if (len == 20) {
 				// Maximum 64-bit unsigned integer
@@ -91,7 +91,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 				for (u64 i = 0; i < 20; i++) {
 					// Guaranteed greater than the max integer
 					if (str[i] > *mx) {
-						return ba_ErrorIntLitTooLong(line, col);
+						return ba_ErrorIntLitTooLong(line, col, path);
 					}
 					// Guaranteed smaller than the max integer
 					else if (str[i] < *mx) {
@@ -103,17 +103,17 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 		}
 		else if (base == 16) {
 			if (len > 16) {
-				return ba_ErrorIntLitTooLong(line, col);
+				return ba_ErrorIntLitTooLong(line, col, path);
 			}
 		}
 		else if (base == 8) {
 			if ((len > 21) && (*str >= '2')) {
-				return ba_ErrorIntLitTooLong(line, col);
+				return ba_ErrorIntLitTooLong(line, col, path);
 			}
 		}
 		else if (base == 2) {
 			if (len > 64) {
-				return ba_ErrorIntLitTooLong(line, col);
+				return ba_ErrorIntLitTooLong(line, col, path);
 			}
 		}
 
@@ -132,7 +132,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 		for (u64 i = len; i-- > 0; ) {
 			if (!((str[i] >= '0') && (str[i] <= '9'))) {
 				return ba_ExitMsg(0, "invalid character in integer literal on", 
-					line, col);
+					line, col, path);
 			}
 	
 			finalInt += mul * (str[i] - '0');
@@ -152,7 +152,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 				finalInt += (u64)(str[i] - 'A' + 10) << shift;
 			}
 			else {
-				return ba_ErrorIntLitChar(line, col);
+				return ba_ErrorIntLitChar(line, col, path);
 			}
 			
 			shift += 4;
@@ -162,7 +162,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 		u64 shift = 0;
 		for (u64 i = len; i-- > 0; ) {
 			if (!((str[i] >= '0') && (str[i] <= '7'))) {
-				return ba_ErrorIntLitChar(line, col);
+				return ba_ErrorIntLitChar(line, col, path);
 			}
 			
 			finalInt += (str[i] - '0') << shift;
@@ -173,7 +173,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col) {
 		u64 shift = 0;
 		for (u64 i = len; i-- > 0; ) {
 			if (!((str[i] == '0') || (str[i] == '1'))) {
-				return ba_ErrorIntLitChar(line, col);
+				return ba_ErrorIntLitChar(line, col, path);
 			}
 			
 			finalInt += (str[i] == '1') << shift;

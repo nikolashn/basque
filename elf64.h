@@ -886,13 +886,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 			case BA_IM_GOTO:
 			{
-				if (im->count < 4) {
-					return ba_ErrorIMArgCount(3, im);
+				if (im->count < 5) {
+					return ba_ErrorIMArgCount(4, im);
 				}
 
 				char* lblName = (char*)im->vals[1];
 				u64 line = im->vals[2];
 				u64 col = im->vals[3];
+				char* path = (char*)im->vals[4];
 
 				u64 lblId = (u64)ba_HTGet(ctr->labelTable, lblName);
 
@@ -903,7 +904,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "goto label not found on",
-						line, col);
+						line, col, path);
 				}
 			}
 

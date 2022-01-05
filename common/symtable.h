@@ -93,7 +93,7 @@ u64 ba_CalcSTValOffset(struct ba_SymTable* currScope, struct ba_STVal* id) {
 	}
 	if (!currScope) {
 		fprintf(stderr, "Error: identifier used in scope that is not a "
-			"descendant of its own scope");
+			"descendant of its own scope\n");
 		exit(-1);
 	}
 	return stackStart - id->address;

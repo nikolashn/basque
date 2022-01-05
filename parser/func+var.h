@@ -20,12 +20,12 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	// TODO: once named scopes are added, change this
 	if (ctr->currScope != ctr->globalST) {
 		return ba_ExitMsg(BA_EXIT_ERR, "func can only be defined in "
-			"the outer scope,", line, col);
+			"the outer scope,", line, col, ctr->currPath);
 	}
 
 	struct ba_STVal* funcIdVal = ba_HTGet(ctr->currScope->ht, funcName);
 	if (funcIdVal && (funcIdVal->type != BA_TYPE_FUNC || funcIdVal->isInited)) {
-		return ba_ErrorVarRedef(funcName, line, col);
+		return ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
 	}
 
 	// TODO: error for mismatch with forward declaration types
@@ -121,7 +121,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 				stmtType = TP_FULLDEC;
 				
 				if (ba_HTGet(func->childScope->ht, paramName)) {
-					return ba_ErrorVarRedef(paramName, line, col);
+					return ba_ErrorVarRedef(paramName, line, col, ctr->currPath);
 				}
 
 				struct ba_STVal* paramVal = malloc(sizeof(struct ba_STVal));
@@ -167,12 +167,14 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 				
 				struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 				if (!expItem) {
-					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col);
+					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
+						ctr->currPath);
 				}
 				
 				if (!ba_IsLexemeLiteral(expItem->lexemeType)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "default func parameter "
-						"cannot be resolved at compile time on", line, col);
+						"cannot be resolved at compile time on", line, col,
+						ctr->currPath);
 				}
 
 				if ((ba_IsTypeNumeric(param->type) && 
@@ -181,7 +183,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					param->type != expItem->type))
 				{
 					return ba_ErrorAssignTypes(ba_GetTypeStr(expItem->type), 
-						paramName, ba_GetTypeStr(param->type), line, col);
+						paramName, ba_GetTypeStr(param->type), line, col, 
+						ctr->currPath);
 				}
 
 				param->defaultVal = expItem->val;
@@ -253,9 +256,9 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	ctr->currScope = func->childScope->parent;
 
 	if (stmtType == TP_FULLDEC && retType != BA_TYPE_VOID && !func->doesReturn) {
-		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu with "
+		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu in %s with "
 			"return type %s) does not return a value\n", funcName, line, col,
-			ba_GetTypeStr(retType));
+			ctr->currPath, ba_GetTypeStr(retType));
 		exit(-1);
 	}
 
@@ -268,14 +271,14 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	ba_PExpect('=', ctr);
 
 	if (ba_HTGet(ctr->currScope->ht, idName)) {
-		return ba_ErrorVarRedef(idName, line, col);
+		return ba_ErrorVarRedef(idName, line, col, ctr->currPath);
 	}
 
 	struct ba_SymTable* foundIn = 0;
 	if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
 		if (!ba_IsSilenceWarnings) {
 			fprintf(stderr, "Warning: shadowing variable '%s' on "
-				"line %llu:%llu\n", idName, line, col);
+				"line %llu:%llu in %s\n", idName, line, col, ctr->currPath);
 		}
 		if (ba_IsWarningsAsErrors) {
 			exit(-1);
@@ -292,7 +295,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	idVal->isInited = 0;
 
 	if (idVal->type == BA_TYPE_VOID) {
-		return ba_ErrorVarVoid(line, col);
+		return ba_ErrorVarVoid(line, col, ctr->currPath);
 	}
 	
 	u64 idDataSize = ba_GetSizeOfType(idVal->type);
@@ -314,7 +317,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 			char* expTypeStr = ba_GetTypeStr(expItem->type);
 			char* varTypeStr = ba_GetTypeStr(idVal->type);
 			return ba_ErrorAssignTypes(expTypeStr, idName, 
-				varTypeStr, line, col);
+				varTypeStr, line, col, ctr->currPath);
 		}
 
 		if (expItem->lexemeType == BA_TK_IDENTIFIER) {

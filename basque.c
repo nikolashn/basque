@@ -108,11 +108,14 @@ int main(int argc, char* argv[]) {
 		}
 		else if (!srcFile) {
 			if (!strcmp(argv[i], "-")) {
-				srcFileName = ".";
+				srcFileName = malloc(2);
+				srcFileName[0] = '.';
+				srcFileName[1] = 0;
 				srcFile = stdin;
 			}
 			else {
-				srcFileName = argv[i];
+				srcFileName = malloc(strlen(argv[i])+1);
+				strcpy(srcFileName, argv[i]);
 				srcFile = fopen(srcFileName, "r");
 			}
 			if (!srcFile) {
@@ -148,6 +151,7 @@ int main(int argc, char* argv[]) {
 	// ----- Begin parsing -----
 	
 	struct ba_Controller* ctr = ba_NewController();
+	ctr->currPath = srcFileName;
 	ctr->dir = malloc(strlen(srcFileName)+1);
 	strcpy(ctr->dir, srcFileName);
 	ctr->dir = dirname(ctr->dir);
