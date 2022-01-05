@@ -3,7 +3,6 @@
 #ifndef BA__BINARY_H
 #define BA__BINARY_H
 
-#include "sys/stat.h"
 #include "common/common.h"
 
 u8 ba_PessimalInstrSize(struct ba_IM* im);

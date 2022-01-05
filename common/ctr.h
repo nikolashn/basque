@@ -10,7 +10,6 @@ struct ba_Controller {
 	// Lexer
 	struct ba_Lexeme* startLex;
 	struct ba_Lexeme* lex;
-	char* dir;
 
 	// Parser
 	struct ba_Stk* pTkStk; // Takes ba_PTkStkItem as items
@@ -18,6 +17,8 @@ struct ba_Controller {
 	struct ba_SymTable* globalST;
 	struct ba_SymTable* currScope;
 	struct ba_HashTable* labelTable;
+	struct ba_DynArr64* inclInodes;
+	char* dir;
 
 	// Stores labels used in short circuiting (&& and || operators)
 	struct ba_Stk* shortCircLblStk; // Takes u64 (label IDs) as items
@@ -93,6 +94,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->globalST = ba_NewSymTable();
 	ctr->currScope = ctr->globalST;
 	ctr->labelTable = ba_NewHashTable();
+	ctr->inclInodes = ba_NewDynArr64(0x400);
 	ctr->usedRegisters = 0;
 	ctr->imStackSize = 0;
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
@@ -123,6 +125,7 @@ void ba_DelController(struct ba_Controller* ctr) {
 
 	ba_DelSymTable(ctr->globalST);
 	ba_DelHashTable(ctr->labelTable);
+	ba_DelDynArr64(ctr->inclInodes);
 
 	free(ctr);
 }

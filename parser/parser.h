@@ -871,14 +871,27 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			free(fileName);
 			fileName = relFileName;
 		}
+
 		FILE* includeFile = fopen(fileName, "r");
 		if (!includeFile) {
 			fprintf(stderr, "Error: cannot find file '%s' included on "
 				"line %llu:%llu\n", fileName, firstLine, firstCol);
 			exit(-1);
 		}
-
+		
+		struct stat inclFileStat;
+		fstat(fileno(includeFile), &inclFileStat);
+		for (u64 i = 0; i < ctr->inclInodes->cnt; i++) {
+			if (ctr->inclInodes->arr[i] == inclFileStat.st_ino) {
+				return ba_PExpect(';', ctr);
+			}
+		}
 		ba_PExpect(';', ctr);
+
+		++ctr->inclInodes->cnt;
+		(ctr->inclInodes->cnt > ctr->inclInodes->cap) && 
+			ba_ResizeDynArr64(ctr->inclInodes);
+		ctr->inclInodes->arr[ctr->inclInodes->cnt-1] = inclFileStat.st_ino;
 
 		struct ba_Lexeme* oldNextLex = ctr->lex;
 		ctr->lex = ba_NewLexeme();
