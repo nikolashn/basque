@@ -23,14 +23,14 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 			"the outer scope,", line, col, ctr->currPath);
 	}
 
-	struct ba_STVal* funcIdVal = ba_HTGet(ctr->currScope->ht, funcName);
-	if (funcIdVal && (funcIdVal->type != BA_TYPE_FUNC || funcIdVal->isInited)) {
+	struct ba_STVal* prevFuncIdVal = ba_HTGet(ctr->currScope->ht, funcName);
+	if (prevFuncIdVal && 
+		(prevFuncIdVal->type != BA_TYPE_FUNC || prevFuncIdVal->isInited)) 
+	{
 		return ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
 	}
 
-	// TODO: error for mismatch with forward declaration types
-	
-	!funcIdVal && (funcIdVal = malloc(sizeof(struct ba_STVal)));
+	struct ba_STVal* funcIdVal = malloc(sizeof(struct ba_STVal));
 	if (!funcIdVal) {
 		return ba_ErrorMallocNoMem();
 	}
@@ -241,6 +241,26 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 		return 0;
 	}
 
+	// Error for mismatch with forward declaration types
+	if (prevFuncIdVal) {
+		struct ba_FuncParam* fwdDecParam = 
+			((struct ba_Func*)prevFuncIdVal->initVal)->firstParam;
+		param = func->firstParam;
+		while (fwdDecParam && param) {
+			if (fwdDecParam->type != param->type) {
+				break;
+			}
+			fwdDecParam = fwdDecParam->next;
+			param = param->next;
+		}
+		if (fwdDecParam || param) {
+			fprintf(stderr, "Error: parameters of func %s declared on line "
+				"%llu:%llu in %s incompatible with previously forward declared "
+				"definition\n", funcName, line, col, ctr->currPath);
+			exit(-1);
+		}
+	}
+	
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblEnd);
 	// TODO: restore registers
 	// Fix stack
