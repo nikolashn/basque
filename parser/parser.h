@@ -502,7 +502,8 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | "goto" identifier ";"
  *      | "include" lit_str { lit_str } ";"
  *      | scope
- *      | base_type identifier "(" [ { base_type "," } base_type ] ")" ";"
+ *      | base_type identifier "(" [ { base_type [ identifier ] "," } 
+ *        base_type [ identifier ] ] ")" ";"
  *      | base_type identifier "(" [ { base_type identifier [ "=" exp ] "," } 
  *        base_type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
  *      | base_type identifier "=" exp ";"

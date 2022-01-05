@@ -118,8 +118,6 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					break;
 				}
 
-				stmtType = TP_FULLDEC;
-				
 				if (ba_HTGet(func->childScope->ht, paramName)) {
 					return ba_ErrorVarRedef(paramName, line, col, ctr->currPath);
 				}
@@ -243,8 +241,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 	// Error for mismatch with forward declaration types
 	if (prevFuncIdVal) {
-		struct ba_FuncParam* fwdDecParam = 
-			((struct ba_Func*)prevFuncIdVal->initVal)->firstParam;
+		struct ba_Func* prevFunc = prevFuncIdVal->initVal;
+		struct ba_FuncParam* fwdDecParam = prevFunc->firstParam;
 		param = func->firstParam;
 		while (fwdDecParam && param) {
 			if (fwdDecParam->type != param->type) {
@@ -259,6 +257,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 				"definition\n", funcName, line, col, ctr->currPath);
 			exit(-1);
 		}
+		ba_DelFunc(prevFunc);
+		free(prevFuncIdVal);
 	}
 	
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblEnd);

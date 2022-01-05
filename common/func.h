@@ -51,6 +51,7 @@ struct ba_Func* ba_NewFunc() {
 }
 
 void ba_DelFunc(struct ba_Func* func) {
+	ba_DelSymTable(func->childScope);
 	struct ba_FuncParam* param = func->firstParam;
 	while (param) {
 		struct ba_FuncParam* next = param->next;
