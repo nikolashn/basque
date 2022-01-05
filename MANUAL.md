@@ -106,10 +106,10 @@ i64 _1234567 = 8;
 u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
 
-#### Func definition
-Syntax: `<type> <identifier> (` { } `)` ( `"," <statement>` | `{` { `<statement>` } `}` )
+#### Func definition/forward declaration
+Syntax: `<type> <identifier> (` [ { `<type>` [ `<identifier>` ] `,` } `<type>` [ `<identifier>` ] ] `)` ( `, <statement>` | `{` { `<statement>` } `}` | `;` )
 
-Defines a func. The first token is the return type of the func, which may be `void`.
+Defines a func. The first token is the return type of the func, which may be `void`. A func can be forward declared if only a semicolon rather than statements are provided after the parameters list. For forward declarations, the identifier of a parameter may be omitted, but this is not the case for full definitions.
 
 #### Return statement
 Syntax: `return` [ `<expression>` ] `;`
