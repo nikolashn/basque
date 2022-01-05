@@ -107,9 +107,35 @@ u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
 
 #### Func definition/forward declaration
-Syntax: `<type> <identifier> (` [ { `<type>` [ `<identifier>` ] `,` } `<type>` [ `<identifier>` ] ] `)` ( `, <statement>` | `{` { `<statement>` } `}` | `;` )
+Syntax: `<type> <identifier> (` [ { `<type>` [ `<identifier>` [ `= <expression>` ] ] `,` } `<type>` [ `<identifier>` [ `= <expression>` ] ] ] `)` ( `, <statement>` | `{` { `<statement>` } `}` | `;` )
 
-Defines a func. The first token is the return type of the func, which may be `void`. A func can be forward declared if only a semicolon rather than statements are provided after the parameters list. For forward declarations, the identifier of a parameter may be omitted, but this is not the case for full definitions.
+Defines a func. The first token is the return type of the func, which may be `void`. A func can be forward declared if only a semicolon rather than statements are provided after the parameters list. For forward declarations, the identifier of a parameter may be omitted, but this is not the case for full definitions. Also, default arguments may be given in the definition of a function if it is not a forward declaration.
+
+Examples of func definitions:
+```
+u64 Pow(u64 x, u64 y) {
+	if y == 0u, return 1;
+	if y == 1u, return x;
+	if y & 1, return x * Pow(x * x, (y - 1) // 2);
+	return Pow(x * x, y // 2);
+}
+
+i64 Add(i64 a = 0, i64 b = 0), return a + b;
+
+void WriteI64(i64 num) {
+	if num < 0 {
+		write "-";
+		num = -num;
+	}
+	write num;
+}
+```
+Examples of forward declarations:
+```
+u64 Pow(u64, u64);
+i64 Add(i64, i64 b);
+void WriteI64(i64 num);
+```
 
 #### Return statement
 Syntax: `return` [ `<expression>` ] `;`
