@@ -167,6 +167,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			if (ba_PAccept('+', ctr) || ba_PAccept('-', ctr) || 
 				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) || 
 				ba_PAccept('(', ctr) || ba_PAccept('$', ctr) || 
+				ba_PAccept('&', ctr) || 
 				ba_PAccept(BA_TK_INC, ctr) || ba_PAccept(BA_TK_DEC, ctr))
 			{
 				// Left grouping parenthesis

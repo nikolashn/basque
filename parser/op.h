@@ -20,8 +20,8 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 			if (op->lexemeType == '+' || op->lexemeType == '-' || 
-				op->lexemeType == '!' || op->lexemeType == '~' ||
-				op->lexemeType == '$' || 
+				op->lexemeType == '!' || op->lexemeType == '~' || 
+				op->lexemeType == '$' || op->lexemeType == '&' || 
 				op->lexemeType == BA_TK_INC || op->lexemeType == BA_TK_DEC)
 			{
 				return 1;
@@ -117,8 +117,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 
 	if (!reg) {
 		if (!ctr->imStackSize) {
-			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, 
-				BA_IM_RSP);
+			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 		}
 		stackPos = ctr->imStackSize + 8;
 		// First: result location, second: preserve rax
@@ -159,7 +158,6 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 			BA_IM_RBP, stackPos, BA_IM_RAX);
 		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
 		ctr->imStackSize -= 8;
-
 		arg->lexemeType = BA_TK_IMRBPSUB;
 		arg->val = (void*)ctr->imStackSize;
 	}
@@ -437,6 +435,50 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				arg->type = BA_TYPE_U64;
 				arg->lexemeType = BA_TK_LITINT;
+				arg->isLValue = 0;
+				ba_StkPush(ctr->pTkStk, arg);
+				return 1;
+			}
+			// Note: assumes arg is an identifier
+			else if (op->lexemeType == '&') {
+				if (!arg->isLValue || arg->lexemeType != BA_TK_IDENTIFIER) {
+					return ba_ExitMsg(BA_EXIT_ERR, "cannot get address of "
+						"non-lvalue on", op->line, op->col, ctr->currPath);
+				}
+				
+				u64 stackPos = 0;
+				u64 reg = ba_NextIMRegister(ctr);
+
+				if (!reg) {
+					if (!ctr->imStackSize) {
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+					}
+					stackPos = ctr->imStackSize + 8;
+					// First: result location, second: preserve rax
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+					ctr->imStackSize += 16;
+				}
+
+				ba_AddIM(ctr, 5, BA_IM_LEA, reg ? reg : BA_IM_RAX, 
+					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
+					ba_CalcSTValOffset(ctr->currScope, arg->val));
+				
+				if (reg) {
+					arg->lexemeType = BA_TK_IMREGISTER;
+					arg->val = (void*)reg;
+				}
+				else {
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, 
+						BA_IM_RBP, stackPos, BA_IM_RAX);
+					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+					ctr->imStackSize -= 8;
+					arg->lexemeType = BA_TK_IMRBPSUB;
+					arg->val = (void*)ctr->imStackSize;
+				}
+				
+				arg->lexemeType = BA_TK_IMREGISTER;
+				arg->type = BA_TYPE_U64; // TODO: pointer type
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
