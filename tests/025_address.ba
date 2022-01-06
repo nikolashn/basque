@@ -1,0 +1,6 @@
+i64 x = 1;
+i64 y = 2;
+
+write &x; "\n";
+write &y; "\n";
+write &x - &y; "\n"; # 8
