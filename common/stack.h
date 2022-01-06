@@ -60,28 +60,4 @@ void* ba_StkTop(struct ba_Stk* stk) {
 	return stk->items[stk->count-1];
 }
 
-// The parser pushes data from read lexemes onto the stack for optimized 
-// calculation and intermediate code generation. Data is stored in ctr->pTkStk 
-// whereas operators are stored in ctr->pOpStk.
-
-struct ba_PTkStkItem {
-	void* val;
-	u64 type;
-	u64 lexemeType;
-	bool isLValue;
-};
-
-struct ba_POpStkItem {
-	u64 line;
-	u64 col;
-	u64 lexemeType;
-	u8 syntax; // i.e. infix, prefix, postfix
-};
-
-enum {
-	BA_OP_PREFIX = 1,
-	BA_OP_INFIX = 2,
-	BA_OP_POSTFIX = 3,
-};
-
 #endif

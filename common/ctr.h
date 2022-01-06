@@ -45,34 +45,6 @@ struct ba_Controller {
 	i64 paren;
 };
 
-void ba_PTkStkPush(struct ba_Stk* stk, void* val, 
-	u64 type, u64 lexemeType, bool isLValue)
-{
-	struct ba_PTkStkItem* stkItem = malloc(sizeof(*stkItem));
-	if (!stkItem) {
-		ba_ErrorMallocNoMem();
-	}
-	stkItem->val = val;
-	stkItem->type = type;
-	stkItem->lexemeType = lexemeType;
-	stkItem->isLValue = isLValue;
-	ba_StkPush(stk, (void*)stkItem);
-}
-
-void ba_POpStkPush(struct ba_Stk* stk, u64 line, u64 col, 
-	u64 lexemeType, u8 syntax)
-{
-	struct ba_POpStkItem* stkItem = malloc(sizeof(*stkItem));
-	if (!stkItem) {
-		ba_ErrorMallocNoMem();
-	}
-	stkItem->line = line;
-	stkItem->col = col;
-	stkItem->lexemeType = lexemeType;
-	stkItem->syntax = syntax;
-	ba_StkPush(stk, (void*)stkItem);
-}
-
 struct ba_Controller* ba_NewController() {
 	struct ba_Controller* ctr = malloc(sizeof(struct ba_Controller));
 	if (!ctr) {

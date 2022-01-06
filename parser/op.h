@@ -6,6 +6,7 @@
 #include "../lexer.h"
 #include "../bltin/bltin.h"
 #include "../common/reg.h"
+#include "../common/parser_stacks.h"
 
 // Some operators cannot handle other operators
 bool ba_POpIsHandler(struct ba_POpStkItem* op) {

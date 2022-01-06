@@ -4,6 +4,7 @@
 #define BA__PARSER_FUNCVAR_H
 
 #include "../lexer.h"
+#include "../common/parser_stacks.h"
 
 // ----- Forward declarations -----
 u8 ba_PAccept(u64 type, struct ba_Controller* ctr);
