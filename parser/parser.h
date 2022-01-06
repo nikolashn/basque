@@ -43,8 +43,8 @@ u8 ba_PBaseType(struct ba_Controller* ctr) {
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
 		ba_PAccept(BA_TK_KW_VOID, ctr)) 
 	{
-		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, BA_TYPE_TYPE, lexType, 
-			/* isLValue = */ 0);
+		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, BA_TYPE_TYPE, (void*)0,
+			lexType, /* isLValue = */ 0);
 	}
 	else {
 		return 0;
@@ -108,8 +108,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		stkStr->str = str;
 		stkStr->len = len;
-		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, BA_TYPE_NONE, BA_TK_LITSTR, 
-			/* isLValue = */ 0);
+		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, BA_TYPE_NONE, (void*)0,
+			BA_TK_LITSTR, /* isLValue = */ 0);
 	}
 	// lit_int
 	else if (ba_PAccept(BA_TK_LITINT, ctr)) {
@@ -126,7 +126,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 				type = BA_TYPE_I64;
 			}
 		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, BA_TK_LITINT, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, (void*)0, BA_TK_LITINT, 
 			/* isLValue = */ 0);
 	}
 	// identifier
@@ -136,8 +136,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		if (!id) {
 			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart, ctr->currPath);
 		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
-			/* isLValue = */ 1);
+		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, (void*)0, 
+			BA_TK_IDENTIFIER, /* isLValue = */ 1);
 	}
 	// Other
 	else {
@@ -550,7 +550,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 		// Everything is printed as unsigned, this will be removed in the 
 		// future anyway so i don't care about adding signed representation
-		else if (ba_IsTypeIntegral(stkItem->type)) {
+		else if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 				str = ba_U64ToStr((u64)stkItem->val);
 				len = strlen(str);
@@ -627,7 +627,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			u64 reg = BA_IM_RAX;
 
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				if (!ba_IsTypeNumeric(stkItem->type)) {
+				if (!ba_IsTypeNumeric(stkItem->typeInfo.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
 						"as condition on", line, col, ctr->currPath);
 				}
@@ -708,7 +708,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 reg = BA_IM_RAX;
 
 		if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-			if (!ba_IsTypeNumeric(stkItem->type)) {
+			if (!ba_IsTypeNumeric(stkItem->typeInfo.type)) {
 				return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
 					"as while loop condition on", line, col, ctr->currPath);
 			}
@@ -784,7 +784,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning string literal from "
 					"a func currently not implemented,", line, col, ctr->currPath);
 			}
-			if (ba_IsTypeIntegral(stkItem->type)) {
+			if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
 				if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
 						BA_IM_IMM, (u64)stkItem->val);

@@ -180,11 +180,12 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 				}
 
 				if ((ba_IsTypeNumeric(param->type) && 
-					!ba_IsTypeNumeric(expItem->type)) ||
+					!ba_IsTypeNumeric(expItem->typeInfo.type)) ||
 					(!ba_IsTypeNumeric(param->type) && 
-					param->type != expItem->type))
+					param->type != expItem->typeInfo.type))
 				{
-					return ba_ErrorAssignTypes(ba_GetTypeStr(expItem->type), 
+					return ba_ErrorAssignTypes(
+						ba_GetTypeStr(expItem->typeInfo.type), 
 						paramName, ba_GetTypeStr(param->type), line, col, 
 						ctr->currPath);
 				}
@@ -337,8 +338,8 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 	
 	if (ba_IsTypeNumeric(idVal->type)) {
-		if (!ba_IsTypeNumeric(expItem->type)) {
-			char* expTypeStr = ba_GetTypeStr(expItem->type);
+		if (!ba_IsTypeNumeric(expItem->typeInfo.type)) {
+			char* expTypeStr = ba_GetTypeStr(expItem->typeInfo.type);
 			char* varTypeStr = ba_GetTypeStr(idVal->type);
 			return ba_ErrorAssignTypes(expTypeStr, idName, 
 				varTypeStr, line, col, ctr->currPath);

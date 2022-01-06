@@ -409,16 +409,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 		case BA_OP_PREFIX:
 		{
 			if (op->lexemeType == '+') {
-				if (!ba_IsTypeNumeric(arg->type)) {
+				if (!ba_IsTypeNumeric(arg->typeInfo.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "unary '+' used with non "
 						"numeric operand on", op->line, op->col, ctr->currPath);
 				}
 
-				if (ba_IsTypeUnsigned(arg->type)) {
-					arg->type = BA_TYPE_U64;
+				if (ba_IsTypeUnsigned(arg->typeInfo.type)) {
+					arg->typeInfo.type = BA_TYPE_U64;
 				}
-				else if (ba_IsTypeSigned(arg->type)) {
-					arg->type = BA_TYPE_I64;
+				else if (ba_IsTypeSigned(arg->typeInfo.type)) {
+					arg->typeInfo.type = BA_TYPE_I64;
 				}
 				
 				arg->isLValue = 0;
@@ -426,7 +426,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 1;
 			}
 			else if (op->lexemeType == '$') {
-				arg->val = (void*)ba_GetSizeOfType(arg->type);
+				arg->val = (void*)ba_GetSizeOfType(arg->typeInfo.type);
 
 				if (!arg->val) {
 					return ba_ExitMsg(BA_EXIT_ERR, "type of operand to '$' "
@@ -434,7 +434,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath);
 				}
 
-				arg->type = BA_TYPE_U64;
+				arg->typeInfo.type = BA_TYPE_U64;
 				arg->lexemeType = BA_TK_LITINT;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
@@ -479,7 +479,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				arg->lexemeType = BA_TK_IMREGISTER;
-				arg->type = BA_TYPE_U64; // TODO: pointer type
+				arg->typeInfo.type = BA_TYPE_U64; // TODO: pointer type
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
@@ -487,8 +487,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '-' || op->lexemeType == '~' ||
 				op->lexemeType == '!')
 			{
-				if ((op->lexemeType == '~' && !ba_IsTypeIntegral(arg->type)) ||
-					!ba_IsTypeNumeric(arg->type))
+				if ((op->lexemeType == '~' && 
+					!ba_IsTypeIntegral(arg->typeInfo.type)) ||
+					!ba_IsTypeNumeric(arg->typeInfo.type))
 				{
 					fprintf(stderr, "Error: unary '%s' used with non %s "
 						"operand on line %llu:%llu in %s", 
@@ -502,7 +503,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				((op->lexemeType == '-') && (imOp = BA_IM_NEG)) ||
 				((op->lexemeType == '~') && (imOp = BA_IM_NOT));
 
-				if (ba_IsTypeIntegral(arg->type)) {
+				if (ba_IsTypeIntegral(arg->typeInfo.type)) {
 					if (ba_IsLexemeLiteral(arg->lexemeType)) {
 						((op->lexemeType == '-') && 
 							(arg->val = (void*)(-(u64)arg->val))) ||
@@ -517,13 +518,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (op->lexemeType == '!') {
-					arg->type = BA_TYPE_BOOL;
+					arg->typeInfo.type = BA_TYPE_BOOL;
 				}
-				else if (ba_IsTypeUnsigned(arg->type)) {
-					arg->type = BA_TYPE_U64;
+				else if (ba_IsTypeUnsigned(arg->typeInfo.type)) {
+					arg->typeInfo.type = BA_TYPE_U64;
 				}
-				else if (ba_IsTypeSigned(arg->type)) {
-					arg->type = BA_TYPE_I64;
+				else if (ba_IsTypeSigned(arg->typeInfo.type)) {
+					arg->typeInfo.type = BA_TYPE_I64;
 				}
 
 				arg->isLValue = 0;
@@ -539,7 +540,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"non-lvalue on", op->line, op->col, ctr->currPath);
 				}
 				
-				if (!ba_IsTypeNumeric(arg->type)) {
+				if (!ba_IsTypeNumeric(arg->typeInfo.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric "
 						"lvalue on", op->line, op->col, ctr->currPath);
 				}
@@ -614,12 +615,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			if (op->lexemeType == BA_TK_LSHIFT || 
 				op->lexemeType == BA_TK_RSHIFT) 
 			{
-				if (!ba_IsTypeIntegral(lhs->type) || !ba_IsTypeIntegral(rhs->type)) {
+				if (!ba_IsTypeIntegral(lhs->typeInfo.type) || 
+					!ba_IsTypeIntegral(rhs->typeInfo.type)) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "bit shift used with non "
 						"integral operand(s) on", op->line, op->col, ctr->currPath);
 				}
 
-				arg->type = ba_IsTypeUnsigned(lhs->type) ? BA_TYPE_U64 : BA_TYPE_I64;
+				arg->typeInfo.type = ba_IsTypeUnsigned(lhs->typeInfo.type) 
+					? BA_TYPE_U64 : BA_TYPE_I64;
 				
 				// If rhs is 0, there is no change in in lhs
 				if (isRhsLiteral && !rhs->val) {
@@ -665,7 +669,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					imOp = BA_IM_SUB;
 				}
 
-				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
+				if (!ba_IsTypeNumeric(lhs->typeInfo.type) || 
+					!ba_IsTypeNumeric(rhs->typeInfo.type)) 
+				{
 					char msg[128];
 					strcat(msg, opName);
 					strcat(msg, " with non numeric operand(s) on");
@@ -673,9 +679,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath);
 				}
 
-				if (ba_IsTypeIntegral(lhs->type) && ba_IsTypeIntegral(rhs->type)) {
+				if (ba_IsTypeIntegral(lhs->typeInfo.type) && 
+					ba_IsTypeIntegral(rhs->typeInfo.type)) 
+				{
 					u64 argType = BA_TYPE_I64; // Default, most likely type
-					if (ba_IsTypeUnsigned(lhs->type) ^ ba_IsTypeUnsigned(rhs->type)) {
+					if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
+						ba_IsTypeUnsigned(rhs->typeInfo.type)) 
+					{
 						// Different signedness
 						char msg[128];
 						strcat(msg, opName);
@@ -685,10 +695,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, op->line, 
 							op->col, ctr->currPath, msgAfter);
 					}
-					else if (ba_IsTypeUnsigned(lhs->type)) {
+					else if (ba_IsTypeUnsigned(lhs->typeInfo.type)) {
 						argType = BA_TYPE_U64;
 					}
-					arg->type = argType;
+					arg->typeInfo.type = argType;
 				}
 
 				if (isLhsLiteral && isRhsLiteral) {
@@ -730,7 +740,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							return ba_ErrorMallocNoMem();
 						}
 						newRhs->val = (void*)shift;
-						newRhs->type = BA_TYPE_U64;
+						newRhs->typeInfo.type = BA_TYPE_U64;
 						newRhs->lexemeType = BA_TK_LITINT;
 
 						ba_POpNonLitBitShift(BA_IM_SHL, arg, nonLitArg, newRhs, 
@@ -755,20 +765,22 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			// Division
 
 			else if (op->lexemeType == BA_TK_IDIV) {
-				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
+				if (!ba_IsTypeNumeric(lhs->typeInfo.type) || 
+					!ba_IsTypeNumeric(rhs->typeInfo.type)) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "integer division with non "
 						"numeric operand(s) on", op->line, op->col, ctr->currPath);
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
-					ba_IsTypeUnsigned(rhs->type);
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->typeInfo.type) && 
+					ba_IsTypeUnsigned(rhs->typeInfo.type);
 
 				if (areBothUnsigned) {
 					argType = BA_TYPE_U64;
 				}
-				else if (ba_IsTypeUnsigned(lhs->type) ^ 
-					ba_IsTypeUnsigned(rhs->type)) 
+				else if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
+					ba_IsTypeUnsigned(rhs->typeInfo.type)) 
 				{
 					// Different signedness
 					char* msgAfter = ba_IsWarningsAsErrors ? ""
@@ -778,7 +790,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath, msgAfter);
 				}
 
-				arg->type = argType;
+				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					arg->val = areBothUnsigned 
@@ -791,7 +803,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							op->line, op->col, ctr->currPath);
 					}
 
-					bool isRhsNeg = ba_IsTypeSigned(rhs->type) && (i64)rhs->val < 0;
+					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
+						(i64)rhs->val < 0;
 
 					if (isRhsNeg) {
 						ba_POpNonLitUnary('-', lhs, ctr);
@@ -816,7 +829,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							return ba_ErrorMallocNoMem();
 						}
 						newRhs->val = (void*)shift;
-						newRhs->type = BA_TYPE_U64;
+						newRhs->typeInfo.type = BA_TYPE_U64;
 						newRhs->lexemeType = BA_TK_LITINT;
 
 						ba_POpNonLitBitShift(BA_IM_SAR, arg, lhs, newRhs, 
@@ -985,20 +998,22 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '%') {
 				/* Modulo in Basque is from floored divison (like in Python) */
 
-				if (!ba_IsTypeNumeric(lhs->type) || !ba_IsTypeNumeric(rhs->type)) {
+				if (!ba_IsTypeNumeric(lhs->typeInfo.type) || 
+					!ba_IsTypeNumeric(rhs->typeInfo.type)) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "modulo with non numeric "
 						"operand(s) on", op->line, op->col, ctr->currPath);
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
-					ba_IsTypeUnsigned(rhs->type);
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->typeInfo.type) && 
+					ba_IsTypeUnsigned(rhs->typeInfo.type);
 
 				if (areBothUnsigned) {
 					argType = BA_TYPE_U64;
 				}
-				else if (ba_IsTypeUnsigned(lhs->type) ^ 
-					ba_IsTypeUnsigned(rhs->type)) 
+				else if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
+					ba_IsTypeUnsigned(rhs->typeInfo.type)) 
 				{
 					// Different signedness
 					char* msgAfter = ba_IsWarningsAsErrors ? ""
@@ -1007,7 +1022,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"signedness on", op->line, op->col, ctr->currPath, msgAfter);
 				}
 
-				arg->type = argType;
+				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 modVal = areBothUnsigned 
@@ -1026,7 +1041,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							op->line, op->col, ctr->currPath);
 					}
 
-					bool isRhsNeg = ba_IsTypeSigned(rhs->type) && 
+					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
 						(i64)rhs->val < 0;
 					u64 rhsAbs = isRhsNeg ? -(u64)rhs->val : (u64)rhs->val;
 
@@ -1043,7 +1058,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							return ba_ErrorMallocNoMem();
 						}
 						newRhs->val = (void*)(rhsAbs-1);
-						newRhs->type = BA_TYPE_U64;
+						newRhs->typeInfo.type = BA_TYPE_U64;
 						newRhs->lexemeType = BA_TK_LITINT;
 
 						ba_POpNonLitBitShift(BA_IM_AND, arg, lhs, newRhs, 
@@ -1051,7 +1066,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 						if (isRhsNeg) {
 							newRhs->val = (void*)rhsAbs;
-							newRhs->type = BA_TYPE_I64;
+							newRhs->typeInfo.type = BA_TYPE_I64;
 							newRhs->lexemeType = BA_TK_LITINT;
 							ba_POpNonLitBinary(BA_IM_SUB, arg, arg, newRhs,
 								/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 1,
@@ -1226,16 +1241,19 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '&' || op->lexemeType == '^' ||
 				op->lexemeType == '|')
 			{
-				if (!ba_IsTypeIntegral(lhs->type) && !ba_IsTypeIntegral(rhs->type)) {
+				if (!ba_IsTypeIntegral(lhs->typeInfo.type) && 
+					!ba_IsTypeIntegral(rhs->typeInfo.type)) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "bitwise operation used "
 						"with non integral operand(s) on", op->line, op->col, 
 						ctr->currPath);
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
-				ba_IsTypeUnsigned(lhs->type) && ba_IsTypeUnsigned(rhs->type) &&
+				ba_IsTypeUnsigned(lhs->typeInfo.type) && 
+					ba_IsTypeUnsigned(rhs->typeInfo.type) && 
 					(argType = BA_TYPE_U64);
-				arg->type = argType;
+				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 argVal = 0;
@@ -1265,15 +1283,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == BA_TK_LOGAND || 
 				op->lexemeType == BA_TK_LOGOR) 
 			{
-				if (!ba_IsTypeNumeric(lhs->type) ||
-					!ba_IsTypeNumeric(rhs->type))
+				if (!ba_IsTypeNumeric(lhs->typeInfo.type) ||
+					!ba_IsTypeNumeric(rhs->typeInfo.type))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "logical short-circuiting "
 						"operation with non numeric operand(s) on", 
 						op->line, op->col, ctr->currPath);
 				}
 
-				arg->type = BA_TYPE_BOOL;
+				arg->typeInfo.type = BA_TYPE_BOOL;
 
 				u64 imOp = op->lexemeType == BA_TK_LOGAND
 					? BA_IM_AND : BA_IM_OR;
@@ -1302,21 +1320,22 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				u64 opLex = op->lexemeType;
 
-				if (!ba_IsTypeNumeric(lhs->type)) {
-					if (lhs->type != rhs->type) {
+				if (!ba_IsTypeNumeric(lhs->typeInfo.type)) {
+					if (lhs->typeInfo.type != rhs->typeInfo.type) {
 						return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible "
 							"types on", op->line, op->col, ctr->currPath);
 					}
 				}
-				else if (!ba_IsTypeNumeric(rhs->type)) {
+				else if (!ba_IsTypeNumeric(rhs->typeInfo.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric "
 						"expression to numeric lvalue on", op->line, op->col,
 						ctr->currPath);
 				}
 				else if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
 					opLex == BA_TK_BITOREQ || opLex == BA_TK_LSHIFTEQ || 
-					opLex == BA_TK_RSHIFTEQ) && (!ba_IsTypeIntegral(lhs->type) || 
-					!ba_IsTypeIntegral(rhs->type)))
+					opLex == BA_TK_RSHIFTEQ) && 
+					(!ba_IsTypeIntegral(lhs->typeInfo.type) || 
+					!ba_IsTypeIntegral(rhs->typeInfo.type)))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "bit shift or bitwise "
 						"operation used with non integral operand(s) on", 
@@ -1371,8 +1390,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_IMM, (u64)rhs->val);
 				}
 
-				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) &&
-					ba_IsTypeUnsigned(rhs->type);
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->typeInfo.type) &&
+					ba_IsTypeUnsigned(rhs->typeInfo.type);
 
 				u64 imOp = 0;
 				((opLex == BA_TK_ADDEQ) && (imOp = BA_IM_ADD)) ||
@@ -1493,7 +1512,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					arg->val = (void*)ctr->imStackSize;
 				}
 
-				arg->type = lhs->type;
+				arg->typeInfo.type = lhs->typeInfo.type;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
@@ -1501,15 +1520,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 			// Comparison
 			else if (ba_IsLexemeCompare(op->lexemeType)) {
-				if (!ba_IsTypeNumeric(lhs->type) ||
-					!ba_IsTypeNumeric(rhs->type))
+				if (!ba_IsTypeNumeric(lhs->typeInfo.type) ||
+					!ba_IsTypeNumeric(rhs->typeInfo.type))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "comparison operation "
 						"with non numeric operand(s) on", op->line, op->col,
 						ctr->currPath);
 				}
-				else if (ba_IsTypeUnsigned(lhs->type) ^ 
-					ba_IsTypeUnsigned(rhs->type))
+				else if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
+					ba_IsTypeUnsigned(rhs->typeInfo.type))
 				{
 					ba_ExitMsg(BA_EXIT_WARN, "comparison of integers of different " 
 						"signedness on", op->line, op->col, ctr->currPath);
@@ -1522,8 +1541,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				u64 imOpSet = 0;
 				u64 imOpJcc = 0;
 
-				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->type) && 
-					ba_IsTypeUnsigned(rhs->type);
+				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->typeInfo.type) && 
+					ba_IsTypeUnsigned(rhs->typeInfo.type);
 
 				if (opLex == '<') {
 					imOpSet = areBothUnsigned ? BA_IM_SETB : BA_IM_SETL;
@@ -1550,7 +1569,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					imOpJcc = BA_IM_LABELJZ;
 				}
 
-				arg->type = BA_TYPE_BOOL;
+				arg->typeInfo.type = BA_TYPE_BOOL;
 				arg->isLValue = 0;
 
 				u64 lhsStackPos = 0;
@@ -1695,7 +1714,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				struct ba_PTkStkItem* funcTk = 
 					ctr->pTkStk->items[ctr->pTkStk->count-(u64)arg];
-				if (!funcTk || funcTk->type != BA_TYPE_FUNC) {
+				if (!funcTk || funcTk->typeInfo.type != BA_TYPE_FUNC) {
 					return ba_ExitMsg(BA_EXIT_ERR, "attempt to call "
 						"non-func on", op->line, op->col, ctr->currPath);
 				}
@@ -1748,17 +1767,17 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				while (argsStk->count) {
 					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
 					if (funcArg) {
-						bool isArgNum = ba_IsTypeNumeric(funcArg->type);
+						bool isArgNum = ba_IsTypeNumeric(funcArg->typeInfo.type);
 						bool isParamNum = ba_IsTypeNumeric(param->type);
 						if ((isArgNum ^ isParamNum) || 
 							(!isArgNum && !isParamNum && 
-							funcArg->type != param->type))
+							funcArg->typeInfo.type != param->type))
 						{
 							fprintf(stderr, "Error: argument passed to func on "
 								"line %llu:%llu in %s has invalid type (%s) "
 								"for parameter of type %s\n", op->line, op->col,
 								ctr->currPath,
-								ba_GetTypeStr(funcArg->type), 
+								ba_GetTypeStr(funcArg->typeInfo.type), 
 								ba_GetTypeStr(param->type));
 							exit(-1);
 						}
@@ -1845,7 +1864,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// TODO: or from stack if too big
 				struct ba_PTkStkItem* retVal = malloc(sizeof(*retVal));
 				retVal->val = (void*)BA_IM_RAX;
-				retVal->type = func->retType;
+				retVal->typeInfo.type = func->retType;
 				retVal->lexemeType = BA_TK_IMREGISTER;
 				retVal->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, retVal);
@@ -1869,14 +1888,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (ba_IsTypeNumeric(newType) != 
-					ba_IsTypeNumeric(castedExp->type))
+					ba_IsTypeNumeric(castedExp->typeInfo.type))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
 						"types on", op->line, op->col, ctr->currPath);
 				}
 				
 				arg = castedExp;
-				arg->type = newType;
+				arg->typeInfo.type = newType;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;

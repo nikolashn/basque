@@ -7,9 +7,14 @@
 // calculation and intermediate code generation. Data is stored in ctr->pTkStk 
 // whereas operators are stored in ctr->pOpStk.
 
-struct ba_PTkStkItem {
-	void* val;
+struct ba_PTkType {
 	u64 type;
+	void* extraInfo;
+};
+
+struct ba_PTkStkItem {
+	struct ba_PTkType typeInfo;
+	void* val;
 	u64 lexemeType;
 	bool isLValue;
 };
@@ -28,14 +33,15 @@ enum {
 };
 
 void ba_PTkStkPush(struct ba_Stk* stk, void* val, 
-	u64 type, u64 lexemeType, bool isLValue)
+	u64 type, void* typeExtraInfo, u64 lexemeType, bool isLValue)
 {
 	struct ba_PTkStkItem* stkItem = malloc(sizeof(*stkItem));
 	if (!stkItem) {
 		ba_ErrorMallocNoMem();
 	}
 	stkItem->val = val;
-	stkItem->type = type;
+	stkItem->typeInfo.type = type;
+	stkItem->typeInfo.extraInfo = typeExtraInfo;
 	stkItem->lexemeType = lexemeType;
 	stkItem->isLValue = isLValue;
 	ba_StkPush(stk, (void*)stkItem);
