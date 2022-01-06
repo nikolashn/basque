@@ -11,9 +11,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u64 tmp;
 
 	u64 memStart = 0x400000;
-	// Not the final entry point, the actual entry point will 
-	// use this as an offset
-	u64 entryPoint = memStart+0x1000;
+	/* Not the final entry point, the actual entry point will 
+	 * use this as an offset
+	 * 0xb0 = size of file header */
+	u64 entryPoint = memStart+0xb0;
 	
 	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
 		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
@@ -1215,7 +1216,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		0x40, 0,    0,    0,    0,    0,    0,    0,
 		0,    0,    0,    0,    0,    0,    0,    0,    // No section headers
 		0,    0,    0,    0,    0x40, 0,    0x38, 0,
-		3,    0,    0,    0,    0,    0,    0,    0,    // 3 p header entries
+		2,    0,    0,    0,    0,    0,    0,    0,    // 2 p header entries
 	};
 
 	// Set entry point in header
@@ -1227,16 +1228,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 	// Generate program headers
 	enum {
-		phSz = 3 * 0x38
+		phSz = 2 * 0x38
 	};
 	u8 programHeader[phSz] = {
 		1,    0,    0,    0,    4,    0,    0,    0,    // LOAD, Read
 		0,    0,    0,    0,    0,    0,    0,    0,    // 0x0000 in file
 		0,    0,    0,    0,    0,    0,    0,    0,    // {memStart}
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		0xe8, 0,    0,    0,    0,    0,    0,    0,    // f.h.sz (0x40) + p.h.sz (3 * 0x56)
-		0xe8, 0,    0,    0,    0,    0,    0,    0,    // "
-		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
+		0xb0, 0,    0,    0,    0,    0,    0,    0,    // f.h.sz (0x40) + p.h.sz (2 * 0x56)
+		0xb0, 0,    0,    0,    0,    0,    0,    0,    // "
+		1,    0,    0,    0,    0,    0,    0,    0,    // 0x1 offset
 
 		1,    0,    0,    0,    5,    0,    0,    0,    // LOAD, Read+Execute
 		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint-memStart}
@@ -1244,7 +1245,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
 		0,    0,    0,    0,    0,    0,    0,    0,    // {code->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		0,    0x10, 0,    0,    0,    0,    0,    0,    // 0x1000 offset
+		1,    0,    0,    0,    0,    0,    0,    0,    // 0x1 offset
 	};
 
 	for (u64 i = 0; i < 16; i += 8) {
@@ -1258,12 +1259,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		tmp = entryPoint;
 		for (u64 j = 0; j < 8; j++) {
 			programHeader[0x48+i+j] = tmp & 0xff;
-			tmp >>= 8;
-		}
-		// {code->cnt} in second header (code)
-		tmp = code->cnt;
-		for (u64 j = 0; j < 8; j++) {
-			programHeader[0x58+i+j] = tmp & 0xff;
 			tmp >>= 8;
 		}
 	}
@@ -1302,14 +1297,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	u8 buf[BA_FILE_BUF_SIZE];
 	memcpy(buf, fileHeader, 64);
 	memcpy(64+buf, programHeader, phSz);
-	memset(64+phSz+buf, 0, 0x1000-phSz-64);
-	u64 bufCodeSize = ( 0x1000 + code->cnt ) >= BA_FILE_BUF_SIZE ? 
-		BA_FILE_BUF_SIZE-0x1000 : code->cnt;
-	memcpy(0x1000+buf, code->arr, bufCodeSize);
-	fwrite(buf, 1, 0x1000+bufCodeSize, file);
+	//memset(64+phSz+buf, 0, 0xb0-phSz-64);
+	u64 bufCodeSize = ( 0xb0 + code->cnt ) >= BA_FILE_BUF_SIZE ? 
+		BA_FILE_BUF_SIZE-0xb0 : code->cnt;
+	memcpy(0xb0+buf, code->arr, bufCodeSize);
+	fwrite(buf, 1, 0xb0+bufCodeSize, file);
 	
 	// Write more code, if not everything can fit in the buffer
-	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - 0x1000;
+	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - 0xb0;
 	while (codePtr - code->arr < code->cnt) {
 		fwrite(codePtr, 1, code->cnt >= BA_FILE_BUF_SIZE ? 
 			BA_FILE_BUF_SIZE : code->cnt, file);
