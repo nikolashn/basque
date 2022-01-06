@@ -438,6 +438,78 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				break;
 			}
 
+			case BA_IM_LEA:
+			{
+				if (im->count < 3) {
+					return ba_ErrorIMArgCount(2, im);
+				}
+
+				// Into GPR
+				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
+					u8 reg0 = im->vals[1] - BA_IM_RAX;
+					u8 byte0 = 0x48;
+
+					// GPR, ADRADD/ADRSUB GPR
+					if (im->vals[2] == BA_IM_ADRADD || 
+						im->vals[2] == BA_IM_ADRSUB) 
+					{
+						if (im->count < 5) {
+							return ba_ErrorIMArgCount(2, im);
+						}
+
+						if (!(BA_IM_RAX <= im->vals[3]) || 
+							!(BA_IM_R15 >= im->vals[2])) 
+						{
+							return ba_ErrorIMArgInvalid(im);
+						}
+
+						bool sub = im->vals[2] == BA_IM_ADRSUB;
+						u64 offset = im->vals[4];
+
+						u8 reg1 = im->vals[3] - BA_IM_RAX;
+						u8 byte2 = (offset != 0 || (reg1 & 7) == 5) * 0x40 + 
+							(offset >= 0x80) * 0x40;
+						
+						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
+						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
+
+						bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
+						u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
+							(offset >= 0x80) * 3;
+						
+						code->cnt += 3 + ofstSz + isReg1Mod4;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						code->arr[code->cnt-ofstSz-3-isReg1Mod4] = byte0;
+						code->arr[code->cnt-ofstSz-2-isReg1Mod4] = 0x8d;
+						code->arr[code->cnt-ofstSz-1-isReg1Mod4] = byte2;
+						isReg1Mod4 && (code->arr[code->cnt-ofstSz-1] = 0x24);
+						
+						if (offset && offset < 0x80) {
+							sub && (offset = -offset);
+							code->arr[code->cnt-1] = offset & 0xff;
+						}
+						else if (offset >= 0x80) {
+							sub && (offset = -offset);
+							for (u64 i = 4; i > 0; i--) {
+								code->arr[code->cnt-i] = offset & 0xff;
+								offset >>= 8;
+							}
+						}
+					}
+					
+					else {
+						return ba_ErrorIMArgInvalid(im);
+					}
+				}
+
+				else {
+					return ba_ErrorIMArgInvalid(im);
+				}
+
+				break;
+			}
+
 			case BA_IM_ADD: case BA_IM_SUB: case BA_IM_CMP: case BA_IM_AND: 
 			case BA_IM_XOR: case BA_IM_OR:
 			{
@@ -1332,7 +1404,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		case BA_IM_LABEL:
 			return 0;
 
-		case BA_IM_MOV:
+		case BA_IM_MOV: case BA_IM_LEA:
 		{
 			u8 adrAddDestSize = 
 				0xff * ((im->vals[1] == BA_IM_ADRADD) | 

@@ -44,6 +44,7 @@ enum {
 	BA_IM_RET          = 0x42,
 	BA_IM_PUSH         = 0x43,
 	BA_IM_POP          = 0x44,
+	BA_IM_LEA          = 0x45,
 	
 	BA_IM_GOTO         = 0x50,
 	BA_IM_LABELJMP     = 0x51,
@@ -217,6 +218,9 @@ char* ba_IMToStr(struct ba_IM* im) {
 				break;
 			case BA_IM_POP:
 				strcat(str, "POP ");
+				break;
+			case BA_IM_LEA:
+				strcat(str, "LEA ");
 				break;
 			case BA_IM_GOTO:
 				strcat(str, "GOTO ");
