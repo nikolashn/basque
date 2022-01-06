@@ -1315,12 +1315,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			BA_FILE_BUF_SIZE : code->cnt, file);
 		codePtr += BA_FILE_BUF_SIZE;
 	}
-	// Zeros are written at the end if it doesn't align to 0x1000
-	memset(buf, 0, 0x1000);
-	tmp = code->cnt & 0xfff;
-	if (tmp) {
-		fwrite(buf, 1, 0x1000-tmp, file);
-	}
 
 	if (!isFileStdout) {
 		fclose(file);
