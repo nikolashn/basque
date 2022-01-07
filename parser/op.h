@@ -450,7 +450,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// TODO: add feature
 				if (arg->typeInfo.type == BA_TYPE_FUNC) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot make pointer to "
-						"function on", op->line, op->col, ctr->currPath);
+						"func on", op->line, op->col, ctr->currPath);
 				}
 				
 				u64 stackPos = 0;
@@ -485,6 +485,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				struct ba_Type* origType = malloc(sizeof(*origType));
+				if (!origType) {
+					return ba_ErrorMallocNoMem();
+				}
 				memcpy(origType, &arg->typeInfo.extraInfo, sizeof(*origType));
 				
 				arg->lexemeType = BA_TK_IMREGISTER;
@@ -1340,6 +1343,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric "
 						"expression to numeric lvalue on", op->line, op->col,
 						ctr->currPath);
+				}
+				else if (lhs->typeInfo.type == BA_TYPE_PTR &&
+					rhs->typeInfo.type == BA_TYPE_PTR &&
+					lhs->typeInfo.type != BA_TYPE_VOID &&
+					rhs->typeInfo.type != BA_TYPE_VOID && 
+					!ba_AreTypesEqual(lhs->typeInfo, rhs->typeInfo)) 
+				{
+					ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to "
+						"non-void pointer of different type on", op->line, 
+						op->col, ctr->currPath);
 				}
 				else if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
 					opLex == BA_TK_BITOREQ || opLex == BA_TK_LSHIFTEQ || 
