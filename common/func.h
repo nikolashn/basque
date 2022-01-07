@@ -6,8 +6,8 @@
 #include "im.h"
 
 struct ba_FuncParam {
+	struct ba_Type type;
 	struct ba_FuncParam* next;
-	u64 type;
 	void* defaultVal;
 	u8 hasDefaultVal;
 };
@@ -21,7 +21,7 @@ struct ba_FuncParam* ba_NewFuncParam() {
 }
 
 struct ba_Func {
-	u64 retType;
+	struct ba_Type retType;
 	u64 lblStart;
 	u64 lblEnd;
 	struct ba_SymTable* childScope;
@@ -36,7 +36,7 @@ struct ba_Func {
 
 struct ba_Func* ba_NewFunc() {
 	struct ba_Func* func = malloc(sizeof(*func));
-	func->retType = 0;
+	func->retType = (struct ba_Type){0};
 	func->lblStart = 0;
 	func->lblEnd = 0;
 	func->childScope = 0;

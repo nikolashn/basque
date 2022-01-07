@@ -43,7 +43,8 @@ u8 ba_PBaseType(struct ba_Controller* ctr) {
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
 		ba_PAccept(BA_TK_KW_VOID, ctr)) 
 	{
-		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, BA_TYPE_TYPE, (void*)0,
+		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, 
+			(struct ba_Type){ BA_TYPE_TYPE, 0 }, (void*)0,
 			lexType, /* isLValue = */ 0);
 	}
 	else {
@@ -108,13 +109,13 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		stkStr->str = str;
 		stkStr->len = len;
-		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, BA_TYPE_NONE, (void*)0,
+		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, (struct ba_Type){0}, (void*)0,
 			BA_TK_LITSTR, /* isLValue = */ 0);
 	}
 	// lit_int
 	else if (ba_PAccept(BA_TK_LITINT, ctr)) {
 		u64 num;
-		u64 type = BA_TYPE_U64;
+		struct ba_Type type = { BA_TYPE_U64, 0 };
 		if (lexVal[lexValLen-1] == 'u') {
 			// ba_StrToU64 cannot parse the 'u' suffix so it must be removed
 			lexVal[--lexValLen] = 0;
@@ -123,7 +124,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		else {
 			num = ba_StrToU64(lexVal, lexLine, lexColStart, ctr->currPath);
 			if (num < (1llu << 63)) {
-				type = BA_TYPE_I64;
+				type = (struct ba_Type){ BA_TYPE_I64, 0 };
 			}
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, (void*)0, BA_TK_LITINT, 
@@ -767,7 +768,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 col = ctr->lex->colStart;
 
 		if (ba_PExp(ctr)) {
-			if (ctr->currFunc->retType == BA_TYPE_VOID) {
+			if (ctr->currFunc->retType.type == BA_TYPE_VOID) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning value from func with "
 					"return type 'void' on", line, col, ctr->currPath);
 			}
@@ -803,7 +804,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
 			}
 		}
-		else if (ctr->currFunc->retType != BA_TYPE_VOID) {
+		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
 			return ba_ExitMsg(BA_EXIT_ERR, "returning without value from func "
 				"that does not have return type 'void' on", line, col, 
 				ctr->currPath);
@@ -942,7 +943,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	}
 	// base_type identifier ...
 	else if (ba_PBaseType(ctr)) {
-		u64 type = ba_GetTypeFromKeyword(
+		struct ba_Type type = ba_GetTypeFromKeyword(
 			((struct ba_PTkStkItem*)ba_StkPop(ctr->pTkStk))->lexemeType);
 
 		if (!ctr->lex) {

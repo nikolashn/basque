@@ -4,18 +4,20 @@
 #define BA__SYMTABLE_H
 
 #include "hashtable.h"
+#include "types.h"
 
 struct ba_SymTable;
 
 struct ba_STVal {
+	struct ba_Type type;
 	struct ba_SymTable* scope;
 	
 	/* If a label, the label ID
 	 * If a variable, relative to start of scope's stack */
 	u64 address;
 
-	u64 type;
-	void* initVal; // For funcs, stores a struct ba_Func*
+	void* initVal; /* For funcs, stores a struct ba_Func*, 
+	which should be changed to storing it in type.extraInfo */
 	bool isInited;
 };
 

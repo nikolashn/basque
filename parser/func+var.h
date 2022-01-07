@@ -16,7 +16,7 @@ u8 ba_PScope(struct ba_Controller* ctr);
 // --------------------------------
 
 u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
-	u64 line, u64 col, u64 retType)
+	u64 line, u64 col, struct ba_Type retType)
 {
 	// TODO: once named scopes are added, change this
 	if (ctr->currScope != ctr->globalST) {
@@ -25,8 +25,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	}
 
 	struct ba_STVal* prevFuncIdVal = ba_HTGet(ctr->currScope->ht, funcName);
-	if (prevFuncIdVal && 
-		(prevFuncIdVal->type != BA_TYPE_FUNC || prevFuncIdVal->isInited)) 
+	if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
+		prevFuncIdVal->isInited))
 	{
 		return ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
 	}
@@ -38,7 +38,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	ba_HTSet(ctr->currScope->ht, funcName, (void*)funcIdVal);
 
 	funcIdVal->scope = ctr->currScope;
-	funcIdVal->type = BA_TYPE_FUNC;
+	funcIdVal->type.type = BA_TYPE_FUNC;
 
 	struct ba_Func* func = ba_NewFunc();
 	funcIdVal->initVal = func;
@@ -179,15 +179,14 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 						ctr->currPath);
 				}
 
-				if ((ba_IsTypeNumeric(param->type) && 
+				if ((ba_IsTypeNumeric(param->type.type) && 
 					!ba_IsTypeNumeric(expItem->typeInfo.type)) ||
-					(!ba_IsTypeNumeric(param->type) && 
-					param->type != expItem->typeInfo.type))
+					(!ba_IsTypeNumeric(param->type.type) && 
+					!ba_AreTypesEqual(param->type, expItem->typeInfo)))
 				{
 					return ba_ErrorAssignTypes(
-						ba_GetTypeStr(expItem->typeInfo.type), 
-						paramName, ba_GetTypeStr(param->type), line, col, 
-						ctr->currPath);
+						ba_GetTypeStr(expItem->typeInfo), paramName, 
+						ba_GetTypeStr(param->type), line, col, ctr->currPath);
 				}
 
 				param->defaultVal = expItem->val;
@@ -250,7 +249,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 		struct ba_FuncParam* fwdDecParam = prevFunc->firstParam;
 		param = func->firstParam;
 		while (fwdDecParam && param) {
-			if (fwdDecParam->type != param->type) {
+			if (!ba_AreTypesEqual(fwdDecParam->type, param->type)) {
 				break;
 			}
 			fwdDecParam = fwdDecParam->next;
@@ -280,10 +279,12 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	ctr->currFunc = 0;
 	ctr->currScope = func->childScope->parent;
 
-	if (stmtType == TP_FULLDEC && retType != BA_TYPE_VOID && !func->doesReturn) {
-		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu in %s with "
-			"return type %s) does not return a value\n", funcName, line, col,
-			ctr->currPath, ba_GetTypeStr(retType));
+	if (stmtType == TP_FULLDEC && retType.type != BA_TYPE_VOID && 
+		!func->doesReturn) 
+	{
+		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu in %s "
+			"with return type %s) does not return a value\n", funcName, line, 
+			col, ctr->currPath, ba_GetTypeStr(retType));
 		exit(-1);
 	}
 
@@ -291,7 +292,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 }
 
 u8 ba_PVarDef(struct ba_Controller* ctr, char* idName, 
-	u64 line, u64 col, u64 type)
+	u64 line, u64 col, struct ba_Type type)
 {
 	ba_PExpect('=', ctr);
 
@@ -319,7 +320,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	idVal->type = type;
 	idVal->isInited = 0;
 
-	if (idVal->type == BA_TYPE_VOID) {
+	if (idVal->type.type == BA_TYPE_VOID) {
 		return ba_ErrorVarVoid(line, col, ctr->currPath);
 	}
 	
@@ -337,9 +338,9 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	
 	struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 	
-	if (ba_IsTypeNumeric(idVal->type)) {
+	if (ba_IsTypeNumeric(idVal->type.type)) {
 		if (!ba_IsTypeNumeric(expItem->typeInfo.type)) {
-			char* expTypeStr = ba_GetTypeStr(expItem->typeInfo.type);
+			char* expTypeStr = ba_GetTypeStr(expItem->typeInfo);
 			char* varTypeStr = ba_GetTypeStr(idVal->type);
 			return ba_ErrorAssignTypes(expTypeStr, idName, 
 				varTypeStr, line, col, ctr->currPath);

@@ -108,16 +108,16 @@ bool ba_IsLexemeLiteral(u64 lexType) {
 		lexType != BA_TK_IMREGISTER;
 }
 
-u8 ba_GetTypeFromKeyword(u64 lexType) {
+struct ba_Type ba_GetTypeFromKeyword(u64 lexType) {
 	switch (lexType) {
 		case BA_TK_KW_U64:
-			return BA_TYPE_U64;
+			return (struct ba_Type){ BA_TYPE_U64, (void*)0 };
 		case BA_TK_KW_I64:
-			return BA_TYPE_I64;
+			return (struct ba_Type){ BA_TYPE_I64, (void*)0 };
 		case BA_TK_KW_VOID:
-			return BA_TYPE_VOID;
+			return (struct ba_Type){ BA_TYPE_VOID, (void*)0 };
 	}
-	return 0;
+	return (struct ba_Type){0};
 }
 
 char* ba_GetLexemeStr(u64 lex) {

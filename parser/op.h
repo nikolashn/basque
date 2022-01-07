@@ -426,7 +426,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 1;
 			}
 			else if (op->lexemeType == '$') {
-				arg->val = (void*)ba_GetSizeOfType(arg->typeInfo.type);
+				arg->val = (void*)ba_GetSizeOfType(arg->typeInfo);
 
 				if (!arg->val) {
 					return ba_ExitMsg(BA_EXIT_ERR, "type of operand to '$' "
@@ -1768,16 +1768,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
 					if (funcArg) {
 						bool isArgNum = ba_IsTypeNumeric(funcArg->typeInfo.type);
-						bool isParamNum = ba_IsTypeNumeric(param->type);
+						bool isParamNum = ba_IsTypeNumeric(param->type.type);
 						if ((isArgNum ^ isParamNum) || 
 							(!isArgNum && !isParamNum && 
-							funcArg->typeInfo.type != param->type))
+							!ba_AreTypesEqual(funcArg->typeInfo, param->type)))
 						{
 							fprintf(stderr, "Error: argument passed to func on "
 								"line %llu:%llu in %s has invalid type (%s) "
 								"for parameter of type %s\n", op->line, op->col,
 								ctr->currPath,
-								ba_GetTypeStr(funcArg->typeInfo.type), 
+								ba_GetTypeStr(funcArg->typeInfo), 
 								ba_GetTypeStr(param->type));
 							exit(-1);
 						}
@@ -1864,7 +1864,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// TODO: or from stack if too big
 				struct ba_PTkStkItem* retVal = malloc(sizeof(*retVal));
 				retVal->val = (void*)BA_IM_RAX;
-				retVal->typeInfo.type = func->retType;
+				retVal->typeInfo = func->retType;
 				retVal->lexemeType = BA_TK_IMREGISTER;
 				retVal->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, retVal);
@@ -1879,15 +1879,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				struct ba_PTkStkItem* typeArg = arg;
 
-				u64 newType = ba_GetTypeFromKeyword(typeArg->lexemeType);
+				struct ba_Type newType = 
+					ba_GetTypeFromKeyword(typeArg->lexemeType);
 
-				if (!newType || newType == BA_TYPE_VOID) {
+				if (!newType.type || newType.type == BA_TYPE_VOID) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that "
 						"is not a (castable) type on", op->line, op->col, 
 						ctr->currPath);
 				}
 
-				if (ba_IsTypeNumeric(newType) != 
+				if (ba_IsTypeNumeric(newType.type) != 
 					ba_IsTypeNumeric(castedExp->typeInfo.type))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
@@ -1895,7 +1896,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				arg = castedExp;
-				arg->typeInfo.type = newType;
+				arg->typeInfo = newType;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;

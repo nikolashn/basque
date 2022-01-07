@@ -3,7 +3,13 @@
 #ifndef BA__TYPES_H
 #define BA__TYPES_H
 
-enum {
+struct ba_Type {
+	u8 type;
+	/* For PTR: ba_Type*, the type pointed to */
+	void* extraInfo;
+};
+
+enum /* u8 */ {
 	BA_TYPE_NONE = 0,
 
 	BA_TYPE_U64  = 0x1,
@@ -16,10 +22,11 @@ enum {
 	BA_TYPE_F32  = 0x11,
 
 	BA_TYPE_VOID = 0x20,
+	BA_TYPE_PTR  = 0x21,
 
 	BA_TYPE_FUNC = 0x30,
 	
-	BA_TYPE_TYPE = 0x1000, // ooo meta
+	BA_TYPE_TYPE = 0xff, // ooo meta
 };
 
 bool ba_IsTypeUnsigned(u64 type) {
@@ -39,11 +46,12 @@ bool ba_IsTypeNumeric(u64 type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
-u64 ba_GetSizeOfType(u64 type) {
-	switch (type) {
+u64 ba_GetSizeOfType(struct ba_Type type) {
+	switch (type.type) {
 		case BA_TYPE_U64:
 		case BA_TYPE_I64:
 		case BA_TYPE_F64:
+		case BA_TYPE_PTR:
 			return 8;
 		case BA_TYPE_F32:
 			return 4;
@@ -55,8 +63,16 @@ u64 ba_GetSizeOfType(u64 type) {
 	return 0;
 }
 
-char* ba_GetTypeStr(u64 type) {
-	switch (type) {
+bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
+	if (b.type == BA_TYPE_PTR) {
+		return ba_AreTypesEqual(*(struct ba_Type*)a.extraInfo, 
+			*(struct ba_Type*)b.extraInfo);
+	}
+	return a.type == b.type;
+}
+
+char* ba_GetTypeStr(struct ba_Type type) {
+	switch (type.type) {
 		case BA_TYPE_U64:
 			return "'u64'";
 		case BA_TYPE_I64:
@@ -73,6 +89,15 @@ char* ba_GetTypeStr(u64 type) {
 			return "'f32'";
 		case BA_TYPE_TYPE:
 			return "type";
+		case BA_TYPE_PTR: {
+			char* pointedStr = 
+				ba_GetTypeStr(*(struct ba_Type*)type.extraInfo);
+			u64 pointedStrLen = strlen(pointedStr);
+			char* typeStr = malloc(pointedStrLen+2);
+			typeStr[pointedStrLen] = '*';
+			typeStr[pointedStrLen+1] = 0;
+			return typeStr;
+		}
 	}
 	return 0;
 }

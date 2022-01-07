@@ -28,7 +28,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		// TODO: search through named scopes as well
 		/* Because of optimization passes in the future, perhaps this should be
 		   at the end of the parser instead? */
-		if (val->type == BA_TYPE_FUNC) {
+		if (val->type.type == BA_TYPE_FUNC) {
 			struct ba_Func* func = ((struct ba_Func*)val->initVal);
 			if (!func->isCalled) {
 				goto BA_LBL_GENFUNCS_LOOPEND;
