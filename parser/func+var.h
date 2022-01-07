@@ -98,8 +98,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 				}
 				
 				++func->paramCnt;
-				param->type = ba_GetTypeFromKeyword(
-					((struct ba_PTkStkItem*)ba_StkPop(ctr->pTkStk))->lexemeType);
+				param->type = *(struct ba_Type*)((struct ba_PTkStkItem*)
+					ba_StkPop(ctr->pTkStk))->typeInfo.extraInfo;
 
 				if (ctr->lex->val) {
 					paramName = malloc(ctr->lex->valLen+1);

@@ -446,6 +446,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot get address of "
 						"non-lvalue on", op->line, op->col, ctr->currPath);
 				}
+
+				// TODO: add feature
+				if (arg->typeInfo.type == BA_TYPE_FUNC) {
+					return ba_ExitMsg(BA_EXIT_ERR, "cannot make pointer to "
+						"function on", op->line, op->col, ctr->currPath);
+				}
 				
 				u64 stackPos = 0;
 				u64 reg = ba_NextIMRegister(ctr);
@@ -1882,9 +1888,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						op->line, op->col, ctr->currPath);
 				}
 				struct ba_PTkStkItem* typeArg = arg;
-
 				struct ba_Type newType = 
-					ba_GetTypeFromKeyword(typeArg->lexemeType);
+					*(struct ba_Type*)typeArg->typeInfo.extraInfo;
 
 				if (!newType.type || newType.type == BA_TYPE_VOID) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that "

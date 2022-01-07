@@ -37,15 +37,26 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* base_type = "u64" | "i64" | "void" */
+/* base_type = ("u64" | "i64" | "void") { "*" } */
 u8 ba_PBaseType(struct ba_Controller* ctr) {
 	u64 lexType = ctr->lex->type;
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
 		ba_PAccept(BA_TK_KW_VOID, ctr)) 
 	{
-		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, 
-			(struct ba_Type){ BA_TYPE_TYPE, 0 }, (void*)0,
-			lexType, /* isLValue = */ 0);
+		struct ba_Type type = { BA_TYPE_TYPE, 0 };
+		struct ba_Type* fundamentalType = malloc(sizeof(*fundamentalType));
+		if (!fundamentalType) {
+			return ba_ErrorMallocNoMem();
+		}
+		*fundamentalType = ba_GetTypeFromKeyword(lexType);
+		while (ba_PAccept('*', ctr)) {
+			fundamentalType->extraInfo = fundamentalType;
+			fundamentalType->type = BA_TYPE_PTR;
+		}
+		type.extraInfo = fundamentalType;
+
+		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, type, lexType, 
+			/* isLValue = */ 0);
 	}
 	else {
 		return 0;
@@ -109,7 +120,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		stkStr->str = str;
 		stkStr->len = len;
-		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, (struct ba_Type){0}, (void*)0,
+		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, (struct ba_Type){0},
 			BA_TK_LITSTR, /* isLValue = */ 0);
 	}
 	// lit_int
@@ -127,7 +138,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 				type = (struct ba_Type){ BA_TYPE_I64, 0 };
 			}
 		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, (void*)0, BA_TK_LITINT, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, BA_TK_LITINT, 
 			/* isLValue = */ 0);
 	}
 	// identifier
@@ -137,8 +148,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		if (!id) {
 			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart, ctr->currPath);
 		}
-		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, (void*)0, 
-			BA_TK_IDENTIFIER, /* isLValue = */ 1);
+		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
+			/* isLValue = */ 1);
 	}
 	// Other
 	else {
@@ -943,8 +954,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	}
 	// base_type identifier ...
 	else if (ba_PBaseType(ctr)) {
-		struct ba_Type type = ba_GetTypeFromKeyword(
-			((struct ba_PTkStkItem*)ba_StkPop(ctr->pTkStk))->lexemeType);
+		struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
+		struct ba_Type type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo);
 
 		if (!ctr->lex) {
 			return 0;
