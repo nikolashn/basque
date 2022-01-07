@@ -50,8 +50,10 @@ u8 ba_PBaseType(struct ba_Controller* ctr) {
 		}
 		*fundamentalType = ba_GetTypeFromKeyword(lexType);
 		while (ba_PAccept('*', ctr)) {
-			fundamentalType->extraInfo = fundamentalType;
-			fundamentalType->type = BA_TYPE_PTR;
+			struct ba_Type* newFundType = malloc(sizeof(*newFundType));
+			newFundType->extraInfo = fundamentalType;
+			newFundType->type = BA_TYPE_PTR;
+			fundamentalType = newFundType;
 		}
 		type.extraInfo = fundamentalType;
 
