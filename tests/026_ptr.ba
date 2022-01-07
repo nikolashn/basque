@@ -7,6 +7,7 @@ write xPtr; "\n";
 write lel; "\n";
 
 xPtr = lel;
+xPtr = &lel; # Gives warning: assigning int** -> int*
 lel = &lel;
 
 write xPtr; "\n";
