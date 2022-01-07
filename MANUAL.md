@@ -8,7 +8,7 @@ Basque has no entry point function as there is in C. Code in the outer body of a
 
 ## Types
 ### Integer types
-The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer) and `bool` (8-bit Boolean). Variables can be defined as `i64` or `u64` but currently not `bool`. Integer types are all commensurate with each other.
+The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `bool` (8-bit Boolean) and pointers of those types (`i64*`, `u64*`, `i64**`, etc.). Variables can be defined as `i64` or `u64`, or their pointers, but currently not `bool` or any pointer derived from it. Integer types are all commensurate with each other.
 
 In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, `i8`, `u8`.
 
@@ -19,7 +19,7 @@ String (string literal) currently exists as a temporary type to represent string
 Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value).
 
 ### Other future types
-In the future there will be support for many other types: floating point numbers, pointers, structures, enumerations, and more.
+In the future there will be support for many other types: floating point numbers, structures, enumerations, and more.
 
 ## Syntax
 ### Comments
@@ -45,7 +45,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
 - type cast postfix `~ <type>`, func call `(,)`
-- unary prefixes `+ - ! ~ ++ -- $` and grouping `()`
+- unary prefixes `+ - ! ~ ++ -- $ &` and grouping `()`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
@@ -60,7 +60,7 @@ Basque's operators are the following (each line is ordered from high to low prec
 #### Notes about specific operators
 Func calls are a func followed by a comma-seperated list of expressions (arguments) enclosed in parentheses, which may be empty. If the func has default parameters, then some arguments may be omitted. The following are some syntactically valid func calls: `foo()`, `bar(a, b)`, `baz(5 * SIZE, )`, `fleure(f(), , g(,))`
 
-Only prefix increment and decrement are available in Basque. The operand of such operations must be an L-value.
+Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value.
 
 The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
 
