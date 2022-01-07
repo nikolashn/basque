@@ -1346,8 +1346,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				else if (lhs->typeInfo.type == BA_TYPE_PTR &&
 					rhs->typeInfo.type == BA_TYPE_PTR &&
-					lhs->typeInfo.type != BA_TYPE_VOID &&
-					rhs->typeInfo.type != BA_TYPE_VOID && 
+					((struct ba_Type*)lhs->typeInfo.extraInfo)->type != 
+						BA_TYPE_VOID &&
+					((struct ba_Type*)rhs->typeInfo.extraInfo)->type != 
+						BA_TYPE_VOID && 
 					!ba_AreTypesEqual(lhs->typeInfo, rhs->typeInfo)) 
 				{
 					ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to "
