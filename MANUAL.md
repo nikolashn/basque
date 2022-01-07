@@ -241,6 +241,9 @@ while 1 {
 ## The C Basque compiler
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
+### ELF program layout
+Only 2 ELF segments (both LOAD) are generated: a header segment and a code segment. There are no sections. Thus there is no data, bss, etc., and so (also since there is currently no heap) all data is stored on the stack.
+
 ### Calling convention
 For built in funcs, the C Basque compiler will pass the first argument for a call to RAX, then the rest on the stack. For user made funcs, all arguments are passed on the stack. RSP, RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
 
