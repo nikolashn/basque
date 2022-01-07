@@ -3,4 +3,8 @@ i64 y = 2;
 
 write &x; "\n";
 write &y; "\n";
-write &x - &y; "\n"; # 8
+
+# 8,8
+write &x - &y; ",";
+write $&x; "\n";
+
