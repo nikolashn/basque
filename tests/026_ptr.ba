@@ -8,6 +8,7 @@ write lel; "\n";
 
 xPtr = lel;
 xPtr = &lel; # Gives warning: assigning int** -> int*
+xPtr = (&lel) ~ void*; # No warning
 lel = &lel;
 
 write xPtr; "\n";
