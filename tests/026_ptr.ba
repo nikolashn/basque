@@ -1,0 +1,14 @@
+i64 x = -500;
+i64 y = 9000;
+i64* xPtr = &x;
+void* lel = &y;
+
+write xPtr; "\n";
+write lel; "\n";
+
+xPtr = lel;
+lel = &lel;
+
+write xPtr; "\n";
+write lel; "\n";
+
