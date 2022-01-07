@@ -477,9 +477,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					arg->lexemeType = BA_TK_IMRBPSUB;
 					arg->val = (void*)ctr->imStackSize;
 				}
+
+				struct ba_Type* origType = malloc(sizeof(*origType));
+				memcpy(origType, &arg->typeInfo.extraInfo, sizeof(*origType));
 				
 				arg->lexemeType = BA_TK_IMREGISTER;
-				arg->typeInfo.type = BA_TYPE_U64; // TODO: pointer type
+				arg->typeInfo.type = BA_TYPE_PTR;
+				arg->typeInfo.extraInfo = origType;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
