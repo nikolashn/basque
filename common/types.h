@@ -22,16 +22,16 @@ enum /* u8 */ {
 	BA_TYPE_F32  = 0x11,
 
 	BA_TYPE_VOID = 0x20,
-	BA_TYPE_PTR  = 0x21,
 
 	BA_TYPE_FUNC = 0x30,
+	BA_TYPE_PTR  = 0x31,
 	
 	BA_TYPE_TYPE = 0xff, // ooo meta
 };
 
 bool ba_IsTypeUnsigned(u64 type) {
 	return (type == BA_TYPE_U64) || (type == BA_TYPE_U8) || 
-		(type == BA_TYPE_BOOL);
+		(type == BA_TYPE_BOOL) || (type == BA_TYPE_PTR);
 }
 
 bool ba_IsTypeSigned(u64 type) {
@@ -68,6 +68,7 @@ bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
 		return ba_AreTypesEqual(*(struct ba_Type*)a.extraInfo, 
 			*(struct ba_Type*)b.extraInfo);
 	}
+	// TODO: FUNC
 	return a.type == b.type;
 }
 
