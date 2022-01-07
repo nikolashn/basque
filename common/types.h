@@ -64,7 +64,7 @@ u64 ba_GetSizeOfType(struct ba_Type type) {
 }
 
 bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
-	if (b.type == BA_TYPE_PTR) {
+	if (a.type == BA_TYPE_PTR && b.type == BA_TYPE_PTR) {
 		return ba_AreTypesEqual(*(struct ba_Type*)a.extraInfo, 
 			*(struct ba_Type*)b.extraInfo);
 	}
