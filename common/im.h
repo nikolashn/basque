@@ -11,10 +11,11 @@ enum {
 	BA_IM_ADR          = 0x2,
 	BA_IM_ADRADD       = 0x3,
 	BA_IM_ADRSUB       = 0x4,
-	BA_IM_64ADR        = 0x5,
-	BA_IM_64ADRADD     = 0x6,
-	BA_IM_64ADRSUB     = 0x7,
-	BA_IM_LABEL        = 0x8,
+	BA_IM_ADRADDREGMUL = 0x5,
+	BA_IM_64ADR        = 0x6,
+	BA_IM_64ADRADD     = 0x7,
+	BA_IM_64ADRSUB     = 0x8,
+	BA_IM_LABEL        = 0x9,
 	
 	// Normal assembly instructions
 	BA_IM_MOV          = 0x10,
@@ -161,10 +162,8 @@ char* ba_IMToStr(struct ba_IM* im) {
 			isImm = 0;
 			goto BA_LBL_IMTOSTR_LOOPEND;
 		}
-		else if (adrP1) {
-			if (!--adrP1) {
-				isImm = 1;
-			}
+		else if (adrP1 && !--adrP1) {
+			isImm = 1;
 		}
 
 		switch (val) {
@@ -189,6 +188,10 @@ char* ba_IMToStr(struct ba_IM* im) {
 			case BA_IM_ADRSUB:
 				strcat(str, "ADRSUB ");
 				adrP1 = 1;
+				break;
+			case BA_IM_ADRADDREGMUL:
+				strcat(str, "ADRADDREGMUL ");
+				isImm = 1;
 				break;
 			case BA_IM_MOV:
 				strcat(str, "MOV ");
