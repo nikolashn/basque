@@ -216,7 +216,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					// GPR, ADRADDREGMUL GPR (+) IMM (*) GPR
 					else if (im->vals[2] == BA_IM_ADRADDREGMUL) {
-						// TODO
 						if (im->count < 6) {
 							return ba_ErrorIMArgCount(2, im);
 						}
@@ -238,7 +237,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 
 						u64 reg2 = im->vals[5] - BA_IM_RAX;
-						
 						
 						bool hasExtraByte = (reg1 & 7) == 5;
 						code->cnt += 4 + hasExtraByte;
@@ -1470,6 +1468,10 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 					u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
 						(offset >= 0x80) * 3;
 					return 3 + ((reg1 & 7) == 4 || (reg1 & 7) == 5) + ofstSz;
+				}
+				else if (im->vals[2] == BA_IM_ADRADDREGMUL) {
+					u64 reg1 = im->vals[3] - BA_IM_RAX;
+					return 4 + ((reg1 & 7) == 5);
 				}
 				else if (im->vals[2] == BA_IM_IMM) {
 					u64 imm = im->vals[3];
