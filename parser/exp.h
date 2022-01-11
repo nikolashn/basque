@@ -414,7 +414,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		}
 	}
 
-	if ((endDueTo == 1 && ctr->paren) || (endDueTo == 2 && ctr->bracket)) {
+	if (ctr->paren || ctr->bracket) {
 		return 1;
 	}
 
