@@ -45,7 +45,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
 - type cast postfix `~ <type>`, func call `(,)`
-- unary prefixes `+ - ! ~ ++ -- $ &` and grouping `()`
+- unary prefixes `+ - ! ~ ++ -- $ &`, grouping `()`, dereferencing `[,]`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
@@ -63,6 +63,8 @@ Func calls are a func followed by a comma-seperated list of expressions (argumen
 Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value.
 
 The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
+
+The dereferencing operator (or dereferencing list) `[,]` is a comma seperated list in square brackets. Basque `[a]`, `[a,b]`, `[a,b,c]`, etc. are equivalent to C `*a`, `a[b]`, `a[b][c]`, etc.
 
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
 
