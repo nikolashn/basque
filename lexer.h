@@ -140,8 +140,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						goto BA_LBL_LEX_LOOPEND;
 					}
 					else if (c == ';' || c == ':' || c == '~' || c == '$' || 
-						c == '(' || c == ')' || c == '{' || c == '}' ||
-						c == ',') 
+						c == '(' || c == ')' || c == '{' || c == '}' || 
+						c == '[' || c == ']' || c == ',') 
 					{
 						nextLex->type = c;
 					}

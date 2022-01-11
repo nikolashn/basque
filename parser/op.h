@@ -27,7 +27,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			{
 				return 1;
 			}
-			else if (op->lexemeType == '(') {
+			else if (op->lexemeType == '(' || op->lexemeType == '[') {
 				return 99;
 			}
 			break;
@@ -72,7 +72,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			break;
 
 		case BA_OP_POSTFIX:
-			if (op->lexemeType == ')') {
+			if (op->lexemeType == ')' || op->lexemeType == ']') {
 				return 100;
 			}
 			else if (op->lexemeType == '(') {
@@ -391,7 +391,7 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 		return op->lexemeType == '=' || ba_IsLexemeCompoundAssign(op->lexemeType);
 	}
 	else if (op->syntax == BA_OP_PREFIX || op->syntax == BA_OP_POSTFIX) {
-		return op->lexemeType == '(';
+		return op->lexemeType == '(' || op->lexemeType == '[';
 	}
 	return 0;
 }
@@ -607,6 +607,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// as if it had just followed an atom, which is essentially 
 				// what a grouped expression is
 				return 2;
+			}
+			else if (op->lexemeType == '[') {
+				ba_StkPush(ctr->pTkStk, arg);
+				return 2; // Go back to parsing as if having followed an atom
 			}
 			break;
 		}
@@ -1729,7 +1733,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 		case BA_OP_POSTFIX:
 		{
 			// This should never occur
-			if (op->lexemeType == ')') {
+			if (op->lexemeType == ')' || op->lexemeType == ']') {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, 
 					op->col, ctr->currPath);
 			}
@@ -1888,13 +1892,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				// Get return value from rax
 				// TODO: or from stack if too big
 				struct ba_PTkStkItem* retVal = malloc(sizeof(*retVal));
+				if (!retVal) {
+					return ba_ErrorMallocNoMem();
+				}
 				retVal->val = (void*)BA_IM_RAX;
 				retVal->typeInfo = func->retType;
 				retVal->lexemeType = BA_TK_IMREGISTER;
 				retVal->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, retVal);
 
-				return 2; // Because it is a left parenthesis
+				return 2; // Go back to parsing as if having followed an atom
 			}
 			else if (op->lexemeType == '~') {
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);

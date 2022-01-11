@@ -41,8 +41,9 @@ struct ba_Controller {
 	u64 usedRegisters;
 	u64 imStackSize;
 	u64 labelCnt;
-	// Counts expression parentheses to make sure they are balanced
+	// Counts expression parentheses etc. to make sure they are balanced
 	i64 paren;
+	i64 bracket;
 };
 
 struct ba_Controller* ba_NewController() {
