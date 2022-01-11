@@ -1,0 +1,45 @@
+#{ These variables should be allocated on the stack 
+   contiguously based on how the C Basque compiler 
+   currently works, however this is not a specification of 
+   the Basque programming language, so these tests are not 
+   guaranteed to work for future compilers }#
+
+# Simulating an array, as they haven't been implemented 
+# at the time of making this test
+
+# Since memory addresses on the stack grow down, the 
+# variables are allocated backwards
+
+i64 c3=37; i64 c2=31; i64 c1=29; i64 c0=23;
+i64 b3=19; i64 b2=17; i64 b1=13; i64 b0=11;
+i64 a3= 7; i64 a2= 5; i64 a1= 3; i64 a0= 2;
+
+i64* c = &c0;
+i64* b = &b0;
+i64* a = &a0;
+
+i64** arr = &a;
+
+write [arr]; " = ";
+write a; "\n";
+write [a]; " = ";
+write a0; "\n";
+write [a,1]; " = ";
+write a1; "\n";
+write [arr,2,1]; " = ";
+write c1; "\n";
+write [arr,1]; " = ";
+write b; "\n";
+
+# write [b0]; # Error
+# write [2121]; # Error
+
+u64 i = 0;
+while i < 4u {
+	# 11,13,17,19
+	write [b,i];
+	if i < 3u, ",";
+	else, "\n";
+	++i;
+}
+
