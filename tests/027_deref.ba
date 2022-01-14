@@ -27,6 +27,7 @@ write a0; "\n";
 write [a,1]; " = ";
 write a1; "\n";
 write [arr,2,1]; " = ";
+write [[arr,2],1]; " = ";
 write c1; "\n";
 write [arr,1]; " = ";
 write b; "\n";
