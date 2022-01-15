@@ -44,6 +44,8 @@ write [arr,2,3]; " != ";
 [arr,2,3] *= 2;
 write [arr,2,3]; " != ";
 [arr,2,3] //= 3;
+write [arr,2,3]; " != ";
+++[arr,2,3];
 write [arr,2,3]; "\n";
 
 u64 i = 0;
