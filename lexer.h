@@ -5,6 +5,21 @@
 
 #include "common/common.h"
 
+char ba_LexerStrEscSingleChar(char c) {
+	switch (c) {
+		case '"':  return '"';
+		case '\'': return '\'';
+		case '\\': return '\\';
+		case 'n':  return '\n';
+		case 't':  return '\t';
+		case 'v':  return '\v';
+		case 'f':  return '\f';
+		case 'r':  return '\r';
+		case 'b':  return '\b';
+	}
+	return 0;
+}
+
 u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 	enum {
 		ST_NONE = 0,
@@ -409,7 +424,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					if (!nextLex->val) {
 						return ba_ErrorMallocNoMem();
 					}
-					strcpy(nextLex->val, litBuf);
+					// memcpy, not strcpy because there could be zeros
+					memcpy(nextLex->val, litBuf, litIter+1);
 					nextLex->valLen = litIter;
 					nextLex->type = BA_TK_LITSTR;
 
@@ -436,35 +452,11 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 			}
 			// String literal escape characters
 			else if (state == ST_STR_ESC) {
-				if (c == '"') {
-					litBuf[litIter++] = '"';
-				}
-				else if (c == '\'') {
-					litBuf[litIter++] = '\'';
-				}
-				else if (c == '\\') {
-					litBuf[litIter++] = '\\';
-				}
-				else if (c == 'n') {
-					litBuf[litIter++] = '\n';
-				}
-				else if (c == 't') {
-					litBuf[litIter++] = '\t';
-				}
-				else if (c == 'v') {
-					litBuf[litIter++] = '\v';
-				}
-				else if (c == 'f') {
-					litBuf[litIter++] = '\f';
-				}
-				else if (c == 'r') {
-					litBuf[litIter++] = '\r';
-				}
-				else if (c == 'b') {
-					litBuf[litIter++] = '\b';
+				if ((c = ba_LexerStrEscSingleChar(c))) {
+					litBuf[litIter++] = c;
 				}
 				else if (c == '0') {
-					litBuf[litIter++] = '\0';
+					litBuf[litIter++] = 0;
 				}
 				else if (c == '\n') {
 					++line;

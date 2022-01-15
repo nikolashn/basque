@@ -36,7 +36,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 			memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
 			ctr->im = func->imEnd;
 		}
-		// Normal variables
 		BA_LBL_GENFUNCS_LOOPEND:;
 	}
 
@@ -146,21 +145,19 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 						
+						u64 codeSz = 3 + ((reg1 & 7) == 4) + ((reg1 & 7) == 5);
+						code->cnt += codeSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						code->arr[code->cnt-codeSz] = byte0;
+						code->arr[code->cnt-codeSz+1] = 0x8b;
 						if ((reg1 & 7) == 4 || (reg1 & 7) == 5) {
-							code->cnt += 4;
-							(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-							code->arr[code->cnt-4] = byte0;
-							code->arr[code->cnt-3] = 0x8b;
 							code->arr[code->cnt-2] = 
 								((reg1 & 7) == 5) * 0x40 + byte2;
 							code->arr[code->cnt-1] = 
 								((reg1 & 7) == 4) * 0x24;
 						}
 						else {
-							code->cnt += 3;
-							(code->cnt > code->cap) && ba_ResizeDynArr8(code);
-							code->arr[code->cnt-3] = byte0;
-							code->arr[code->cnt-2] = 0x8b;
 							code->arr[code->cnt-1] = byte2;
 						}
 					}
@@ -302,12 +299,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgCount(2, im);
 						}
 						u8 imm = im->vals[3];
-
-						u8 byte0 = 0x40, byte1 = 0xb0;
 						u8 reg0 = im->vals[1] - BA_IM_AL;
-
-						byte0 |= (reg0 >= 8);
-						byte1 |= (reg0 & 7);
+						u8 byte0 = 0x40 | (reg0 >= 8);
+						u8 byte1 = 0xb0 | (reg0 & 7);
 
 						code->cnt += 2 + (reg0 >= 4);
 						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
@@ -512,7 +506,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 				// Into GPR
 				if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 					u8 reg0 = im->vals[1] - BA_IM_RAX;
-					u8 byte0 = 0x48;
 
 					// GPR, ADRADD/ADRSUB GPR
 					if (im->vals[2] == BA_IM_ADRADD || 
@@ -532,11 +525,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						u64 offset = im->vals[4];
 
 						u8 reg1 = im->vals[3] - BA_IM_RAX;
-						u8 byte2 = (offset != 0 || (reg1 & 7) == 5) * 0x40 + 
-							(offset >= 0x80) * 0x40;
-						
-						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
-						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
+						u64 byte0 = 0x48 | ((reg0 >= 8) << 2) | (reg1 >= 8);
+						u8 byte2 = ((offset != 0 || (reg1 & 7) == 5) * 0x40 + 
+							(offset >= 0x80) * 0x40) | ((reg0 & 7) << 3) | 
+							(reg1 & 7);
 
 						bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
 						u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
