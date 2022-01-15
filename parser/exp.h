@@ -29,14 +29,15 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 
 		// Determine if the deref is used as an l-value
 		if (isLastArg) {
-			/* There are only 2 ways for it to be an l-value: 
-			   assignment and the '&' operator. */
-
+			/* There are only a few ways for it to be an l-value: 
+			   assignment, and the '&', '++', '--' operators. */
 			u64 lkBkPos = originalOpStk->count;
 			while (lkBkPos) {
 				--lkBkPos;
 				struct ba_POpStkItem* op = originalOpStk->items[lkBkPos];
-				if (op->lexemeType == '&' && op->syntax == BA_OP_PREFIX) {
+				if (op->syntax == BA_OP_PREFIX && (op->lexemeType == '&' ||
+					op->lexemeType == BA_TK_INC || op->lexemeType == BA_TK_DEC)) 
+				{
 					isUsedAsLValue = 1;
 					goto BA_LBL_PDEREFMAKE_CODEGEN;
 				}

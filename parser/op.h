@@ -534,32 +534,75 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
-			// Note: assumes arg is an identifier
 			else if (op->lexemeType == BA_TK_INC || 
 				op->lexemeType == BA_TK_DEC)
 			{
-				if (!arg->isLValue || arg->lexemeType != BA_TK_IDENTIFIER) {
+				if (!arg->isLValue) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment/decrement of "
 						"non-lvalue on", op->line, op->col, ctr->currPath);
 				}
+
+				struct ba_Type argType = arg->typeInfo.type == BA_TYPE_DPTR
+					? *(struct ba_Type*)arg->typeInfo.extraInfo 
+					: arg->typeInfo;
 				
-				if (!ba_IsTypeNumeric(arg->typeInfo.type)) {
+				if (!ba_IsTypeNumeric(argType.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric "
 						"lvalue on", op->line, op->col, ctr->currPath);
 				}
 
 				u64 imOp = op->lexemeType == BA_TK_INC ? BA_IM_INC : BA_IM_DEC;
 				u64 stackPos = 0;
-				u64 reg = (u64)arg->val;
-				ba_POpAsgnRegOrStack(ctr, arg->lexemeType, &reg, &stackPos);
+				u64 reg = ba_NextIMRegister(ctr); // 0 == on the stack
+				if (!reg) {
+					if (!ctr->imStackSize) {
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+					}
+					stackPos = ctr->imStackSize + 8;
+					// First: result location, second: preserve rax
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+					ctr->imStackSize += 16;
+				}
 
-				u64 ofst = ba_CalcSTValOffset(ctr->currScope, arg->val);
-				ba_AddIM(ctr, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
-					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, ofst);
+				if (arg->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(ctr, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
+						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						ba_CalcSTValOffset(ctr->currScope, arg->val));
+				}
+				// (DPTR)
+				else if (arg->lexemeType == BA_TK_IMREGISTER) {
+					ba_AddIM(ctr, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX, 
+						BA_IM_ADR, (u64)arg->val);
+				}
+				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+					u64 adrLocReg = 
+						(!reg || reg == BA_IM_RAX) ? BA_IM_RCX : BA_IM_RAX;
+					ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
+					ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, BA_IM_ADRSUB, 
+						BA_IM_RBP, (u64)arg->val);
+					ba_AddIM(ctr, 4, BA_IM_MOV, reg ? reg : BA_IM_RAX, 
+						BA_IM_ADR, adrLocReg);
+					ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
+				}
+
 				ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
-				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-					ofst, reg ? reg : BA_IM_RAX);
+
+				if (arg->lexemeType == BA_TK_IDENTIFIER) {
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
+						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+						ba_CalcSTValOffset(ctr->currScope, arg->val), 
+						reg ? reg : BA_IM_RAX);
+				}
+				// (DPTR)
+				else if (arg->lexemeType == BA_TK_IMREGISTER) {
+					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, (u64)arg->val,
+						reg ? reg : BA_IM_RAX);
+				}
+				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+						(u64)arg->val, reg ? reg : BA_IM_RAX);
+				}
 
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
