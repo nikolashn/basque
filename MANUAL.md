@@ -13,7 +13,7 @@ The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (
 In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, `i8`, `u8`.
 
 ### String type
-String (string literal) currently exists as a temporary type to represent string literals, but will eventually be removed once pointers are added.
+String (string literal) currently exists as a temporary type to represent string literals, but will eventually be removed once u8\* is added.
 
 ### Functions
 Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value).
@@ -63,7 +63,7 @@ An L-value (assignable expression) in Basque is an identifier or dereferencing e
 #### Notes about specific operators
 Func calls are a func followed by a comma-seperated list of expressions (arguments) enclosed in parentheses, which may be empty. If the func has default parameters, then some arguments may be omitted. The following are some syntactically valid func calls: `foo()`, `bar(a, b)`, `baz(5 * SIZE, )`, `fleure(f(), , g(,))`
 
-Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value.
+Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value. With pointers, the increment/decrement is by the size of the dereferenced pointer, instead of just 1.
 
 The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
 
@@ -72,6 +72,8 @@ The dereferencing operator (or dereferencing list) `[,]` is a comma seperated li
 Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is shifted by a negative number, it is converted to u64, so `a << -1` is the same as `a << ((1 << 64) - 1)` is the same as `a << 63`.
 
 Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
+
+Addition `+` and subtraction `-` do not have pointer arithmetic as in C. Adding to a pointer will just cast it to an integer. Use `&[ptr,n]` instead of `ptr+n*$[ptr]` (which would be `ptr+n` with C pointer arithmetic).
 
 The `&&` and `||` operators are short-circuiting and always result in type `bool`.
 
