@@ -1,0 +1,12 @@
+# Should give 3 warnings, for "x = 21", "x = z" and "z = x"
+
+i64* x = 0;
+x = 21;
+void* y = 0;
+y = x;
+x = y;
+u64* z = 0;
+x = z;
+z = x;
+
+
