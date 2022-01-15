@@ -545,13 +545,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				struct ba_Type argType = arg->typeInfo.type == BA_TYPE_DPTR
 					? *(struct ba_Type*)arg->typeInfo.extraInfo 
 					: arg->typeInfo;
-				
+
 				if (!ba_IsTypeNumeric(argType.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric "
 						"lvalue on", op->line, op->col, ctr->currPath);
 				}
 
 				u64 imOp = op->lexemeType == BA_TK_INC ? BA_IM_INC : BA_IM_DEC;
+				u64 ptrImOp = 
+					op->lexemeType == BA_TK_INC ? BA_IM_ADD : BA_IM_SUB;
+
 				u64 stackPos = 0;
 				u64 reg = ba_NextIMRegister(ctr); // 0 == on the stack
 				if (!reg) {
@@ -586,7 +589,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
 				}
 
-				ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
+				if (argType.type == BA_TYPE_PTR) {
+					ba_AddIM(ctr, 4, ptrImOp, reg ? reg : BA_IM_RAX, 
+						BA_IM_IMM, ba_GetSizeOfType(argType));
+				}
+				else {
+					ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
+				}
 
 				if (arg->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
