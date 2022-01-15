@@ -136,80 +136,43 @@ char* ba_GetLexemeStr(u64 lex) {
 		return str;
 	}
 	switch (lex) {
-		case BA_TK_GTE:
-			return "'>='";
-		case BA_TK_RSHIFT:
-			return "'>>'";
-		case BA_TK_LTE:
-			return "'<='";
-		case BA_TK_LSHIFT:
-			return "'<<'";
-		case BA_TK_IDIV:
-			return "'//'";
-		case BA_TK_LOGAND:
-			return "'&&'";
-		case BA_TK_LOGOR:
-			return "'||'";
-		case BA_TK_DBEQUAL:
-			return "'=='";
-		case BA_TK_NEQUAL:
-			return "'!='";
-		case BA_TK_ADDEQ:
-			return "'+='";
-		case BA_TK_SUBEQ:
-			return "'-='";
-		case BA_TK_MULEQ:
-			return "'*='";
-		case BA_TK_IDIVEQ:
-			return "'//='";
-		case BA_TK_FDIVEQ:
-			return "'/='";
-		case BA_TK_MODEQ:
-			return "'%='";
-		case BA_TK_LSHIFTEQ:
-			return "'<<='";
-		case BA_TK_RSHIFTEQ:
-			return "'>>='";
-		case BA_TK_BITANDEQ:
-			return "'&='";
-		case BA_TK_BITXOREQ:
-			return "'^='";
-		case BA_TK_BITOREQ:
-			return "'|='";
-		case BA_TK_INC:
-			return "'++'";
-		case BA_TK_DEC:
-			return "'--'";
-		case BA_TK_LITSTR:
-			return "string literal";
-		case BA_TK_LITINT:
-			return "integer literal";
-		case BA_TK_IDENTIFIER:
-			return "identifier";
-		case BA_TK_KW_U64:
-			return "keyword 'u64'";
-		case BA_TK_KW_I64:
-			return "keyword 'i64'";
-		case BA_TK_KW_WRITE:
-			return "keyword 'write'";
-		case BA_TK_KW_IF:
-			return "keyword 'if'";
-		case BA_TK_KW_ELIF:
-			return "keyword 'elif'";
-		case BA_TK_KW_ELSE:
-			return "keyword 'else'";
-		case BA_TK_KW_WHILE:
-			return "keyword 'while'";
-		case BA_TK_KW_BREAK:
-			return "keyword 'break'";
-		case BA_TK_KW_GOTO:
-			return "keyword 'goto'";
-		case BA_TK_KW_RETURN:
-			return "keyword 'return'";
-		case BA_TK_KW_VOID:
-			return "keyword 'void'";
-		case BA_TK_KW_INCLUDE:
-			return "keyword 'include'";
+		case BA_TK_GTE:        return "'>='";
+		case BA_TK_RSHIFT:     return "'>>'";
+		case BA_TK_LTE:        return "'<='";
+		case BA_TK_LSHIFT:     return "'<<'";
+		case BA_TK_IDIV:       return "'//'";
+		case BA_TK_LOGAND:     return "'&&'";
+		case BA_TK_LOGOR:      return "'||'";
+		case BA_TK_DBEQUAL:    return "'=='";
+		case BA_TK_NEQUAL:     return "'!='";
+		case BA_TK_ADDEQ:      return "'+='";
+		case BA_TK_SUBEQ:      return "'-='";
+		case BA_TK_MULEQ:      return "'*='";
+		case BA_TK_IDIVEQ:     return "'//='";
+		case BA_TK_FDIVEQ:     return "'/='";
+		case BA_TK_MODEQ:      return "'%='";
+		case BA_TK_LSHIFTEQ:   return "'<<='";
+		case BA_TK_RSHIFTEQ:   return "'>>='";
+		case BA_TK_BITANDEQ:   return "'&='";
+		case BA_TK_BITXOREQ:   return "'^='";
+		case BA_TK_BITOREQ:    return "'|='";
+		case BA_TK_INC:        return "'++'";
+		case BA_TK_DEC:        return "'--'";
+		case BA_TK_LITSTR:     return "string literal";
+		case BA_TK_LITINT:     return "integer literal";
+		case BA_TK_IDENTIFIER: return "identifier";
+		case BA_TK_KW_U64:     return "keyword 'u64'";
+		case BA_TK_KW_I64:     return "keyword 'i64'";
+		case BA_TK_KW_WRITE:   return "keyword 'write'";
+		case BA_TK_KW_IF:      return "keyword 'if'";
+		case BA_TK_KW_ELIF:    return "keyword 'elif'";
+		case BA_TK_KW_ELSE:    return "keyword 'else'";
+		case BA_TK_KW_WHILE:   return "keyword 'while'";
+		case BA_TK_KW_BREAK:   return "keyword 'break'";
+		case BA_TK_KW_GOTO:    return "keyword 'goto'";
+		case BA_TK_KW_RETURN:  return "keyword 'return'";
+		case BA_TK_KW_VOID:    return "keyword 'void'";
+		case BA_TK_KW_INCLUDE: return "keyword 'include'";
 	}
 	return 0;
 }

@@ -144,6 +144,104 @@ struct ba_IMLabel {
 	bool isFound;
 };
 
+char* ba_IMItemToStr(u64 val) {
+	switch (val) {
+		case BA_IM_NOP:          return "NOP ";
+		case BA_IM_IMM:          return "IMM ";
+		case BA_IM_LABEL:        return "LABEL ";
+		case BA_IM_ADR:          return "ADR ";
+		case BA_IM_ADRADD:       return "ADRADD ";
+		case BA_IM_ADRSUB:       return "ADRSUB ";
+		case BA_IM_ADRADDREGMUL: return "ADRADDREGMUL ";
+		case BA_IM_MOV:          return "MOV ";
+		case BA_IM_ADD:          return "ADD ";
+		case BA_IM_SUB:          return "SUB ";
+		case BA_IM_CMP:          return "CMP ";
+		case BA_IM_SYSCALL:      return "SYSCALL ";
+		case BA_IM_LABELCALL:    return "LABELCALL ";
+		case BA_IM_RET:          return "RET ";
+		case BA_IM_PUSH:         return "PUSH ";
+		case BA_IM_POP:          return "POP ";
+		case BA_IM_LEA:          return "LEA ";
+		case BA_IM_GOTO:         return "GOTO ";
+		case BA_IM_LABELJMP:     return "LABELJMP ";
+		case BA_IM_LABELJZ:      return "LABELJZ ";
+		case BA_IM_LABELJNZ:     return "LABELJNZ ";
+		case BA_IM_LABELJB:      return "LABELJB ";
+		case BA_IM_LABELJBE:     return "LABELJBE ";
+		case BA_IM_LABELJA:      return "LABELJA ";
+		case BA_IM_LABELJAE:     return "LABELJAE ";
+		case BA_IM_LABELJL:      return "LABELJL ";
+		case BA_IM_LABELJLE:     return "LABELJLE ";
+		case BA_IM_LABELJG:      return "LABELJG ";
+		case BA_IM_LABELJGE:     return "LABELJGE ";
+		case BA_IM_MOVZX:        return "MOVZX ";
+		case BA_IM_CQO:          return "CQO ";
+		case BA_IM_SETS:         return "SETS ";
+		case BA_IM_SETNS:        return "SETNS ";
+		case BA_IM_SETZ:         return "SETZ ";
+		case BA_IM_SETNZ:        return "SETNZ ";
+		case BA_IM_SETB:         return "SETB ";
+		case BA_IM_SETBE:        return "SETBE ";
+		case BA_IM_SETA:         return "SETA ";
+		case BA_IM_SETAE:        return "SETAE ";
+		case BA_IM_SETL:         return "SETL ";
+		case BA_IM_SETLE:        return "SETLE ";
+		case BA_IM_SETG:         return "SETG ";
+		case BA_IM_SETGE:        return "SETGE ";
+		case BA_IM_INC:          return "INC ";
+		case BA_IM_DEC:          return "DEC ";
+		case BA_IM_NOT:          return "NOT ";
+		case BA_IM_NEG:          return "NEG ";
+		case BA_IM_TEST:         return "TEST ";
+		case BA_IM_AND:          return "AND ";
+		case BA_IM_XOR:          return "XOR ";
+		case BA_IM_OR:           return "OR ";
+		case BA_IM_ROL:          return "ROL ";
+		case BA_IM_ROR:          return "ROR ";
+		case BA_IM_SHL:          return "SHL ";
+		case BA_IM_SHR:          return "SHR ";
+		case BA_IM_SAR:          return "SAR ";
+		case BA_IM_MUL:          return "MUL ";
+		case BA_IM_IMUL:         return "IMUL ";
+		case BA_IM_DIV:          return "DIV ";
+		case BA_IM_IDIV:         return "IDIV ";
+		case BA_IM_RAX:          return "RAX ";
+		case BA_IM_RBX:          return "RBX ";
+		case BA_IM_RCX:          return "RCX ";
+		case BA_IM_RDX:          return "RDX ";
+		case BA_IM_RSI:          return "RSI ";
+		case BA_IM_RDI:          return "RDI ";
+		case BA_IM_RSP:          return "RSP ";
+		case BA_IM_RBP:          return "RBP ";
+		case BA_IM_R8:           return "R8 ";
+		case BA_IM_R9:           return "R9 ";
+		case BA_IM_R10:          return "R10 ";
+		case BA_IM_R11:          return "R11 ";
+		case BA_IM_R12:          return "R12 ";
+		case BA_IM_R13:          return "R13 ";
+		case BA_IM_R14:          return "R14 ";
+		case BA_IM_R15:          return "R15 ";
+		case BA_IM_AL:           return "AL ";
+		case BA_IM_BL:           return "BL ";
+		case BA_IM_CL:           return "CL ";
+		case BA_IM_DL:           return "DL ";
+		case BA_IM_SIL:          return "SIL ";
+		case BA_IM_DIL:          return "DIL ";
+		case BA_IM_SPL:          return "SPL ";
+		case BA_IM_BPL:          return "BPL ";
+		case BA_IM_R8B:          return "R8B ";
+		case BA_IM_R9B:          return "R9B ";
+		case BA_IM_R10B:         return "R10B ";
+		case BA_IM_R11B:         return "R11B ";
+		case BA_IM_R12B:         return "R12B ";
+		case BA_IM_R13B:         return "R13B ";
+		case BA_IM_R14B:         return "R14B ";
+		case BA_IM_R15B:         return "R15B ";
+	}
+	return 0;
+}
+
 char* ba_IMToStr(struct ba_IM* im) {
 	char* str = malloc(255);
 	if (!str) {
@@ -165,305 +263,27 @@ char* ba_IMToStr(struct ba_IM* im) {
 		else if (adrP1 && !--adrP1) {
 			isImm = 1;
 		}
-
+		
+		char* valStr = ba_IMItemToStr(val);
+		if (valStr) {
+			strcat(str, valStr);
+		}
+		else {
+			sprintf(str+strlen(str), "%llu ", val);
+		}
 		switch (val) {
-			case BA_IM_NOP:
-				strcat(str, "NOP ");
-				break;
-			case BA_IM_IMM:
-				strcat(str, "IMM ");
+			case BA_IM_IMM: case BA_IM_LABEL: case BA_IM_ADRADDREGMUL:
+			case BA_IM_LABELCALL: case BA_IM_RET: case BA_IM_GOTO:
+			case BA_IM_LABELJMP: case BA_IM_LABELJZ: case BA_IM_LABELJNZ:
+			case BA_IM_LABELJB: case BA_IM_LABELJBE: case BA_IM_LABELJA:
+			case BA_IM_LABELJAE: case BA_IM_LABELJL: case BA_IM_LABELJLE:
+			case BA_IM_LABELJG: case BA_IM_LABELJGE: case BA_IM_MOVZX:
 				isImm = 1;
-				break;
-			case BA_IM_LABEL:
-				strcat(str, "LABEL ");
-				isImm = 1;
-				break;
-			case BA_IM_ADR:
-				strcat(str, "ADR ");
 				break;
 			case BA_IM_ADRADD:
-				strcat(str, "ADRADD ");
-				adrP1 = 1;
-				break;
 			case BA_IM_ADRSUB:
-				strcat(str, "ADRSUB ");
 				adrP1 = 1;
 				break;
-			case BA_IM_ADRADDREGMUL:
-				strcat(str, "ADRADDREGMUL ");
-				isImm = 1;
-				break;
-			case BA_IM_MOV:
-				strcat(str, "MOV ");
-				break;
-			case BA_IM_ADD:
-				strcat(str, "ADD ");
-				break;
-			case BA_IM_SUB:
-				strcat(str, "SUB ");
-				break;
-			case BA_IM_CMP:
-				strcat(str, "CMP ");
-				break;
-			case BA_IM_SYSCALL:
-				strcat(str, "SYSCALL ");
-				break;
-			case BA_IM_LABELCALL:
-				strcat(str, "LABELCALL ");
-				isImm = 1;
-				break;
-			case BA_IM_RET:
-				strcat(str, "RET ");
-				isImm = 1;
-				break;
-			case BA_IM_PUSH:
-				strcat(str, "PUSH ");
-				break;
-			case BA_IM_POP:
-				strcat(str, "POP ");
-				break;
-			case BA_IM_LEA:
-				strcat(str, "LEA ");
-				break;
-			case BA_IM_GOTO:
-				strcat(str, "GOTO ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJMP:
-				strcat(str, "LABELJMP ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJZ:
-				strcat(str, "LABELJZ ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJNZ:
-				strcat(str, "LABELJNZ ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJB:
-				strcat(str, "LABELJB ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJBE:
-				strcat(str, "LABELJBE ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJA:
-				strcat(str, "LABELJA ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJAE:
-				strcat(str, "LABELJAE ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJL:
-				strcat(str, "LABELJL ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJLE:
-				strcat(str, "LABELJLE ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJG:
-				strcat(str, "LABELJG ");
-				isImm = 1;
-				break;
-			case BA_IM_LABELJGE:
-				strcat(str, "LABELJGE ");
-				isImm = 1;
-				break;
-			case BA_IM_MOVZX:
-				strcat(str, "MOVZX ");
-				break;
-			case BA_IM_CQO:
-				strcat(str, "CQO ");
-				break;
-			case BA_IM_SETS:
-				strcat(str, "SETS ");
-				break;
-			case BA_IM_SETNS:
-				strcat(str, "SETNS ");
-				break;
-			case BA_IM_SETZ:
-				strcat(str, "SETZ ");
-				break;
-			case BA_IM_SETNZ:
-				strcat(str, "SETNZ ");
-				break;
-			case BA_IM_SETB:
-				strcat(str, "SETB ");
-				break;
-			case BA_IM_SETBE:
-				strcat(str, "SETBE ");
-				break;
-			case BA_IM_SETA:
-				strcat(str, "SETA ");
-				break;
-			case BA_IM_SETAE:
-				strcat(str, "SETAE ");
-				break;
-			case BA_IM_SETL:
-				strcat(str, "SETL ");
-				break;
-			case BA_IM_SETLE:
-				strcat(str, "SETLE ");
-				break;
-			case BA_IM_SETG:
-				strcat(str, "SETG ");
-				break;
-			case BA_IM_SETGE:
-				strcat(str, "SETGE ");
-				break;
-			case BA_IM_INC:
-				strcat(str, "INC ");
-				break;
-			case BA_IM_DEC:
-				strcat(str, "DEC ");
-				break;
-			case BA_IM_NOT:
-				strcat(str, "NOT ");
-				break;
-			case BA_IM_NEG:
-				strcat(str, "NEG ");
-				break;
-			case BA_IM_TEST:
-				strcat(str, "TEST ");
-				break;
-			case BA_IM_AND:
-				strcat(str, "AND ");
-				break;
-			case BA_IM_XOR:
-				strcat(str, "XOR ");
-				break;
-			case BA_IM_OR:
-				strcat(str, "OR ");
-				break;
-			case BA_IM_ROL:
-				strcat(str, "ROL ");
-				break;
-			case BA_IM_ROR:
-				strcat(str, "ROR ");
-				break;
-			case BA_IM_SHL:
-				strcat(str, "SHL ");
-				break;
-			case BA_IM_SHR:
-				strcat(str, "SHR ");
-				break;
-			case BA_IM_SAR:
-				strcat(str, "SAR ");
-				break;
-			case BA_IM_MUL:
-				strcat(str, "MUL ");
-				break;
-			case BA_IM_IMUL:
-				strcat(str, "IMUL ");
-				break;
-			case BA_IM_DIV:
-				strcat(str, "DIV ");
-				break;
-			case BA_IM_IDIV:
-				strcat(str, "IDIV ");
-				break;
-			case BA_IM_RAX:
-				strcat(str, "RAX ");
-				break;
-			case BA_IM_RBX:
-				strcat(str, "RBX ");
-				break;
-			case BA_IM_RCX:
-				strcat(str, "RCX ");
-				break;
-			case BA_IM_RDX:
-				strcat(str, "RDX ");
-				break;
-			case BA_IM_RSI:
-				strcat(str, "RSI ");
-				break;
-			case BA_IM_RDI:
-				strcat(str, "RDI ");
-				break;
-			case BA_IM_RSP:
-				strcat(str, "RSP ");
-				break;
-			case BA_IM_RBP:
-				strcat(str, "RBP ");
-				break;
-			case BA_IM_R8:
-				strcat(str, "R8 ");
-				break;
-			case BA_IM_R9:
-				strcat(str, "R9 ");
-				break;
-			case BA_IM_R10:
-				strcat(str, "R10 ");
-				break;
-			case BA_IM_R11:
-				strcat(str, "R11 ");
-				break;
-			case BA_IM_R12:
-				strcat(str, "R12 ");
-				break;
-			case BA_IM_R13:
-				strcat(str, "R13 ");
-				break;
-			case BA_IM_R14:
-				strcat(str, "R14 ");
-				break;
-			case BA_IM_R15:
-				strcat(str, "R15 ");
-				break;
-			case BA_IM_AL:
-				strcat(str, "AL ");
-				break;
-			case BA_IM_BL:
-				strcat(str, "BL ");
-				break;
-			case BA_IM_CL:
-				strcat(str, "CL ");
-				break;
-			case BA_IM_DL:
-				strcat(str, "DL ");
-				break;
-			case BA_IM_SIL:
-				strcat(str, "SIL ");
-				break;
-			case BA_IM_DIL:
-				strcat(str, "DIL ");
-				break;
-			case BA_IM_SPL:
-				strcat(str, "SPL ");
-				break;
-			case BA_IM_BPL:
-				strcat(str, "BPL ");
-				break;
-			case BA_IM_R8B:
-				strcat(str, "R8B ");
-				break;
-			case BA_IM_R9B:
-				strcat(str, "R9B ");
-				break;
-			case BA_IM_R10B:
-				strcat(str, "R10B ");
-				break;
-			case BA_IM_R11B:
-				strcat(str, "R11B ");
-				break;
-			case BA_IM_R12B:
-				strcat(str, "R12B ");
-				break;
-			case BA_IM_R13B:
-				strcat(str, "R13B ");
-				break;
-			case BA_IM_R14B:
-				strcat(str, "R14B ");
-				break;
-			case BA_IM_R15B:
-				strcat(str, "R15B ");
-				break;
-			default:
-				sprintf(str+strlen(str), "%llu ", val);
 		}
 		BA_LBL_IMTOSTR_LOOPEND:;
 	}
