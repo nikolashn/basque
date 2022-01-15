@@ -218,7 +218,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				}
 				ba_POpStkPush(ctr->pOpStk, line, col, lexType, BA_OP_PREFIX);
 			}
-			// Atom: note that ba_PAtom pushes the atom to pTkStk
+			// Note: ba_PAtom pushes the atom to pTkStk
 			else if (ba_PAtom(ctr)) {
 				isAfterAtom = 1;
 			}
