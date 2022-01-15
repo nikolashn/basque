@@ -57,3 +57,12 @@ while i < 4u {
 	++i;
 }
 
+i64* ptr = b;
+while ptr < c {
+	# 11,13,17,19
+	write [ptr];
+	if c-ptr > $[ptr], ",";
+	else, "\n";
+	++ptr;
+}
+
