@@ -57,6 +57,9 @@ Basque's operators are the following (each line is ordered from high to low prec
 - logical or `||`
 - assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
+#### L-values
+An L-value (assignable expressions) in Basque is an identifier or dereferencing expression.
+
 #### Notes about specific operators
 Func calls are a func followed by a comma-seperated list of expressions (arguments) enclosed in parentheses, which may be empty. If the func has default parameters, then some arguments may be omitted. The following are some syntactically valid func calls: `foo()`, `bar(a, b)`, `baz(5 * SIZE, )`, `fleure(f(), , g(,))`
 
@@ -74,7 +77,7 @@ The `&&` and `||` operators are short-circuiting and always result in type `bool
 
 Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`. Comparison operators result in type `bool`.
 
-All assignment operators are right-associative. The left-hand side of an assignment must be an L-value (an identifier or any expression that results in an identifier). So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
+All assignment operators are right-associative. The left-hand side of an assignment must be an L-value. So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 
 ### Statements
 Statements are combinations of expressions that can be sequentially laid out to form a program. In this section, square brackets signify optionality, parentheses signify grouping, braces signify that a string can be repeated from 0 to infinite times, a bar signifies alternation, and words in angle brackets represent a group or class of expressions or tokens.
