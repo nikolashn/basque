@@ -58,7 +58,7 @@ Basque's operators are the following (each line is ordered from high to low prec
 - assignment `= += -= &= ^= |= *= //= %= <<= >>=`
 
 #### L-values
-An L-value (assignable expressions) in Basque is an identifier or dereferencing expression.
+An L-value (assignable expression) in Basque is an identifier or dereferencing expression.
 
 #### Notes about specific operators
 Func calls are a func followed by a comma-seperated list of expressions (arguments) enclosed in parentheses, which may be empty. If the func has default parameters, then some arguments may be omitted. The following are some syntactically valid func calls: `foo()`, `bar(a, b)`, `baz(5 * SIZE, )`, `fleure(f(), , g(,))`
