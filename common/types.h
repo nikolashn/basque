@@ -25,6 +25,7 @@ enum /* u8 */ {
 
 	BA_TYPE_FUNC = 0x30,
 	BA_TYPE_PTR  = 0x31,
+	BA_TYPE_DPTR = 0x32, // a dereferenced pointer
 	
 	BA_TYPE_TYPE = 0xff, // ooo meta
 };

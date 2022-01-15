@@ -14,6 +14,7 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 	u64 derefArgsCnt = 0;
 	u64 deStackPos = 0;
 	u64 deReg = 0;
+	bool isUsedAsLValue = 0;
 	while (1) {
 		ctr->pOpStk = ba_NewStk();
 		if (!ba_PExp(ctr)) {
@@ -23,7 +24,47 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 		
 		++derefArgsCnt;
 		struct ba_PTkStkItem* item = ba_StkPop(ctr->pTkStk);
-		
+
+		bool isLastArg = !ba_PAccept(',', ctr);
+
+		// Determine if the deref is used as an l-value
+		if (isLastArg) {
+			/* There are only 2 ways for it to be an l-value: 
+			   assignment and the '&' operator. */
+
+			u64 lkBkPos = originalOpStk->count;
+			while (lkBkPos) {
+				--lkBkPos;
+				struct ba_POpStkItem* op = originalOpStk->items[lkBkPos];
+				if (op->lexemeType == '&' && op->syntax == BA_OP_PREFIX) {
+					isUsedAsLValue = 1;
+					goto BA_LBL_PDEREFMAKE_CODEGEN;
+				}
+				if (op->lexemeType != '(' || op->syntax != BA_OP_PREFIX) {
+					break;
+				}
+			}
+			
+			struct ba_Lexeme* nextLex = ctr->lex;
+			if (!nextLex || nextLex->type != ']') {
+				return ba_PExpect(']', ctr);
+			}
+			nextLex = nextLex->next;
+			while (nextLex) {
+				if (nextLex->type == '=' || 
+					ba_IsLexemeCompoundAssign(nextLex->type))
+				{
+					isUsedAsLValue = 1;
+					goto BA_LBL_PDEREFMAKE_CODEGEN;
+				}
+				if (nextLex->type != ')') {
+					break;
+				}
+				nextLex = nextLex->next;
+			}
+		}
+
+		BA_LBL_PDEREFMAKE_CODEGEN:
 		if (derefArgsCnt == 1) {
 			type = item->typeInfo;
 			if (type.type != BA_TYPE_PTR) {
@@ -63,7 +104,6 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 			if (type.type != BA_TYPE_PTR) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
-			type = *(struct ba_Type*)type.extraInfo;
 			
 			u64 pointedTypeSize = ba_GetSizeOfType(type);
 			if (pointedTypeSize != 1 && pointedTypeSize != 2 && 
@@ -75,13 +115,17 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 				exit(-1);
 			}
 
+			if (!isUsedAsLValue) {
+				type = *(struct ba_Type*)type.extraInfo;
+			}
+
 			if (ba_IsLexemeLiteral(item->lexemeType)) {
 				bool isNeg = (i64)item->val < 0;
 				u64 ofst = pointedTypeSize * 
 					(isNeg ? (u64)item->val : -(u64)item->val);
-				ba_AddIM(ctr, 5, BA_IM_MOV, deReg, 
-					isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, ofst);
-				goto BA_LBL_PDEREFMAKE_COMMA;
+				ba_AddIM(ctr, 5, isUsedAsLValue ? BA_IM_LEA : BA_IM_MOV, 
+					deReg, isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, ofst);
+				goto BA_LBL_PDEREFMAKE_LOOPEND;
 			}
 
 			u64 addReg = (u64)item->val;
@@ -110,22 +154,22 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 					BA_IM_RBP, (u64)item->val);
 			}
 
-			ba_AddIM(ctr, 6, BA_IM_MOV, deReg, BA_IM_ADRADDREGMUL, 
-				deReg, pointedTypeSize, addReg);
+			ba_AddIM(ctr, 6, isUsedAsLValue ? BA_IM_LEA : BA_IM_MOV, 
+				deReg, BA_IM_ADRADDREGMUL, deReg, pointedTypeSize, addReg);
 
 			if (!addReg) {
 				ba_AddIM(ctr, 2, BA_IM_POP, effAddReg);
 				ctr->imStackSize -= 8;
 			}
 		}
-
-		BA_LBL_PDEREFMAKE_COMMA:
-		if (!ba_PAccept(',', ctr)) {
+		
+		BA_LBL_PDEREFMAKE_LOOPEND:
+		if (isLastArg) {
 			break;
 		}
 	}
 
-	if (derefArgsCnt == 1) {
+	if (!isUsedAsLValue && derefArgsCnt == 1) {
 		ba_AddIM(ctr, 4, BA_IM_MOV, deReg ? deReg : BA_IM_RAX, 
 			BA_IM_ADR, deReg ? deReg : BA_IM_RAX);
 		type = *(struct ba_Type*)type.extraInfo;
@@ -135,6 +179,8 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 	if (!result) {
 		return ba_ErrorMallocNoMem();
 	}
+
+	isUsedAsLValue && (type.type = BA_TYPE_DPTR);
 	
 	if (deReg) {
 		result->lexemeType = BA_TK_IMREGISTER;
@@ -150,7 +196,7 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 	}
 
 	result->typeInfo = type;
-	result->isLValue = 0; // TODO: make it an lvalue
+	result->isLValue = 1;
 	ba_StkPush(ctr->pTkStk, result);
 	
 	ctr->pOpStk = originalOpStk;
