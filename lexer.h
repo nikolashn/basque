@@ -327,10 +327,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					((c >= '0') && (c <= '9')))
 				{
 					if (idIter > BA_IDENTIFIER_SIZE) {
-						return ba_ErrorTknOverflow("identifier", line, colStart, 
-							ctr->currPath, BA_IDENTIFIER_SIZE);
+						return ba_ErrorTknOverflow("identifier", line, 
+							colStart, ctr->currPath, BA_IDENTIFIER_SIZE);
 					}
-
 					idBuf[idIter++] = c;
 					goto BA_LBL_LEX_LOOPITER;
 				}
@@ -388,7 +387,6 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 
 					nextLex->next = ba_NewLexeme();
 					nextLex = nextLex->next;
-					
 					idIter = 0;
 					state = 0;
 					goto BA_LBL_LEX_LOOPEND;
@@ -497,8 +495,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					val += c - '0';
 				}
 				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-						line, col, ctr->currPath);
+					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape "
+						"sequence at", line, col, ctr->currPath);
 				}
 
 				val <<= 4;
@@ -526,150 +524,27 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				}
 
 				litBuf[litIter++] = val;
-
 				state = ST_STR;
 			}
-			// Decimal number literals
-			else if (state == ST_NUM_DEC) {
-				if ((c >= '0') && (c <= '9')) {
-					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("string literal", line, 
-							colStart, ctr->currPath, BA_LITERAL_SIZE);
-					}
-
-					litBuf[litIter++] = c;
-				}
-				else if (c == '_') {
-					// Ignore
-				}
-				else {
-					if ((c == 'u') || (c == 'U')) {
-						litBuf[litIter++] = 'u';
-					}
-					litBuf[litIter] = 0;
-
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					nextLex->val = malloc(litIter+1);
-					if (!nextLex->val) {
-						return ba_ErrorMallocNoMem();
-					}
-					nextLex->valLen = litIter;
-					strcpy(nextLex->val, litBuf);
-					nextLex->type = BA_TK_LITINT;
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-
-					litIter = 0;
-					state = 0;
-
-					if (!((c == 'u') || (c == 'U'))) {
-						goto BA_LBL_LEX_LOOPEND;
-					}
-				}
-			}
-
-			// Hexadecimal number literals
-			else if (state == ST_NUM_HEX) {
-				if (((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f')) || 
-					((c >= 'A') && (c <= 'F')))
+			// Number literals
+			else if (state == ST_NUM_HEX || state == ST_NUM_DEC || 
+				state == ST_NUM_OCT || state == ST_NUM_BIN) 
+			{
+				if ((state == ST_NUM_HEX && 
+					((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || 
+					(c >= 'A' && c <= 'F'))) || 
+					(state == ST_NUM_DEC && c >= '0' && c <= '9') ||
+					(state == ST_NUM_OCT && c >= '0' && c <= '7') ||
+					(state == ST_NUM_BIN && c >= '0' && c <= '1'))
 				{
 					if (litIter > BA_LITERAL_SIZE) {
 						return ba_ErrorTknOverflow("string literal", line, 
 							colStart, ctr->currPath, BA_LITERAL_SIZE);
 					}
-
 					litBuf[litIter++] = c;
 				}
 				else if (c == '_') {
 					// Ignore
-				}
-				else {
-					if ((c == 'u') || (c == 'U')) {
-						litBuf[litIter++] = 'u';
-					}
-					litBuf[litIter] = 0;
-
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					nextLex->val = malloc(litIter+1);
-					if (!nextLex->val) {
-						return ba_ErrorMallocNoMem();
-					}
-					nextLex->valLen = litIter;
-					strcpy(nextLex->val, litBuf);
-					nextLex->type = BA_TK_LITINT;
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-
-					litIter = 0;
-					state = 0;
-
-					if (!((c == 'u') || (c == 'U'))) {
-						goto BA_LBL_LEX_LOOPEND;
-					}
-				}
-			}
-			// Octal number literals
-			else if (state == ST_NUM_OCT) {
-				if ((c >= '0') && (c <= '7')) {
-					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("integer literal", line, 
-							colStart, ctr->currPath, BA_LITERAL_SIZE);
-					}
-
-					litBuf[litIter++] = c;
-				}
-				else if (c == '_') {
-					// Ignore
-				}
-				else if ((c >= '8') && (c <= '9')) {
-					return ba_ErrorIntLitChar(line, col, ctr->currPath);
-				}
-				else {
-					if ((c == 'u') || (c == 'U')) {
-						litBuf[litIter++] = 'u';
-					}
-					litBuf[litIter] = 0;
-
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					nextLex->val = malloc(litIter+1);
-					if (!nextLex->val) {
-						return ba_ErrorMallocNoMem();
-					}
-					nextLex->valLen = litIter;
-					strcpy(nextLex->val, litBuf);
-					nextLex->type = BA_TK_LITINT;
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-
-					litIter = 0;
-					state = 0;
-
-					if (!((c == 'u') || (c == 'U'))) {
-						goto BA_LBL_LEX_LOOPEND;
-					}
-				}
-			}
-			// Binary number literals
-			else if (state == ST_NUM_BIN) {
-				if ((c == '0') || (c == '1')) {
-					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("string literal", line, 
-							colStart, ctr->currPath, BA_LITERAL_SIZE);
-					}
-
-					litBuf[litIter++] = c;
-				}
-				else if (c == '_') {
-					// Ignore
-				}
-				else if ((c >= '2') && (c <= '9')) {
-					return ba_ErrorIntLitChar(line, col, ctr->currPath);
 				}
 				else {
 					if ((c == 'u') || (c == 'U')) {
