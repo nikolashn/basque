@@ -94,6 +94,26 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
  * different operators and so should not contain any (source code) operator 
  * specific exit messages. */
 
+// Helper func for assigning intermediate registers or stack memory
+void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
+	u64* stackPos) 
+{
+	if (lexType != BA_TK_IMREGISTER) {
+		*reg = ba_NextIMRegister(ctr);
+	}
+
+	if (!*reg) {
+		if (!ctr->imStackSize) {
+			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+		}
+		*stackPos = ctr->imStackSize + 8;
+		// First: result location, second: preserve rax
+		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+		ctr->imStackSize += 16;
+	}
+}
+
 // Handle unary operators with a non literal operand
 void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 	struct ba_Controller* ctr)
@@ -111,21 +131,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 
 	u64 stackPos = 0;
 	u64 reg = (u64)arg->val; // Kept only if arg is a register
-
-	if (arg->lexemeType != BA_TK_IMREGISTER) {
-		reg = ba_NextIMRegister(ctr);
-	}
-
-	if (!reg) {
-		if (!ctr->imStackSize) {
-			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-		}
-		stackPos = ctr->imStackSize + 8;
-		// First: result location, second: preserve rax
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-		ctr->imStackSize += 16;
-	}
+	ba_POpAsgnRegOrStack(ctr, arg->lexemeType, &reg, &stackPos);
 
 	u64 realReg = reg ? reg : BA_IM_RAX;
 
