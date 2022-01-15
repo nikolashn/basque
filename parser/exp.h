@@ -4,6 +4,10 @@
 #define BA__EXP_H
 
 // ----- Forward declarations -----
+void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
+	u64* stackPos);
+u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
+	u64 reg, bool isLiteral);
 u8 ba_PAtom(struct ba_Controller* ctr);
 // --------------------------------
 
@@ -73,33 +77,9 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 			}
 
 			deReg = (u64)item->val;
-			(item->lexemeType != BA_TK_IMREGISTER) && 
-				(deReg = ba_NextIMRegister(ctr));
-			if (!deReg) {
-				if (!ctr->imStackSize) {
-					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-				}
-				deStackPos = ctr->imStackSize + 8;
-				// First: result location, second: preserve rax
-				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-				ctr->imStackSize += 16;
-			}
-
-			if (item->lexemeType == BA_TK_IDENTIFIER) {
-				ba_AddIM(ctr, 5, BA_IM_MOV, 
-					deReg ? deReg : BA_IM_RAX, BA_IM_ADRADD, 
-					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-					ba_CalcSTValOffset(ctr->currScope, item->val));
-			}
-			else if (item->lexemeType == BA_TK_IMRBPSUB) {
-				ba_AddIM(ctr, 5, BA_IM_MOV, deReg ? deReg : BA_IM_RAX, 
-					BA_IM_ADRSUB, BA_IM_RBP, (u64)item->val);
-			}
-			else if (ba_IsLexemeLiteral(item->lexemeType)) {
-				ba_AddIM(ctr, 4, BA_IM_MOV, deReg ? deReg : BA_IM_RAX,
-					BA_IM_IMM, (u64)item->val);
-			}
+			ba_POpAsgnRegOrStack(ctr, item->lexemeType, &deReg, &deStackPos);
+			ba_POpMovArgToReg(ctr, item, deReg ? deReg : BA_IM_RAX, 
+				ba_IsLexemeLiteral(item->lexemeType));
 		}
 		else {
 			if (type.type != BA_TYPE_PTR) {
@@ -145,15 +125,7 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 				ctr->imStackSize += 8;
 			}
 
-			if (item->lexemeType == BA_TK_IDENTIFIER) {
-				ba_AddIM(ctr, 5, BA_IM_MOV, effAddReg, BA_IM_ADRADD, 
-					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-					ba_CalcSTValOffset(ctr->currScope, item->val));
-			}
-			else if (item->lexemeType == BA_TK_IMRBPSUB) {
-				ba_AddIM(ctr, 5, BA_IM_MOV, effAddReg, BA_IM_ADRSUB, 
-					BA_IM_RBP, (u64)item->val);
-			}
+			ba_POpMovArgToReg(ctr, item, effAddReg, /* isLiteral = */ 0);
 
 			ba_AddIM(ctr, 6, isUsedAsLValue ? BA_IM_LEA : BA_IM_MOV, 
 				deReg, BA_IM_ADRADDREGMUL, deReg, pointedTypeSize, addReg);
@@ -394,20 +366,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 				}
 				
 				u64 realReg = reg ? reg : BA_IM_RAX;
-				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, realReg, 
-						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
-						ba_CalcSTValOffset(ctr->currScope, lhs->val));
-				}
-				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, realReg, BA_IM_ADRSUB,
-						BA_IM_RBP, (u64)lhs->val);
-				}
-				else if (lhs->lexemeType != BA_TK_IMREGISTER) {
-					// Literal
-					ba_AddIM(ctr, 4, BA_IM_MOV, realReg, BA_IM_IMM, 
-						(u64)lhs->val);
-				}
+				ba_POpMovArgToReg(ctr, lhs, realReg, 
+					/* isLiteral = */ lhs->lexemeType != BA_TK_IMREGISTER);
 
 				ba_AddIM(ctr, 3, BA_IM_TEST, realReg, realReg);
 				if (!reg) {
