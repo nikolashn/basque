@@ -298,16 +298,8 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 				regTmp ? regTmp : BA_IM_RAX, BA_IM_RCX);
 		}
 
-		if (rhs->lexemeType == BA_TK_IDENTIFIER) {
-			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX, 
-				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
-				ba_CalcSTValOffset(ctr->currScope, rhs->val));
-		}
-		else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
-			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX,
-				BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
-		}
-		else if (!rhsIsRcx) { // Register that isn't rcx
+		ba_POpMovArgToReg(ctr, rhs, BA_IM_RCX, /* isLiteral = */ 0);
+		if (rhs->lexemeType == BA_TK_IMREGISTER && !rhsIsRcx) {
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RCX, 
 				(u64)rhs->val);
 			ctr->usedRegisters &= ~ba_IMToCtrReg((u64)rhs->val);
@@ -932,40 +924,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize += 8;
 					}
 
-					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX,
-							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
-							ba_CalcSTValOffset(ctr->currScope, lhs->val));
-					}
-					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX,
-							BA_IM_ADRSUB, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-							(u64)lhs->val);
-					}
-					else if (lhs->lexemeType == BA_TK_IMREGISTER && 
+					ba_POpMovArgToReg(ctr, lhs, BA_IM_RAX, isLhsLiteral);
+					if (lhs->lexemeType == BA_TK_IMREGISTER && 
 						(u64)lhs->val != BA_IM_RAX) 
 					{
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, 
-							(u64)lhs->val);
-					}
-					else if (isLhsLiteral) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX,
-							BA_IM_IMM, (u64)lhs->val);
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)lhs->val);
 					}
 
-					if (rhs->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX, 
-							BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP,
-							ba_CalcSTValOffset(ctr->currScope, rhs->val));
-					}
-					else if (rhs->lexemeType == BA_TK_IMRBPSUB) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, regR ? regR : BA_IM_RCX,
-							BA_IM_ADRSUB, BA_IM_RBP, (u64)rhs->val);
-					}
-					else if (isRhsLiteral) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, regR ? regR : BA_IM_RCX,
-							BA_IM_IMM, (u64)rhs->val);
-					}
+					ba_POpMovArgToReg(ctr, rhs, regR ? regR : BA_IM_RCX, 
+						isRhsLiteral);
 
 					ba_AddIM(ctr, 1, BA_IM_CQO);
 
