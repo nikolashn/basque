@@ -327,18 +327,13 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					ba_BltinU64ToStr(ctr);
 				}
 
-				if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
+				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
+				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
+					(u64)stkItem->val != BA_IM_RAX) 
+				{
+					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
-				else if (stkItem->lexemeType == BA_TK_IMREGISTER) {
-					if ((u64)stkItem->val != BA_IM_RAX) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, 
-							(u64)stkItem->val);
-					}
-				}
-				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
+				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
 
 				ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
 					ba_BltinLabels[BA_BLTIN_U64ToStr]);
@@ -551,22 +546,15 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					"a func currently not implemented,", line, col, ctr->currPath);
 			}
 			if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
-				if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_IMM, (u64)stkItem->val);
-				}
-				else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, BA_IM_RSP,
-						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
-				}
-				else if (stkItem->lexemeType == BA_TK_IMREGISTER &&
+				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, 
+					ba_IsLexemeLiteral(stkItem->lexemeType));
+				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
 					(u64)stkItem->val != BA_IM_RAX)
 				{
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX,
 						(u64)stkItem->val);
 				}
-				/* stkItem->lexemeType won't ever be BA_TK_IMRBPSUB */
+				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
 			}
 		}
 		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
@@ -574,11 +562,13 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				"that does not have return type 'void' on", line, col, 
 				ctr->currPath);
 		}
+
 		if (ctr->currScope->dataSize && 
 			ctr->currScope != ctr->currFunc->childScope) 
 		{
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 		}
+
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
 		ctr->currFunc->doesReturn = 1;
 		return ba_PExpect(';', ctr);
