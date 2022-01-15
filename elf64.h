@@ -328,14 +328,39 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						return ba_ErrorIMArgCount(2, im);
 					}
 
-					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
+					if (!(BA_IM_RAX <= im->vals[2]) || 
+						!(BA_IM_R15 >= im->vals[2])) 
+					{
 						return ba_ErrorIMArgInvalid(im);
 					}
 					
 					u8 reg0 = im->vals[2] - BA_IM_RAX;
 					
+					// From GPR
+					if ((BA_IM_RAX <= im->vals[3]) && 
+						(BA_IM_R15 >= im->vals[3])) 
+					{
+						u8 reg1 = im->vals[3] - BA_IM_RAX;
+						
+						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 2);
+						u8 byte2 = (reg0 & 7) | ((reg1 & 7) << 3);
+
+						u8 instrSz = 3 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5);
+
+						code->cnt += instrSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						(code->arr[code->cnt-instrSz] = byte0);
+						code->arr[code->cnt-instrSz+1] = 0x89;
+						code->arr[code->cnt-instrSz+2] = 
+							byte2 + ((reg0 & 7) == 5) * 0x40;
+						(((reg0 & 7) == 4) && (code->arr[code->cnt-1] = 0x24)) || 
+						(((reg0 & 7) == 5) && (code->arr[code->cnt-1] = 0));
+					}
 					// From GPRb
-					if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
+					else if ((BA_IM_AL <= im->vals[3]) && 
+						(BA_IM_R15B >= im->vals[3])) 
+					{
 						u8 reg1 = im->vals[3] - BA_IM_AL;
 						
 						u8 byte0 = 0x40 | (reg0 >= 8) | ((reg1 >= 8) << 2);
@@ -1485,7 +1510,10 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 			// Into ADR GPR effective address
 			else if (im->vals[1] == BA_IM_ADR) {
 				u8 reg0 = im->vals[2] - BA_IM_RAX;
-				if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
+				if ((BA_IM_RAX <= im->vals[3]) && (BA_IM_R15 >= im->vals[3])) {
+					return 3 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5);
+				}
+				else if ((BA_IM_AL <= im->vals[3]) && (BA_IM_R15B >= im->vals[3])) {
 					u8 reg1 = im->vals[3] - BA_IM_AL;
 					bool hasByte0 = (reg1 >= BA_IM_SPL - BA_IM_AL) || (reg0 >= 8);
 					return 2 + ((reg0 & 7) == 4) + ((reg0 & 7) == 5) + 
