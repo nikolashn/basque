@@ -94,19 +94,19 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
  * different operators and so should not contain any (source code) operator 
  * specific exit messages. */
 
-// Helper func for assigning intermediate registers or stack memory
+/* Helper func for assigning intermediate registers or stack memory.
+ * stackPos can be 0 for it to not be stored. */
 void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
 	u64* stackPos) 
 {
-	if (lexType != BA_TK_IMREGISTER) {
-		*reg = ba_NextIMRegister(ctr);
-	}
+	// Return 0 means on the stack
+	(lexType != BA_TK_IMREGISTER) && (*reg = ba_NextIMRegister(ctr));
 
 	if (!*reg) {
 		if (!ctr->imStackSize) {
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 		}
-		*stackPos = ctr->imStackSize + 8;
+		stackPos && (*stackPos = ctr->imStackSize + 8);
 		// First: result location, second: preserve rax
 		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
@@ -180,22 +180,8 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
 	u64 regR = (u64)rhs->val; // Kept only if rhs is a register
 
-	// Return 0 means on the stack
-	(lhs->lexemeType != BA_TK_IMREGISTER) &&
-		(regL = ba_NextIMRegister(ctr));
-	(rhs->lexemeType != BA_TK_IMREGISTER) &&
-		(regR = ba_NextIMRegister(ctr));
-
-	if (!regL) {
-		if (!ctr->imStackSize) {
-			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-		}
-		lhsStackPos = ctr->imStackSize + 8;
-		// First: result location, second: preserve rax
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-		ctr->imStackSize += 16;
-	}
+	ba_POpAsgnRegOrStack(ctr, lhs->lexemeType, &regL, &lhsStackPos);
+	ba_POpAsgnRegOrStack(ctr, rhs->lexemeType, &regR, 0);
 	
 	/* regR is replaced with rdx normally, but if regL is 
 	 * already rdx, regR will be set to rcx. */
@@ -459,21 +445,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				
 				u64 stackPos = 0;
-				u64 reg = (u64)arg->val;
-				if (arg->lexemeType != BA_TK_IMREGISTER) {
-					reg = ba_NextIMRegister(ctr);
-				}
-
-				if (!reg) {
-					if (!ctr->imStackSize) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-					}
-					stackPos = ctr->imStackSize + 8;
-					// First: result location, second: preserve rax
-					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-					ctr->imStackSize += 16;
-				}
+				u64 reg = (u64)arg->val; // Only kept if arg is a register
+				ba_POpAsgnRegOrStack(ctr, arg->lexemeType, &reg, &stackPos);
 
 				if (arg->lexemeType == BA_TK_IDENTIFIER) {
 					ba_AddIM(ctr, 5, BA_IM_LEA, reg ? reg : BA_IM_RAX, 
@@ -577,18 +550,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				u64 imOp = op->lexemeType == BA_TK_INC ? BA_IM_INC : BA_IM_DEC;
 				u64 stackPos = 0;
-				u64 reg = ba_NextIMRegister(ctr);
-				
-				if (!reg) {
-					if (!ctr->imStackSize) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-					}
-					stackPos = ctr->imStackSize + 8;
-					// First: result location, second: preserve rcx
-					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-					ctr->imStackSize += 16;
-				}
+				u64 reg = (u64)arg->val;
+				ba_POpAsgnRegOrStack(ctr, arg->lexemeType, &reg, &stackPos);
 
 				u64 ofst = ba_CalcSTValOffset(ctr->currScope, arg->val);
 				ba_AddIM(ctr, 5, BA_IM_MOV, reg ? reg : BA_IM_RAX,
@@ -1683,23 +1646,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				u64 regL = (u64)lhs->val; // Kept only if lhs is a register
 				u64 regR = (u64)rhs->val; // Kept only if rhs is a register
 
-				// Return 0 means on the stack
-				(lhs->lexemeType != BA_TK_IMREGISTER) &&
-					(regL = ba_NextIMRegister(ctr));
-				(rhs->lexemeType != BA_TK_IMREGISTER) &&
-					(regR = ba_NextIMRegister(ctr));
-
-				if (!regL) {
-					if (!ctr->imStackSize) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, 
-							BA_IM_RSP);
-					}
-					lhsStackPos = ctr->imStackSize + 8;
-					// First: result location, second: preserve rax
-					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-					ctr->imStackSize += 16;
-				}
+				ba_POpAsgnRegOrStack(ctr, lhs->lexemeType, &regL, &lhsStackPos);
+				ba_POpAsgnRegOrStack(ctr, rhs->lexemeType, &regR, 0);
 				
 				/* regR is replaced with rdx normally, but if regL is 
 				 * already rdx, regR will be set to rcx. */
