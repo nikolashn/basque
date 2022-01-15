@@ -1296,17 +1296,22 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"expression to numeric lvalue on", op->line, op->col,
 						ctr->currPath);
 				}
-				else if (lhsType.type == BA_TYPE_PTR &&
-					rhs->typeInfo.type == BA_TYPE_PTR &&
-					((struct ba_Type*)lhsType.extraInfo)->type != 
-						BA_TYPE_VOID &&
-					((struct ba_Type*)rhs->typeInfo.extraInfo)->type != 
-						BA_TYPE_VOID && 
-					!ba_AreTypesEqual(lhsType, rhs->typeInfo)) 
-				{
-					ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to "
-						"non-void pointer of different type on", op->line, 
-						op->col, ctr->currPath);
+				else if (lhsType.type == BA_TYPE_PTR) {
+					if (rhs->typeInfo.type != BA_TYPE_PTR) {
+						ba_ExitMsg(BA_EXIT_WARN, "assignment of numeric "
+							"non-pointer to pointer on", op->line, op->col,
+							ctr->currPath);
+					}
+					else if (BA_TYPE_VOID != 
+						((struct ba_Type*)lhsType.extraInfo)->type && 
+						BA_TYPE_VOID != 
+						((struct ba_Type*)rhs->typeInfo.extraInfo)->type &&
+						!ba_AreTypesEqual(lhsType, rhs->typeInfo))
+					{
+						ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to "
+							"non-void pointer of different type on", op->line, 
+							op->col, ctr->currPath);
+					}
 				}
 				else if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
 					opLex == BA_TK_BITOREQ || opLex == BA_TK_LSHIFTEQ || 
