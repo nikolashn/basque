@@ -35,6 +35,17 @@ write b; "\n";
 # write [b0]; # Error
 # write [2121]; # Error
 
+write a; " = ";
+write &[a]; "\n";
+
+write [arr,2,3]; " != ";
+[arr,2,3] = 101;
+write [arr,2,3]; " != ";
+[arr,2,3] *= 2;
+write [arr,2,3]; " != ";
+[arr,2,3] //= 3;
+write [arr,2,3]; "\n";
+
 u64 i = 0;
 while i < 4u {
 	# 11,13,17,19
