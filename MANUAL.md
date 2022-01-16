@@ -87,7 +87,7 @@ Statements are combinations of expressions that can be sequentially laid out to 
 #### Write statements
 Syntax: `write <expression>;`
 
-Outputs an expression to standard output (converting numeric expressions to `u64` and then to decimal strings of numbers)
+Outputs an expression to standard output (converting numeric expressions to `u64` and then to decimal strings of numbers). These are temporary and will eventually be replaced with library functions.
 ```
 write "Hello world!\n"; # Hello world!
 write 7*12; # 84
@@ -97,7 +97,7 @@ write -1; # 18446744073709551615
 #### Expression statements
 Syntax: `<expression>;`
 
-Normally, just evaluates the expression. If the expression is made up of string literals, the string literals are written to standard output as if it were a write statement.
+Normally, just evaluates the expression. If the expression is made up of string literals, the string literals are written to standard output.
 ```
 5+2; # Does nothing
 "yo\n"; # yo
