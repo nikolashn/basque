@@ -1,4 +1,4 @@
-# Generates the Madhava-Leibniz serapproximations for pi
+# Generates the Madhava-Leibniz approximations for pi
 void Madhava(u64 x) {
 	u64 num = 1;
 	u64 denom = 1;
