@@ -149,6 +149,11 @@ Syntax: `return` [ `<expression>` ] `;`
 
 Returns from a function, possibly with a return value. Can only be used in a function definition.
 
+#### Exit statement
+Syntax: `exit` `<expression>` `;`
+
+Exits from a program with an exit code.
+
 #### Include statement
 Syntax: `include <string literal>` { `<string literal>` }
 
