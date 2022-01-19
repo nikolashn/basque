@@ -266,6 +266,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | "while" exp ( commaStmt | scope )
  *      | "break" ";"
  *      | "return" [ exp ] ";"
+ *      | "exit" exp ";"
  *      | "goto" identifier ";"
  *      | "include" lit_str { lit_str } ";"
  *      | scope
@@ -571,6 +572,23 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
 		ctr->currFunc->doesReturn = 1;
+		return ba_PExpect(';', ctr);
+	}
+	// "exit" exp ";"
+	else if (ba_PAccept(BA_TK_KW_EXIT, ctr)) {
+		if (!ba_PExp(ctr)) {
+			return 0;
+		}
+		struct ba_PTkStkItem* exitCodeTk = ba_StkPop(ctr->pTkStk);
+		ba_POpMovArgToReg(ctr, exitCodeTk, BA_IM_RDI, 
+			ba_IsLexemeLiteral(exitCodeTk->lexemeType));
+		if (exitCodeTk->lexemeType == BA_TK_IMREGISTER && 
+			(u64)exitCodeTk->val == BA_IM_RDI) 
+		{
+			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDI, (u64)exitCodeTk->val);
+		}
+		ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 60);
+		ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 		return ba_PExpect(';', ctr);
 	}
 	// "goto" identifier ";"
