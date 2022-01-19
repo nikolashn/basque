@@ -1711,10 +1711,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					((struct ba_STVal*)funcTk->val)->initVal;
 				func->isCalled = 1;
 
-				if (funcArgsCnt <= 1 && funcArgsCnt < func->paramCnt) {
+				if (funcArgsCnt < func->paramCnt) {
 					struct ba_FuncParam* param = func->firstParam;
-					funcArgsCnt && (param = param->next);
-
+					u64 paramIncrementer = funcArgsCnt;
+					while (paramIncrementer) {
+						if (!param) {
+							break;
+						}
+						param = param->next;
+						--paramIncrementer;
+					}
 					while (param && param->hasDefaultVal) {
 						ba_StkPush(ctr->pTkStk, (void*)0);
 						++funcArgsCnt;
@@ -1737,9 +1743,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				if (funcArgsCnt != func->paramCnt) {
 					fprintf(stderr, "Error: func on line %llu:%llu in %s "
-						"takes %llu parameter%s, but %llu argument%s passed "
-						"(including implicits)\n", op->line, op->col, 
-						ctr->currPath, func->paramCnt, 
+						"takes %llu parameter%s, but %llu argument%s passed\n", 
+						op->line, op->col, ctr->currPath, func->paramCnt, 
 						func->paramCnt == 1 ? "" : "s", 
 						funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
 					exit(-1);
