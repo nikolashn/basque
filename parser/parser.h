@@ -580,6 +580,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 		struct ba_PTkStkItem* exitCodeTk = ba_StkPop(ctr->pTkStk);
+		if (!ba_IsTypeIntegral(exitCodeTk->typeInfo.type)) {
+			return ba_ExitMsg(BA_EXIT_ERR, "exit code must be integral on",
+				firstLine, firstCol, ctr->currPath);
+		}
 		ba_POpMovArgToReg(ctr, exitCodeTk, BA_IM_RDI, 
 			ba_IsLexemeLiteral(exitCodeTk->lexemeType));
 		if (exitCodeTk->lexemeType == BA_TK_IMREGISTER && 
