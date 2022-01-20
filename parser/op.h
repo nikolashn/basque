@@ -421,6 +421,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
 				}
 				
+				if (arg->lexemeType == BA_TK_IDENTIFIER) {
+					struct ba_Type* origType = malloc(sizeof(*origType));
+					if (!origType) {
+						return ba_ErrorMallocNoMem();
+					}
+					memcpy(origType, &arg->typeInfo.extraInfo, sizeof(*origType));
+					arg->typeInfo.extraInfo = origType;
+				}
+
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
 					arg->val = (void*)reg;
@@ -434,16 +443,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					arg->val = (void*)ctr->imStackSize;
 				}
 
-				if (arg->lexemeType == BA_TK_IDENTIFIER) {
-					struct ba_Type* origType = malloc(sizeof(*origType));
-					if (!origType) {
-						return ba_ErrorMallocNoMem();
-					}
-					memcpy(origType, &arg->typeInfo.extraInfo, sizeof(*origType));
-					arg->typeInfo.extraInfo = origType;
-				}
-
-				arg->lexemeType = BA_TK_IMREGISTER;
 				arg->typeInfo.type = BA_TYPE_PTR;
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
@@ -1284,6 +1283,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					? *(struct ba_Type*)lhs->typeInfo.extraInfo 
 					: lhs->typeInfo;
 
+				// TODO: put these exitmsgs in definition as well
+				// perhaps just make a function that checks for all of them
 				if (!ba_IsTypeNumeric(lhsType.type)) {
 					if (lhsType.type != rhs->typeInfo.type) {
 						return ba_ExitMsg(BA_EXIT_ERR, "assignment of "
