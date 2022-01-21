@@ -554,6 +554,46 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							}
 						}
 					}
+
+					// GPR, ADRADDREGMUL GPR (+) IMM (*) GPR
+					else if (im->vals[2] == BA_IM_ADRADDREGMUL) {
+						if (im->count < 6) {
+							return ba_ErrorIMArgCount(2, im);
+						}
+
+						u64 fact = im->vals[4];
+
+						if (!(BA_IM_RAX <= im->vals[3]) || 
+							!(BA_IM_R15 >= im->vals[3]) || 
+							(im->vals[5] == BA_IM_RSP) ||
+							(fact != 1 && fact != 2 && fact != 4 && fact != 8))
+						{
+							return ba_ErrorIMArgInvalid(im);
+						}
+
+						// fact = log2(fact)
+						fact = (fact >= 2) + (fact >= 4) + (fact == 8);
+						
+						u64 reg1 = im->vals[3] - BA_IM_RAX;
+						u64 byte0 = 0x48 | ((reg0 >= 8) << 2) | (reg1 >= 8);
+
+						u64 reg2 = im->vals[5] - BA_IM_RAX;
+						
+						bool hasExtraByte = (reg1 & 7) == 5;
+						code->cnt += 4 + hasExtraByte;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+						
+						u64 byte2 = 0x04 | (hasExtraByte << 6) | 
+							((reg0 & 7) << 3);
+						u64 byte3 = (fact << 6) | ((reg2 & 7) << 3) |
+							(reg1 & 7);
+
+						code->arr[code->cnt-4-hasExtraByte] = byte0;
+						code->arr[code->cnt-3-hasExtraByte] = 0x8d;
+						code->arr[code->cnt-2-hasExtraByte] = byte2;
+						code->arr[code->cnt-1-hasExtraByte] = byte3;
+						hasExtraByte && (code->arr[code->cnt-1] = 0);
+					}
 					
 					else {
 						return ba_ErrorIMArgInvalid(im);

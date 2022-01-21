@@ -350,6 +350,26 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 	return 0;
 }
 
+// Correct the type of dereferenced pointers
+u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
+	if (item->typeInfo.type == BA_TYPE_DPTR) {
+		item->typeInfo = *(struct ba_Type*)item->typeInfo.extraInfo;
+		if (item->lexemeType == BA_TK_IMREGISTER) {
+			ba_AddIM(ctr, 4, BA_IM_MOV, (u64)item->val, 
+				BA_IM_ADR, (u64)item->val);
+		}
+		else if (item->lexemeType == BA_TK_IMRBPSUB) {
+			ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRSUB, 
+				BA_IM_RBP, (u64)item->val);
+			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+				(u64)item->val, BA_IM_RAX);
+			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+		}
+	}
+	return 1;
+}
+
 // Handle operations (i.e. perform operation now or generate code for it)
 u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
@@ -362,6 +382,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 		{
+			op->lexemeType != '&' && op->lexemeType != BA_TK_INC && 
+				op->lexemeType != BA_TK_DEC && op->lexemeType != '[' && 
+				ba_PCorrectDPtr(ctr, arg);
+
 			if (op->lexemeType == '+') {
 				if (!ba_IsTypeNumeric(arg->typeInfo.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "unary '+' used with non "
@@ -414,6 +438,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 5, BA_IM_LEA, reg ? reg : BA_IM_RAX, 
 						BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 						ba_CalcSTValOffset(ctr->currScope, arg->val));
+
+					struct ba_Type* origType = malloc(sizeof(*origType));
+					if (!origType) {
+						return ba_ErrorMallocNoMem();
+					}
+					memcpy(origType, &arg->typeInfo, sizeof(*origType));
+					arg->typeInfo.extraInfo = origType;
 				}
 				// (DPTR)
 				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
@@ -421,15 +452,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
 				}
 				
-				if (arg->lexemeType == BA_TK_IDENTIFIER) {
-					struct ba_Type* origType = malloc(sizeof(*origType));
-					if (!origType) {
-						return ba_ErrorMallocNoMem();
-					}
-					memcpy(origType, &arg->typeInfo.extraInfo, sizeof(*origType));
-					arg->typeInfo.extraInfo = origType;
-				}
-
 				if (reg) {
 					arg->lexemeType = BA_TK_IMREGISTER;
 					arg->val = (void*)reg;
@@ -503,11 +525,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"non-lvalue on", op->line, op->col, ctr->currPath);
 				}
 
-				struct ba_Type argType = arg->typeInfo.type == BA_TYPE_DPTR
-					? *(struct ba_Type*)arg->typeInfo.extraInfo 
-					: arg->typeInfo;
+				if (arg->typeInfo.type == BA_TYPE_DPTR) {
+					arg->typeInfo = *(struct ba_Type*)arg->typeInfo.extraInfo;
+				}
 
-				if (!ba_IsTypeNumeric(argType.type)) {
+				if (!ba_IsTypeNumeric(arg->typeInfo.type)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric "
 						"lvalue on", op->line, op->col, ctr->currPath);
 				}
@@ -550,9 +572,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
 				}
 
-				if (argType.type == BA_TYPE_PTR) {
+				if (arg->typeInfo.type == BA_TYPE_PTR) {
 					ba_AddIM(ctr, 4, ptrImOp, reg ? reg : BA_IM_RAX, 
-						BA_IM_IMM, ba_GetSizeOfType(argType));
+						BA_IM_IMM, ba_GetSizeOfType(arg->typeInfo));
 				}
 				else {
 					ba_AddIM(ctr, 2, imOp, reg ? reg : BA_IM_RAX);
@@ -620,8 +642,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			bool isLhsLiteral = ba_IsLexemeLiteral(lhs->lexemeType);
 			bool isRhsLiteral = ba_IsLexemeLiteral(rhs->lexemeType);
 
-			// Bit shifts
+			op->lexemeType != '=' &&
+				!ba_IsLexemeCompoundAssign(op->lexemeType) && 
+				ba_PCorrectDPtr(ctr, lhs);
 
+			// Bit shifts
 			if (op->lexemeType == BA_TK_LSHIFT || 
 				op->lexemeType == BA_TK_RSHIFT) 
 			{
@@ -682,7 +707,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				if (!ba_IsTypeNumeric(lhs->typeInfo.type) || 
 					!ba_IsTypeNumeric(rhs->typeInfo.type)) 
 				{
-					char msg[128];
+					char msg[128] = {0};
 					strcat(msg, opName);
 					strcat(msg, " with non numeric operand(s) on");
 					return ba_ExitMsg(BA_EXIT_ERR, msg, op->line, op->col, 
@@ -1731,7 +1756,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				
 				struct ba_Stk* argsStk = ba_NewStk();
 				for (u64 i = 0; i < funcArgsCnt; i++) {
-					ba_StkPush(argsStk, ba_StkPop(ctr->pTkStk));
+					struct ba_PTkStkItem* argItem = ba_StkPop(ctr->pTkStk);
+					argItem && ba_PCorrectDPtr(ctr, argItem);
+					ba_StkPush(argsStk, argItem);
 				}
 
 				ba_StkPop(ctr->pTkStk); // Pop funcTk
@@ -1858,6 +1885,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 2; // Go back to parsing as if having followed an atom
 			}
 			else if (op->lexemeType == '~') {
+				ba_PCorrectDPtr(ctr, arg);
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
 				if (!castedExp) {
 					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 

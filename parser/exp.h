@@ -18,7 +18,6 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 	u64 derefArgsCnt = 0;
 	u64 deStackPos = 0;
 	u64 deReg = 0;
-	bool isUsedAsLValue = 0;
 	while (1) {
 		ctr->pOpStk = ba_NewStk();
 		if (!ba_PExp(ctr)) {
@@ -31,47 +30,9 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 
 		bool isLastArg = !ba_PAccept(',', ctr);
 
-		// Determine if the deref is used as an l-value
-		if (isLastArg) {
-			/* There are only a few ways for it to be an l-value: 
-			   assignment, and the '&', '++', '--' operators. */
-			u64 lkBkPos = originalOpStk->count;
-			while (lkBkPos) {
-				--lkBkPos;
-				struct ba_POpStkItem* op = originalOpStk->items[lkBkPos];
-				if (op->syntax == BA_OP_PREFIX && (op->lexemeType == '&' ||
-					op->lexemeType == BA_TK_INC || op->lexemeType == BA_TK_DEC)) 
-				{
-					isUsedAsLValue = 1;
-					goto BA_LBL_PDEREFMAKE_CODEGEN;
-				}
-				if (op->lexemeType != '(' || op->syntax != BA_OP_PREFIX) {
-					break;
-				}
-			}
-			
-			struct ba_Lexeme* nextLex = ctr->lex;
-			if (!nextLex || nextLex->type != ']') {
-				return ba_PExpect(']', ctr);
-			}
-			nextLex = nextLex->next;
-			while (nextLex) {
-				if (nextLex->type == '=' || 
-					ba_IsLexemeCompoundAssign(nextLex->type))
-				{
-					isUsedAsLValue = 1;
-					goto BA_LBL_PDEREFMAKE_CODEGEN;
-				}
-				if (nextLex->type != ')') {
-					break;
-				}
-				nextLex = nextLex->next;
-			}
-		}
-
-		BA_LBL_PDEREFMAKE_CODEGEN:
 		if (derefArgsCnt == 1) {
 			type = item->typeInfo;
+
 			if (type.type != BA_TYPE_PTR) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
@@ -82,6 +43,9 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 				ba_IsLexemeLiteral(item->lexemeType));
 		}
 		else {
+			if (derefArgsCnt > 2) {
+				type = *(struct ba_Type*)type.extraInfo;
+			}
 			if (type.type != BA_TYPE_PTR) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
@@ -96,16 +60,12 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 				exit(-1);
 			}
 
-			if (!isUsedAsLValue) {
-				type = *(struct ba_Type*)type.extraInfo;
-			}
-
 			if (ba_IsLexemeLiteral(item->lexemeType)) {
 				bool isNeg = (i64)item->val < 0;
 				u64 ofst = pointedTypeSize * 
 					(isNeg ? (u64)item->val : -(u64)item->val);
-				ba_AddIM(ctr, 5, isUsedAsLValue ? BA_IM_LEA : BA_IM_MOV, 
-					deReg, isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, ofst);
+				ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, deReg, 
+					isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, ofst);
 				goto BA_LBL_PDEREFMAKE_LOOPEND;
 			}
 
@@ -127,8 +87,8 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 
 			ba_POpMovArgToReg(ctr, item, effAddReg, /* isLiteral = */ 0);
 
-			ba_AddIM(ctr, 6, isUsedAsLValue ? BA_IM_LEA : BA_IM_MOV, 
-				deReg, BA_IM_ADRADDREGMUL, deReg, pointedTypeSize, addReg);
+			ba_AddIM(ctr, 6, isLastArg ? BA_IM_LEA : BA_IM_MOV, deReg, 
+				BA_IM_ADRADDREGMUL, deReg, pointedTypeSize, addReg);
 
 			if (!addReg) {
 				ba_AddIM(ctr, 2, BA_IM_POP, effAddReg);
@@ -142,19 +102,11 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 		}
 	}
 
-	if (!isUsedAsLValue && derefArgsCnt == 1) {
-		ba_AddIM(ctr, 4, BA_IM_MOV, deReg ? deReg : BA_IM_RAX, 
-			BA_IM_ADR, deReg ? deReg : BA_IM_RAX);
-		type = *(struct ba_Type*)type.extraInfo;
-	}
-
 	struct ba_PTkStkItem* result = malloc(sizeof(*result));
 	if (!result) {
 		return ba_ErrorMallocNoMem();
 	}
 
-	isUsedAsLValue && (type.type = BA_TYPE_DPTR);
-	
 	if (deReg) {
 		result->lexemeType = BA_TK_IMREGISTER;
 		result->val = (void*)deReg;
@@ -168,7 +120,8 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 		result->val = (void*)ctr->imStackSize;
 	}
 
-	result->typeInfo = type;
+	result->typeInfo.type = BA_TYPE_DPTR;
+	result->typeInfo.extraInfo = type.extraInfo;
 	result->isLValue = 1;
 	ba_StkPush(ctr->pTkStk, result);
 	
@@ -420,6 +373,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			return 0;
 		}
 	}
+
+	ba_PCorrectDPtr(ctr, ba_StkTop(ctr->pTkStk));
 
 	if (ctr->paren || ctr->bracket) {
 		return 1;
