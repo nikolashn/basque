@@ -337,6 +337,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	}
 	
 	struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
+	ba_POpAssignChecks(ctr, idVal->type, expItem, line, col);
 	
 	if (ba_IsTypeNumeric(idVal->type.type)) {
 		if (!ba_IsTypeNumeric(expItem->typeInfo.type)) {

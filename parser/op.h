@@ -370,6 +370,37 @@ u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 	return 1;
 }
 
+u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType, 
+	struct ba_PTkStkItem* rhs, u64 line, u64 col) 
+{
+	if (!ba_IsTypeNumeric(lhsType.type) && lhsType.type != rhs->typeInfo.type) {
+		return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible types on", 
+			line, col, ctr->currPath);
+	}
+	if (!ba_IsTypeNumeric(rhs->typeInfo.type)) {
+		return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric expression "
+			"to numeric lvalue on", line, col, ctr->currPath);
+	}
+	if (lhsType.type == BA_TYPE_PTR) {
+		// 0 for null pointer is fine
+		if (rhs->lexemeType == BA_TK_LITINT && (u64)rhs->val == 0) {
+			return 1;
+		}
+		if (rhs->typeInfo.type != BA_TYPE_PTR) {
+			return ba_ExitMsg(BA_EXIT_WARN, "assignment of numeric non-pointer "
+				"to pointer on", line, col, ctr->currPath);
+		}
+		if (BA_TYPE_VOID != ((struct ba_Type*)lhsType.extraInfo)->type && 
+			BA_TYPE_VOID != ((struct ba_Type*)rhs->typeInfo.extraInfo)->type && 
+			!ba_AreTypesEqual(lhsType, rhs->typeInfo))
+		{
+			return ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to non-void "
+				"pointer of different type on", line, col, ctr->currPath);
+		}
+	}
+	return 1;
+}
+
 // Handle operations (i.e. perform operation now or generate code for it)
 u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
@@ -1308,38 +1339,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					? *(struct ba_Type*)lhs->typeInfo.extraInfo 
 					: lhs->typeInfo;
 
-				// TODO: put these exitmsgs in definition as well
-				// perhaps just make a function that checks for all of them
-				if (!ba_IsTypeNumeric(lhsType.type)) {
-					if (lhsType.type != rhs->typeInfo.type) {
-						return ba_ExitMsg(BA_EXIT_ERR, "assignment of "
-							"incompatible types on", op->line, op->col, 
-							ctr->currPath);
-					}
-				}
-				else if (!ba_IsTypeNumeric(rhs->typeInfo.type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric "
-						"expression to numeric lvalue on", op->line, op->col,
-						ctr->currPath);
-				}
-				else if (lhsType.type == BA_TYPE_PTR) {
-					if (rhs->typeInfo.type != BA_TYPE_PTR) {
-						ba_ExitMsg(BA_EXIT_WARN, "assignment of numeric "
-							"non-pointer to pointer on", op->line, op->col,
-							ctr->currPath);
-					}
-					else if (BA_TYPE_VOID != 
-						((struct ba_Type*)lhsType.extraInfo)->type && 
-						BA_TYPE_VOID != 
-						((struct ba_Type*)rhs->typeInfo.extraInfo)->type &&
-						!ba_AreTypesEqual(lhsType, rhs->typeInfo))
-					{
-						ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to "
-							"non-void pointer of different type on", op->line, 
-							op->col, ctr->currPath);
-					}
-				}
-				else if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
+				ba_POpAssignChecks(ctr, lhsType, rhs, op->line, op->col);
+
+				if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
 					opLex == BA_TK_BITOREQ || opLex == BA_TK_LSHIFTEQ || 
 					opLex == BA_TK_RSHIFTEQ) && 
 					(!ba_IsTypeIntegral(lhsType.type) || 
