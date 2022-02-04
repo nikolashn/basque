@@ -38,10 +38,11 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* base_type = ("u64" | "i64" | "void") { "*" } */
+/* base_type = ("u64" | "i64" | "u8" | "i8" | "void") { "*" } */
 u8 ba_PBaseType(struct ba_Controller* ctr) {
 	u64 lexType = ctr->lex->type;
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
+		ba_PAccept(BA_TK_KW_U8, ctr) || ba_PAccept(BA_TK_KW_I8, ctr) || 
 		ba_PAccept(BA_TK_KW_VOID, ctr)) 
 	{
 		struct ba_Type type = { BA_TYPE_TYPE, 0 };
