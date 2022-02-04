@@ -318,14 +318,13 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 
 	idVal->scope = ctr->currScope;
 	idVal->type = type;
-	idVal->isInited = 0;
 
 	if (idVal->type.type == BA_TYPE_VOID) {
 		return ba_ErrorVarVoid(line, col, ctr->currPath);
 	}
 	
-	u64 idDataSize = ba_GetSizeOfType(idVal->type);
-	idVal->address = ctr->currScope->dataSize + idDataSize;
+	u64 dataSize = ba_GetSizeOfType(idVal->type);
+	idVal->address = ctr->currScope->dataSize + dataSize;
 
 	ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
@@ -340,6 +339,8 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	ba_POpAssignChecks(ctr, idVal->type, expItem, line, col);
 	
 	if (ba_IsTypeNumeric(idVal->type.type)) {
+		u64 idSize = ba_GetSizeOfType(idVal->type);
+
 		if (!ba_IsTypeNumeric(expItem->typeInfo.type)) {
 			char* expTypeStr = ba_GetTypeStr(expItem->typeInfo);
 			char* varTypeStr = ba_GetTypeStr(idVal->type);
@@ -348,24 +349,34 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		}
 
 		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
+			ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, idSize), 
 				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 				ba_CalcSTValOffset(ctr->currScope, expItem->val));
 		}
 
 		if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-			idVal->initVal = expItem->val;
-			idVal->isInited = 1;
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-				BA_IM_IMM, (u64)expItem->val);
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, (u64)expItem->val);
 		}
 		
-		ba_AddIM(ctr, 2, BA_IM_PUSH,
-			expItem->lexemeType == BA_TK_IMREGISTER ? 
-				(u64)expItem->val : BA_IM_RAX);
+		u64 reg = expItem->lexemeType == BA_TK_IMREGISTER 
+			? (u64)expItem->val : BA_IM_RAX;
+
+		if (idSize == 8) {
+			ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
+		}
+		else {
+			if (idSize == 1) {
+				ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
+			}
+			else {
+				ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RSP, idSize);
+			}
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
+				ba_AdjRegSize(reg, idSize));
+		}
 	}
 	
-	ctr->currScope->dataSize += idDataSize;
+	ctr->currScope->dataSize += dataSize;
 
 	return ba_PExpect(';', ctr);
 }
