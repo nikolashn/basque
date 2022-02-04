@@ -529,8 +529,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgCount(2, im);
 						}
 
-						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
-							im->vals[1] == BA_IM_64ADRSUB;
 						u64 imm = im->vals[5];
 						u8 byte0 = 0x48 | (reg0 >= 8);
 
