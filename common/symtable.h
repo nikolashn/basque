@@ -16,8 +16,8 @@ struct ba_STVal {
 	 * If a variable, relative to start of scope's stack */
 	u64 address;
 
-	void* initVal; /* For funcs, stores a struct ba_Func*, 
-	which should be changed to storing it in type.extraInfo */
+	// initVal, isInited only used for funcs
+	void* initVal;
 	bool isInited;
 };
 
