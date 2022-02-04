@@ -1,0 +1,33 @@
+#{
+	Expected output:
+	0,1,1
+	0,1,0,1,1,0
+	25,50,12
+	0,1
+}#
+
+u8 egg = 1;
+i8 ham = 256;
+
+write ham; ",";
+write !ham; ",";
+write !(256~u8); "\n";
+
+write egg && ham; ",";
+write egg && egg; ",";
+write ham && ham; ",";
+write egg || ham; ",";
+write egg || egg; ",";
+write ham || ham; "\n";
+
+ham = 3*179;
+write ham; ",";
+write ham<<1; ",";
+write ham>>1; "\n";
+
+ham = 255;
+++ham;
+write ham; ",";
+write egg; "\n"; #{ Currently does not work as '=' operator 
+                    has not been updated }#
+
