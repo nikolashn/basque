@@ -480,7 +480,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					}
 
 					// From GPRb
-					if ((BA_IM_AL <= im->vals[4]) && (BA_IM_R15B >= im->vals[4])) {
+					else if ((BA_IM_AL <= im->vals[4]) && (BA_IM_R15B >= im->vals[4])) {
 						u8 reg1 = im->vals[4] - BA_IM_AL;
 						u8 byte0 = 0x40 | (reg0 >= 8) | ((reg1 >= 8) << 2);
 						bool hasByte0 = (reg0 >= 4) | (reg1 >= 4);
