@@ -1555,6 +1555,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				0x04 * ((im->vals[1] == BA_IM_64ADRADD) | 
 					(im->vals[1] == BA_IM_64ADRSUB));
 
+			// Into GPR
 			if ((BA_IM_RAX <= im->vals[1]) && (BA_IM_R15 >= im->vals[1])) {
 				if ((BA_IM_RAX <= im->vals[2]) && (BA_IM_R15 >= im->vals[2])) {
 					return 3;
@@ -1583,6 +1584,30 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						return 5 + (reg0 >= 8);
 					}
 					return 10;
+				}
+			}
+			// Into GPRb
+			else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
+				u8 reg0 = im->vals[1] - BA_IM_AL;
+				// GPRb, ADRADD/ADRSUB GPR
+				if (im->vals[2] == BA_IM_ADRADD || 
+					im->vals[2] == BA_IM_ADRSUB) 
+				{
+					u64 offset = im->vals[4];
+					u8 reg1 = im->vals[3] - BA_IM_RAX;
+					bool hasByte0 = (reg0 >= 4) | (reg1 >= 4);
+					bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
+					u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
+						(offset >= 0x80) * 3;
+					return 2 + hasByte0 + isReg1Mod4 + ofstSz;
+				}
+				// GPRb, IMM
+				else if (im->vals[2] == BA_IM_IMM) {
+					return 2 + (reg0 >= 4);
+				}
+
+				else {
+					return ba_ErrorIMArgInvalid(im);
 				}
 			}
 			// Into ADR GPR effective address
