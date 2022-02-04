@@ -25,7 +25,7 @@ syn region baString start='"' end='"' skip='\\"' contains=baEscape
 syn match baEscape contained '\\\(["ntvfrb0\n]\|\'\|\(x\o\x\)\)'
 
 syn keyword baKeyword write if elif else while break goto return include exit
-syn keyword baType u64 i64 void
+syn keyword baType u64 i64 u8 i8 void
 
 syn match baLabel "\<[a-zA-Z_][a-zA-Z0-9_]*:"
 
