@@ -49,6 +49,8 @@ enum {
 	BA_TK_KW_VOID    = 0x30a,
 	BA_TK_KW_INCLUDE = 0x30b,
 	BA_TK_KW_EXIT    = 0x30c,
+	BA_TK_KW_U8      = 0x30d,
+	BA_TK_KW_I8      = 0x30e,
 
 	// Used to change ctr->currPath
 	BA_TK_FILECHANGE = 0xfff,
@@ -115,6 +117,10 @@ struct ba_Type ba_GetTypeFromKeyword(u64 lexType) {
 			return (struct ba_Type){ BA_TYPE_U64, 0 };
 		case BA_TK_KW_I64:
 			return (struct ba_Type){ BA_TYPE_I64, 0 };
+		case BA_TK_KW_U8:
+			return (struct ba_Type){ BA_TYPE_U8, 0 };
+		case BA_TK_KW_I8:
+			return (struct ba_Type){ BA_TYPE_I8, 0 };
 		case BA_TK_KW_VOID:
 			return (struct ba_Type){ BA_TYPE_VOID, 0 };
 	}
@@ -175,6 +181,8 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_KW_VOID:    return "keyword 'void'";
 		case BA_TK_KW_INCLUDE: return "keyword 'include'";
 		case BA_TK_KW_EXIT:    return "keyword 'exit'";
+		case BA_TK_KW_U8:      return "keyword 'u8'";
+		case BA_TK_KW_I8:      return "keyword 'i8'";
 	}
 	return 0;
 }

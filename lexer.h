@@ -372,6 +372,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					else if (!strcmp(idBuf, "i64")) {
 						nextLex->type = BA_TK_KW_I64;
 					}
+					else if (!strcmp(idBuf, "i8")) {
+						nextLex->type = BA_TK_KW_I8;
+					}
 					else if (!strcmp(idBuf, "if")) {
 						nextLex->type = BA_TK_KW_IF;
 					}
@@ -383,6 +386,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					}
 					else if (!strcmp(idBuf, "u64")) {
 						nextLex->type = BA_TK_KW_U64;
+					}
+					else if (!strcmp(idBuf, "u8")) {
+						nextLex->type = BA_TK_KW_U8;
 					}
 					else if (!strcmp(idBuf, "void")) {
 						nextLex->type = BA_TK_KW_VOID;
