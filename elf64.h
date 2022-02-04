@@ -439,14 +439,14 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 
 					u8 reg0 = im->vals[2] - BA_IM_RAX;
 					u64 offset = im->vals[3];
+					bool sub = im->vals[1] == BA_IM_ADRSUB ||
+						im->vals[1] == BA_IM_64ADRSUB;
+
 					
 					// From GPR
 					if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
-						u8 sub = im->vals[1] == BA_IM_ADRSUB ||
-							im->vals[1] == BA_IM_64ADRSUB;
-
 						u8 reg1 = im->vals[4] - BA_IM_RAX;
-						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 3);
+						u8 byte0 = 0x48 | (reg0 >= 8) | ((reg1 >= 8) << 2);
 
 						bool isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
@@ -469,6 +469,44 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						code->arr[code->cnt-instrSz+1] = 0x89;
 						code->arr[code->cnt-instrSz+2] = byte2;
 						((reg0 & 7) == 4) && (code->arr[code->cnt-instrSz+3] = 0x24);
+
+						if (!isOffsetOneByte) {
+							for (u64 i = 4; i > 1; i--) {
+								code->arr[code->cnt-i] = offset & 0xff;
+								offset >>= 8;
+							}
+						}
+						code->arr[code->cnt-1] = offset & 0xff;
+					}
+
+					// From GPRb
+					if ((BA_IM_AL <= im->vals[4]) && (BA_IM_R15B >= im->vals[4])) {
+						u8 reg1 = im->vals[4] - BA_IM_AL;
+						u8 byte0 = 0x40 | (reg0 >= 8) | ((reg1 >= 8) << 2);
+						bool hasByte0 = (reg0 >= 4) | (reg1 >= 4);
+
+						bool isOffsetOneByte = offset < 0x80;
+						if (offset >= (1llu << 31)) {
+							fprintf(stderr, "Error: Effective address cannot "
+								"have a more than 32 bit offset in "
+								"instruction %s\n", ba_IMToStr(im));
+							exit(-1);
+						}
+
+						sub && (offset = -offset);
+						u8 byte2 = (0x40 << (!isOffsetOneByte)) | (reg0 & 7) |
+							((reg1 & 7) << 3);
+
+						u8 instrSz = 3 + hasByte0 + 3 * (!isOffsetOneByte) + 
+							((reg0 & 7) == 4);
+						code->cnt += instrSz;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						hasByte0 && (code->arr[code->cnt-instrSz] = byte0);
+						code->arr[code->cnt-instrSz+hasByte0] = 0x88;
+						code->arr[code->cnt-instrSz+hasByte0+1] = byte2;
+						(reg0 & 7) == 4 && 
+							(code->arr[code->cnt-instrSz+hasByte0+2] = 0x24);
 
 						if (!isOffsetOneByte) {
 							for (u64 i = 4; i > 1; i--) {
@@ -1630,7 +1668,11 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
 					return 4 + 3 * (offset >= 0x80) + ((reg0 & 7) == 4);
 				}
-
+				if ((BA_IM_AL <= im->vals[4]) && (BA_IM_R15B >= im->vals[4])) {
+					u8 reg1 = im->vals[4] - BA_IM_AL;
+					return 3 + ((reg0 >= 4) | (reg1 >= 4)) + 
+						3 * (offset >= 0x80) + ((reg0 & 7) == 4);
+				}
 				else if (im->vals[4] == BA_IM_IMM) {
 					return adrAddDestSize + 4 + 3 * (offset >= 0x80) + 
 						((reg0 & 7) == 4);
