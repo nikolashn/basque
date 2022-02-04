@@ -144,6 +144,17 @@ struct ba_IMLabel {
 	bool isFound;
 };
 
+u64 ba_AdjRegSize(u64 reg, u64 size) {
+	if (size == 8) {
+		return reg;
+	}
+	if (size == 1) {
+		return reg - BA_IM_RAX + BA_IM_AL;
+	}
+	fprintf(stderr, "Error: invalid register size %llu\n", size);
+	exit(-1);
+}
+
 char* ba_IMItemToStr(u64 val) {
 	switch (val) {
 		case BA_IM_NOP:          return "NOP ";
