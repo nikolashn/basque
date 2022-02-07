@@ -296,8 +296,45 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 					u8 reg0 = im->vals[1] - BA_IM_AL;
 					u8 byte0 = 0x40;
 
+					// GPRb, ADR GPR
+					if (im->vals[2] == BA_IM_ADR) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgCount(2, im);
+						}
+
+						if (!(BA_IM_RAX <= im->vals[3]) || 
+							!(BA_IM_R15 >= im->vals[3])) 
+						{
+							return ba_ErrorIMArgInvalid(im);
+						}
+					
+						bool sub = im->vals[2] == BA_IM_ADRSUB;
+						u64 offset = im->vals[4];
+
+						u8 reg1 = im->vals[3] - BA_IM_RAX;
+						u8 byte2 = (offset != 0 || (reg1 & 7) == 5) * 0x40 + 
+							(offset >= 0x80) * 0x40;
+						
+						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
+						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
+
+						bool hasByte0 = (reg0 >= 8) | (reg1 >= 8);
+						bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
+						bool isReg1Mod5 = (reg1 & 7) == 5; // RBP or R13
+						
+						code->cnt += 2 + hasByte0 + isReg1Mod4 + isReg1Mod5;
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+
+						hasByte0 && (code->arr
+							[code->cnt-3-isReg1Mod4-isReg1Mod5] = byte0);
+						code->arr[code->cnt-2-isReg1Mod4-isReg1Mod5] = 0x8a;
+						code->arr[code->cnt-1-isReg1Mod4-isReg1Mod5] = byte2;
+						(isReg1Mod4 && (code->arr[code->cnt-1] = 0x24)) || 
+						(isReg1Mod5 && (code->arr[code->cnt-1] = 0));
+					}
+
 					// GPRb, ADRADD/ADRSUB GPR
-					if (im->vals[2] == BA_IM_ADRADD || 
+					else if (im->vals[2] == BA_IM_ADRADD || 
 						im->vals[2] == BA_IM_ADRSUB) 
 					{
 						if (im->count < 5) {
