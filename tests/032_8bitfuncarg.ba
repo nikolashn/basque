@@ -1,0 +1,26 @@
+#{
+	Expected output:
+	2,1
+	123,233
+}#
+
+# Arithmetic shift right
+u64 SAR(u64 x, u8 n) {
+	u64 shr = x >> n;
+	if x & (1<<63),
+		return shr | ~((1<<-n)-1);
+	return shr;
+}
+
+write -SAR(-4, 1); ",";
+write -SAR((1<<63), 64); "\n";
+
+# Add 3 bytes
+u8 A3B(u8 a, u8 b, u8 c = 0, u8 d) {
+	u8 sum = a + b + c + d;
+	return sum;
+}
+
+write A3B(215,51,146,223); ",";
+write A3B(215,51,,223); "\n";
+
