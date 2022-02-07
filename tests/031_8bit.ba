@@ -3,7 +3,7 @@
 	0,1,1
 	0,1,0,1,1,0
 	25,50,12
-	0,1
+	0,1,20,11
 }#
 
 u8 egg = 1;
@@ -28,6 +28,8 @@ write ham>>1; "\n";
 ham = 255;
 ++ham;
 write ham; ",";
-write egg; "\n"; #{ Currently does not work as '=' operator 
-                    has not been updated }#
+write egg; ","; #{ Currently does not work as '=' operator 
+                   has not been updated }#
+write (-5)~u8 // 12u; ",";
+write (-5)~u8 % 12u; "\n";
 
