@@ -308,11 +308,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgInvalid(im);
 						}
 					
-						u64 offset = im->vals[4];
-
 						u8 reg1 = im->vals[3] - BA_IM_RAX;
-						u8 byte2 = (offset != 0 || (reg1 & 7) == 5) * 0x40 + 
-							(offset >= 0x80) * 0x40;
+						u8 byte2 = ((reg1 & 7) == 5) * 0x40;
 						
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
@@ -1672,6 +1669,13 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 					u64 ofstSz = (offset != 0 || (reg1 & 7) == 5) + 
 						(offset >= 0x80) * 3;
 					return 2 + hasByte0 + isReg1Mod4 + ofstSz;
+				}
+				else if (im->vals[2] == BA_IM_ADR) {
+					u8 reg1 = im->vals[3] - BA_IM_RAX;
+					bool hasByte0 = (reg0 >= 8) | (reg1 >= 8);
+					bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
+					bool isReg1Mod5 = (reg1 & 7) == 5; // RBP or R13
+					return 2 + hasByte0 + isReg1Mod4 + isReg1Mod5;
 				}
 				// GPRb, IMM
 				else if (im->vals[2] == BA_IM_IMM) {
