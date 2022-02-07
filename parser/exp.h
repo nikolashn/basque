@@ -50,21 +50,23 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
 			
-			u64 pointedTypeSize = ba_GetSizeOfType(type);
-			if (pointedTypeSize != 1 && pointedTypeSize != 2 && 
-				pointedTypeSize != 4 && pointedTypeSize != 8)
+			u64 pntdTypeSize = 
+				ba_GetSizeOfType(*(struct ba_Type*)type.extraInfo);
+			if (pntdTypeSize != 1 && pntdTypeSize != 2 && 
+				pntdTypeSize != 4 && pntdTypeSize != 8)
 			{
 				fprintf(stderr, "Error: dereferencing pointer pointing to type "
 					"with size %llu not implemented, line %llu:%llu in %s\n", 
-					pointedTypeSize, line, col, ctr->currPath);
+					pntdTypeSize, line, col, ctr->currPath);
 				exit(-1);
 			}
 
 			if (ba_IsLexemeLiteral(item->lexemeType)) {
 				bool isNeg = (i64)item->val < 0;
-				u64 ofst = pointedTypeSize * 
+				u64 ofst = pntdTypeSize * 
 					(isNeg ? (u64)item->val : -(u64)item->val);
-				ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, deReg, 
+				ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, 
+					isLastArg ? deReg : ba_AdjRegSize(deReg, pntdTypeSize),
 					isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, ofst);
 				goto BA_LBL_PDEREFMAKE_LOOPEND;
 			}
@@ -87,8 +89,9 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 
 			ba_POpMovArgToReg(ctr, item, effAddReg, /* isLiteral = */ 0);
 
-			ba_AddIM(ctr, 6, isLastArg ? BA_IM_LEA : BA_IM_MOV, deReg, 
-				BA_IM_ADRADDREGMUL, deReg, pointedTypeSize, addReg);
+			ba_AddIM(ctr, 6, isLastArg ? BA_IM_LEA : BA_IM_MOV,
+				isLastArg ? deReg : ba_AdjRegSize(deReg, pntdTypeSize),
+				BA_IM_ADRADDREGMUL, deReg, pntdTypeSize, addReg);
 
 			if (!addReg) {
 				ba_AddIM(ctr, 2, BA_IM_POP, effAddReg);

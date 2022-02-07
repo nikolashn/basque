@@ -369,9 +369,13 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 	if (item->typeInfo.type == BA_TYPE_DPTR) {
 		item->typeInfo = *(struct ba_Type*)item->typeInfo.extraInfo;
+		u64 size = ba_GetSizeOfType(item->typeInfo);
 		if (item->lexemeType == BA_TK_IMREGISTER) {
-			ba_AddIM(ctr, 4, BA_IM_MOV, (u64)item->val, 
-				BA_IM_ADR, (u64)item->val);
+			u64 adjReg = ba_AdjRegSize((u64)item->val, size);
+			ba_AddIM(ctr, 4, BA_IM_MOV, adjReg, BA_IM_ADR, (u64)item->val);
+			if (size < 8) {
+				ba_AddIM(ctr, 3, BA_IM_MOVZX, (u64)item->val, adjReg);
+			}
 		}
 		else if (item->lexemeType == BA_TK_IMRBPSUB) {
 			ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
