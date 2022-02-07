@@ -117,8 +117,8 @@ void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg,
 u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
 	u64 reg, bool isLiteral) 
 {
+	u64 argSize = ba_GetSizeOfType(arg->typeInfo);
 	if (arg->lexemeType == BA_TK_IDENTIFIER) {
-		u64 argSize = ba_GetSizeOfType(arg->typeInfo);
 		if (argSize < 4) {
 			ba_AddIM(ctr, 3, BA_IM_XOR, reg, reg);
 		}
@@ -133,7 +133,9 @@ u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 		return 1;
 	}
 	else if (isLiteral) {
-		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, (u64)arg->val);
+		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
+			argSize < 8 ? (u64)arg->val & ((1llu << (argSize*8))-1)
+				: (u64)arg->val);
 		return 1;
 	}
 	return 0;
@@ -537,7 +539,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					if (ba_IsLexemeLiteral(arg->lexemeType)) {
 						u64 size = ba_GetSizeOfType(arg->typeInfo);
 						(size < 8) && (arg->val = 
-							(void*)((u64)arg->val & ((1<<(size*8))-1)));
+							(void*)((u64)arg->val & ((1llu<<(size*8))-1)));
 						((op->lexemeType == '-') && 
 							(arg->val = (void*)(-(u64)arg->val))) ||
 						((op->lexemeType == '~') &&
@@ -878,14 +880,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
 				(isRhsLiteral && rhsSize < 8) && 
-					(rhs->val = (void*)((u64)rhs->val & ((1<<(rhsSize*8))-1)));
+					(rhs->val = (void*)((u64)rhs->val & ((1llu<<(rhsSize*8))-1)));
 
 				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
 					(lhsSize < 8) && (lhs->val = 
-						(void*)((u64)lhs->val & ((1<<(lhsSize*8))-1)));
+						(void*)((u64)lhs->val & ((1llu<<(lhsSize*8))-1)));
 					arg->val = areBothUnsigned 
 						? (void*)(((u64)lhs->val) / ((u64)rhs->val))
 						: (void*)(((i64)lhs->val) / ((i64)rhs->val));
@@ -897,11 +899,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
-						((u64)rhs->val & (1 << (rhsSize*8-1))); // test for sign
+						((u64)rhs->val & (1llu << (rhsSize*8-1))); // test for sign
 
 					if (isRhsNeg) {
 						ba_POpNonLitUnary('-', lhs, ctr);
-						rhs->val = (void*)((-(i64)rhs->val) & ((1<<rhsSize*8)-1));
+						rhs->val = rhsSize == 8 ? (void*)-(i64)rhs->val :
+							(void*)((-(i64)rhs->val) & ((1llu<<(rhsSize*8))-1));
 					}
 
 					if ((u64)rhs->val == 1) {
@@ -1092,14 +1095,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
 				(isRhsLiteral && rhsSize < 8) && 
-					(rhs->val = (void*)((u64)rhs->val & ((1<<(rhsSize*8))-1)));
+					(rhs->val = (void*)((u64)rhs->val & ((1llu<<(rhsSize*8))-1)));
 
 				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
 					(lhsSize < 8) && (lhs->val = 
-						(void*)((u64)lhs->val & ((1<<(lhsSize*8))-1)));
+						(void*)((u64)lhs->val & ((1llu<<(lhsSize*8))-1)));
 
 					u64 modVal = areBothUnsigned 
 						? (u64)lhs->val % (u64)rhs->val
@@ -1118,7 +1121,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
-						((u64)rhs->val & (1 << (rhsSize*8-1))); // test for sign
+						((u64)rhs->val & (1llu << (rhsSize*8-1))); // test for sign
 
 					u64 rhsAbs = isRhsNeg ? -(u64)rhs->val : (u64)rhs->val;
 
@@ -1666,9 +1669,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					imOpJcc = BA_IM_LABELJZ;
 				}
 
-				arg->typeInfo.type = BA_TYPE_BOOL;
-				arg->isLValue = 0;
-
 				u64 lhsStackPos = 0;
 				u64 regL = (u64)lhs->val; // Kept only if lhs is a register
 				u64 regR = (u64)rhs->val; // Kept only if rhs is a register
@@ -1691,6 +1691,21 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				ba_POpMovArgToReg(ctr, lhs, realRegL, isLhsLiteral);
 				ba_POpMovArgToReg(ctr, rhs, realRegR, isRhsLiteral);
 
+				if (lhs->lexemeType == BA_TK_IMREGISTER) {
+					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
+					if (lhsSize < 8) {
+						ba_AddIM(ctr, 3, BA_IM_MOVZX, realRegL, 
+							ba_AdjRegSize(realRegL, lhsSize));
+					}
+				}
+				if (rhs->lexemeType == BA_TK_IMREGISTER) {
+					u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
+					if (rhsSize < 8) {
+						ba_AddIM(ctr, 3, BA_IM_MOVZX, realRegR, 
+							ba_AdjRegSize(realRegR, rhsSize));
+					}
+				}
+
 				u64 movReg = (u64)ba_StkTop(ctr->cmpRegStk);
 				!movReg && (movReg = realRegL);
 
@@ -1698,6 +1713,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				ba_AddIM(ctr, 2, imOpSet, movReg - BA_IM_RAX + BA_IM_AL);
 				ba_AddIM(ctr, 3, BA_IM_MOVZX, movReg, 
 					movReg - BA_IM_RAX + BA_IM_AL);
+
+				arg->typeInfo.type = BA_TYPE_BOOL;
+				arg->isLValue = 0;
 
 				if (regL) {
 					arg->lexemeType = BA_TK_IMREGISTER;
