@@ -416,6 +416,18 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 	return 1;
 }
 
+void ba_POpFuncCallPushArgReg(struct ba_Controller* ctr, u64 reg, u64 size) {
+	if (size == 8) {
+		ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
+	}
+	else if (size == 1) {
+		ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
+	}
+	else {
+		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, size);
+	}
+}
+
 // Handle operations (i.e. perform operation now or generate code for it)
 u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
@@ -1448,7 +1460,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				((opLex == BA_TK_BITXOREQ) && (imOp = BA_IM_XOR)) ||
 				((opLex == BA_TK_BITOREQ) && (imOp = BA_IM_OR));
 
-				u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
+				u64 lhsSize = ba_GetSizeOfType(lhsType);
 
 				if (isUsingDiv) {
 					if (isRhsLiteral && !rhs->val) {
@@ -1848,6 +1860,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				while (argsStk->count) {
 					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
+					u64 paramSize = ba_GetSizeOfType(param->type);
 					if (funcArg) {
 						bool isArgNum = ba_IsTypeNumeric(funcArg->typeInfo.type);
 						bool isParamNum = ba_IsTypeNumeric(param->type.type);
@@ -1870,21 +1883,25 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						}
 
 						if (!reg) {
+							ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, paramSize);
 							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ctr->imStackSize += 16;
+							ctr->imStackSize += paramSize + 8;
 						}
 						
 						ba_POpMovArgToReg(ctr, funcArg, reg, 
 							ba_IsLexemeLiteral(funcArg->lexemeType));
 
 						if (reg) {
-							ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
-							ctr->imStackSize += 8;
+							ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
+							if (paramSize < 8) {
+								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
+									BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
+							}
+							ctr->imStackSize += paramSize;
 						}
 						else {
-							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD,
-								BA_IM_RSP, 0x8, BA_IM_RAX);
+							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+								0x8, ba_AdjRegSize(BA_IM_RAX, paramSize));
 							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
 							ctr->imStackSize -= 8;
 						}
@@ -1900,19 +1917,25 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						if (reg) {
 							ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
 								(u64)param->defaultVal);
-							ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
-							ctr->imStackSize += 8;
+							ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
+							if (paramSize < 8) {
+								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
+									BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
+							}
 						}
 						else {
+							ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, paramSize);
 							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-								BA_IM_IMM, (u64)param->defaultVal);
-							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-								BA_IM_RSP, 0x8, BA_IM_RAX);
+							ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 
+								paramSize < 8 
+									? (u64)param->defaultVal & 
+										((1llu << (paramSize*8))-1)
+									: (u64)arg->val);
+							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+								0x8, ba_AdjRegSize(BA_IM_RAX, paramSize));
 							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-							ctr->imStackSize += 8;
 						}
+						ctr->imStackSize += paramSize;
 					}
 
 					param = param->next;
