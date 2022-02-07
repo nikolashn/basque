@@ -882,9 +882,16 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath, msgAfter);
 				}
 
+				u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
+				(isRhsLiteral && rhsSize < 8) && 
+					(rhs->val = (void*)((u64)rhs->val & ((1<<(rhsSize*8))-1)));
+
 				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
+					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
+					(lhsSize < 8) && (lhs->val = 
+						(void*)((u64)lhs->val & ((1<<(lhsSize*8))-1)));
 					arg->val = areBothUnsigned 
 						? (void*)(((u64)lhs->val) / ((u64)rhs->val))
 						: (void*)(((i64)lhs->val) / ((i64)rhs->val));
@@ -896,11 +903,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
-						(i64)rhs->val < 0;
+						((u64)rhs->val & (1 << (rhsSize*8-1))); // test for sign
 
 					if (isRhsNeg) {
 						ba_POpNonLitUnary('-', lhs, ctr);
-						rhs->val = (void*)-(i64)rhs->val;
+						rhs->val = (void*)((-(i64)rhs->val) & ((1<<rhsSize*8)-1));
 					}
 
 					if ((u64)rhs->val == 1) {
@@ -1089,14 +1096,22 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"signedness on", op->line, op->col, ctr->currPath, msgAfter);
 				}
 
+				u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
+				(isRhsLiteral && rhsSize < 8) && 
+					(rhs->val = (void*)((u64)rhs->val & ((1<<(rhsSize*8))-1)));
+
 				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
+					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
+					(lhsSize < 8) && (lhs->val = 
+						(void*)((u64)lhs->val & ((1<<(lhsSize*8))-1)));
+
 					u64 modVal = areBothUnsigned 
 						? (u64)lhs->val % (u64)rhs->val
 						: (i64)lhs->val % (i64)rhs->val;
-						
-					modVal += (i64)rhs->val *
+					
+					modVal += (i64)rhs->val * 
 						(!areBothUnsigned && 
 							(((i64)lhs->val < 0) ^ ((i64)rhs->val < 0)));
 
@@ -1109,7 +1124,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
-						(i64)rhs->val < 0;
+						((u64)rhs->val & (1 << (rhsSize*8-1))); // test for sign
+
 					u64 rhsAbs = isRhsNeg ? -(u64)rhs->val : (u64)rhs->val;
 
 					if (rhsAbs == 1) {
@@ -1231,7 +1247,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						// signs and so the rhs needs to be added
 						
 						// Sign stored in rax
-						ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+						u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, rhsSize);
+						ba_AddIM(ctr, 3, BA_IM_TEST, raxAdj, raxAdj);
 						ba_AddIM(ctr, 2, BA_IM_SETS, BA_IM_AL);
 						ba_AddIM(ctr, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
 
