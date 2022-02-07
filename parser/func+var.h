@@ -11,8 +11,7 @@ u8 ba_PAccept(u64 type, struct ba_Controller* ctr);
 u8 ba_PExpect(u64 type, struct ba_Controller* ctr);
 u8 ba_PBaseType(struct ba_Controller* ctr);
 u8 ba_PExp(struct ba_Controller* ctr);
-u8 ba_PCommaStmt(struct ba_Controller* ctr);
-u8 ba_PScope(struct ba_Controller* ctr);
+u8 ba_PStmt(struct ba_Controller* ctr);
 // --------------------------------
 
 u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
@@ -236,8 +235,16 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 		funcIdVal->isInited = 0;
 		ba_PExpect(';', ctr);
 	}
-	else if (ba_PCommaStmt(ctr) || ba_PScope(ctr)) {
+	else if (ba_PAccept(',', ctr)) {
 		stmtType = TP_FULLDEC;
+		if (!ba_PStmt(ctr)) {
+			return 0;
+		}
+	}
+	else if (ba_PAccept('{', ctr)) {
+		stmtType = TP_FULLDEC;
+		while (ba_PStmt(ctr));
+		ba_PExpect('}', ctr);
 	}
 	else {
 		return 0;
