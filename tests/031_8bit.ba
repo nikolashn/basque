@@ -28,8 +28,7 @@ write ham>>1; "\n";
 ham = 255;
 ++ham;
 write ham; ",";
-write egg; ","; #{ Currently does not work as '=' operator 
-                   has not been updated }#
+write egg; ",";
 write (-5)~u8 // 12u; ",";
 write (-5)~u8 % 12u; "\n";
 
