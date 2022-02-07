@@ -57,8 +57,8 @@ enum {
 
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */
-	BA_TK_IMREGISTER = 0x1000,
-	BA_TK_IMRBPSUB   = 0x1001,
+	BA_TK_IMREGISTER = 0x1000, // always 8 bytes
+	BA_TK_IMRBPSUB   = 0x1001, // always 8 bytes
 };
 
 struct ba_Lexeme {
