@@ -231,8 +231,7 @@ u8 ba_PCommaStmt(struct ba_Controller* ctr) {
 	}
 
 	if (scope->dataSize) {
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, 
-			BA_IM_IMM, scope->dataSize);
+		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, scope->dataSize);
 	}
 
 	ctr->currScope = scope->parent;
@@ -252,8 +251,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
 	while (ba_PStmt(ctr));
 
 	if (scope->dataSize) {
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, 
-			BA_IM_IMM, scope->dataSize);
+		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, scope->dataSize);
 	}
 
 	ctr->currScope = scope->parent;
