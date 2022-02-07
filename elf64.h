@@ -308,7 +308,6 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 							return ba_ErrorIMArgInvalid(im);
 						}
 					
-						bool sub = im->vals[2] == BA_IM_ADRSUB;
 						u64 offset = im->vals[4];
 
 						u8 reg1 = im->vals[3] - BA_IM_RAX;
