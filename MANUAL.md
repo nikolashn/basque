@@ -8,12 +8,12 @@ Basque has no entry point function as there is in C. Code in the outer body of a
 
 ## Types
 ### Integer types
-The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `bool` (8-bit Boolean) and pointers of those types (`i64*`, `u64*`, `i64**`, etc.), as well as `void*` (generic pointer). Variables can be defined as `i64` or `u64`, or their pointers, but currently not `bool` or any pointer derived from it. Integer types are all commensurate with each other.
+The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `i8` (signed byte), `u8` (unsigned byte), `bool` (8-bit Boolean) and pointers of those types (`i64*`, `u8*`, `i64**`, etc.), as well as `void*` (generic pointer). Variables can be defined as any of those types, except currently `bool` or any pointer derived from it. Integer types (including pointers) are all commensurate with each other.
 
-In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, `i8`, `u8`.
+In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, properly functioning `bool`.
 
 ### String type
-String (string literal) currently exists as a temporary type to represent string literals, but will eventually be removed once u8\* is added.
+String (string literal) currently exists as a temporary type to represent string literals, but will be removed very soon.
 
 ### Functions
 Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value).
