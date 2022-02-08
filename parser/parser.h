@@ -317,6 +317,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		// Everything is printed as unsigned, this will be removed in the 
 		// future anyway so i don't care about adding signed representation
 		else if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
+			u64 size = ba_GetSizeOfType(stkItem->typeInfo);
+			if (size < 8) {
+				stkItem->val = (void*)((u64)stkItem->val & ((1llu<<(size*8))-1));
+			}
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 				str = ba_U64ToStr((u64)stkItem->val);
 				len = strlen(str);
@@ -389,8 +393,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 				if (!ba_IsTypeNumeric(stkItem->typeInfo.type)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
-						"as condition on", line, col, ctr->currPath);
+					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric "
+						"literal as condition on", line, col, ctr->currPath);
 				}
 
 				if (stkItem->val) {
@@ -412,7 +416,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 						BA_IM_ADRADD, BA_IM_RSP, 
 						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
 				}
-				ba_AddIM(ctr, 3, BA_IM_TEST, reg, reg);
+				u64 adjReg = ba_AdjRegSize(reg, 
+					ba_GetSizeOfType(stkItem->typeInfo));
+				ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
 				ba_AddIM(ctr, 2, BA_IM_LABELJZ, lblId);
 			}
 		
@@ -489,7 +495,9 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					BA_IM_ADRADD, BA_IM_RSP, 
 					ba_CalcSTValOffset(ctr->currScope, stkItem->val));
 			}
-			ba_AddIM(ctr, 3, BA_IM_TEST, reg, reg);
+			u64 adjReg = ba_AdjRegSize(reg, 
+				ba_GetSizeOfType(stkItem->typeInfo));
+			ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
 			ba_AddIM(ctr, 2, BA_IM_LABELJZ, endLblId);
 		}
 		
@@ -551,8 +559,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
 					(u64)stkItem->val != BA_IM_RAX)
 				{
-					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX,
-						(u64)stkItem->val);
+					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
 				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
 			}
