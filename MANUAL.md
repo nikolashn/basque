@@ -82,7 +82,12 @@ Comparison operators are non-associative: instead they work by chaining, like in
 All assignment operators are right-associative. The left-hand side of an assignment must be an L-value. So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 
 ### Statements
-Statements are combinations of expressions that can be sequentially laid out to form a program. In this section, square brackets signify optionality, parentheses signify grouping, braces signify that a string can be repeated from 0 to infinite times, a bar signifies alternation, and words in angle brackets represent a group or class of expressions or tokens.
+Statements are combinations of expressions that can be sequentially laid out to form a program. In this section, 
+- Square brackets [] signify optionality, 
+- Parentheses () signify grouping, 
+- Braces {} signify that a string can be repeated from 0 to infinite times, 
+- A bar | signifies alternation, 
+- Words in angle brackets `<>` represent a group or class of expressions or tokens.
 
 #### Write statements
 Syntax: `write <expression>;`
