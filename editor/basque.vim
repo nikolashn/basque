@@ -22,7 +22,7 @@ syn match baNumber "\<-\?0o[0-7_]\+\(u\|U\)\?\>"
 syn match baNumber "\<-\?0b[01_]\+\(u\|U\)\?\>"
 
 syn region baString start='"' end='"' skip='\\"' contains=baEscape
-syn match baEscape contained '\\\(["ntvfrb0\n]\|\'\|\(x\o\x\)\)'
+syn match baEscape contained '\\\(["ntvfrb0\n\\]\|\'\|\(x\o\x\)\)'
 
 syn keyword baKeyword write if elif else while break goto return include exit
 syn keyword baType u64 i64 u8 i8 void
