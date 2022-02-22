@@ -69,10 +69,7 @@ u8 ba_PBaseType(struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* atom = lit_str { lit_str }
- *      | lit_int
- *      | identifier
- */
+/* atom = lit_str { lit_str } | lit_int | lit_char | identifier */
 u8 ba_PAtom(struct ba_Controller* ctr) {
 	u64 lexLine = ctr->lex->line;
 	u64 lexColStart = ctr->lex->colStart;
@@ -143,6 +140,12 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			}
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, BA_TK_LITINT, 
+			/* isLValue = */ 0);
+	}
+	// lit_char
+	else if (ba_PAccept(BA_TK_LITCHAR, ctr)) {
+		struct ba_Type type = { BA_TYPE_U8, 0 };
+		ba_PTkStkPush(ctr->pTkStk, (void*)lexVal[0], type, BA_TK_LITCHAR,
 			/* isLValue = */ 0);
 	}
 	// identifier
@@ -318,10 +321,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		// future anyway so i don't care about adding signed representation
 		else if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
 			u64 size = ba_GetSizeOfType(stkItem->typeInfo);
-			if (size < 8) {
-				stkItem->val = (void*)((u64)stkItem->val & ((1llu<<(size*8))-1));
-			}
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
+				if (size < 8) {
+					stkItem->val = (void*)((u64)stkItem->val & ((1llu<<(size*8))-1));
+				}
 				str = ba_U64ToStr((u64)stkItem->val);
 				len = strlen(str);
 			}
