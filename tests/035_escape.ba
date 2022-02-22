@@ -1,0 +1,9 @@
+"A \'write\' statement in \
+Basque:\n\twrite \"Hello\\n\";\n\
+'\l' isn't an \x65scape character.\n";
+
+"Hello world!\n\0This text will be written as garbage.";
+
+"
+";
+
