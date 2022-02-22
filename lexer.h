@@ -5,19 +5,88 @@
 
 #include "common/common.h"
 
-char ba_LexerStrEscSingleChar(char c) {
+char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf, 
+	u64* colPtr, u64* linePtr, u64* fileIterPtr) 
+{
+	char ret = 0;
+
+	u64 col = *colPtr;
+	u64 line = *linePtr;
+	u64 fileIter = *fileIterPtr;
+
+	char c = fileBuf[++fileIter];
+	++col;
+
 	switch (c) {
-		case '"':  return '"';
-		case '\'': return '\'';
-		case '\\': return '\\';
-		case 'n':  return '\n';
-		case 't':  return '\t';
-		case 'v':  return '\v';
-		case 'f':  return '\f';
-		case 'r':  return '\r';
-		case 'b':  return '\b';
+		case '"':  ret = '"';  break;
+		case '\'': ret = '\''; break;
+		case '\\': ret = '\\'; break;
+		case 'n':  ret = '\n'; break;
+		case 't':  ret = '\t'; break;
+		case 'v':  ret = '\v'; break;
+		case 'f':  ret = '\f'; break;
+		case 'r':  ret = '\r'; break;
+		case 'b':  ret = '\b'; break;
 	}
-	return 0;
+
+	if (ret) {
+		++col;
+		++fileIter;
+	}
+	else if (c == '0') {
+		ret = 0;
+		++col;
+		++fileIter;
+	}
+	else if (c == 'x') {
+		u8 val = 0;
+		// Note: Currently only works with 7-bit ascii
+		
+		// Add the first number
+		c = fileBuf[++fileIter];
+		++col;
+		if ((c < '0') || (c > '7')) {
+			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape "
+				"sequence at", line, col, ctr->currPath);
+		}
+		val += c - '0';
+		val <<= 4;
+
+		if ((c == EOF) || (c == 0)) {
+			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape "
+				"sequence at", line, col, ctr->currPath);
+		}
+
+		// Add the second number
+		c = fileBuf[++fileIter];
+		++col;
+		if ((c >= '0') && (c <= '9')) {
+			val += c - '0';
+		}
+		else if ((c >= 'a') && (c <= 'f')) {
+			val += c - 'a' + 10;
+		}
+		else if ((c >= 'A') && (c <= 'F')) {
+			val += c - 'A' + 10;
+		}
+		else {
+			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
+				line, col, ctr->currPath);
+		}
+
+		ret = val;
+		++col;
+		++fileIter;
+	}
+	// TODO: add more escape patterns
+	else {
+		ret = '\\';
+	}
+
+	*colPtr = col;
+	*linePtr = line;
+	*fileIterPtr = fileIter;
+	return ret;
 }
 
 u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
@@ -29,8 +98,6 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 		ST_CMNT_MLBRAC,
 		ST_ID,
 		ST_STR,
-		ST_STR_ESC,
-		ST_STR_XESC,
 		ST_NUM_DEC,
 		ST_NUM_HEX,
 		ST_NUM_OCT,
@@ -452,80 +519,21 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == '\\') {
-					state = ST_STR_ESC;
-					goto BA_LBL_LEX_LOOPITER;
-				}
-				else {
-					litBuf[litIter++] = c;
-				}
-			}
-			// String literal escape characters
-			else if (state == ST_STR_ESC) {
-				if ((c = ba_LexerStrEscSingleChar(c))) {
-					litBuf[litIter++] = c;
-				}
-				else if (c == '0') {
-					litBuf[litIter++] = 0;
-				}
-				else if (c == '\n') {
-					++line;
-					col = 1;
-					++fileIter;
-					state = ST_STR;
+					if (fileBuf[fileIter+1] == '\n') {
+						++line;
+						col = 1;
+						fileIter += 2;
+						goto BA_LBL_LEX_LOOPEND;
+					}
+
+					litBuf[litIter++] = ba_LexerEscSequence(ctr, fileBuf, 
+						&col, &line, &fileIter);
+
 					goto BA_LBL_LEX_LOOPEND;
 				}
-				else if (c == 'x') {
-					state = ST_STR_XESC;
-					goto BA_LBL_LEX_LOOPITER;
-				}
-				// TODO: add more escape patterns
 				else {
-					litBuf[litIter++] = '\\';
+					litBuf[litIter++] = c;
 				}
-
-				state = ST_STR;
-			}
-			// String literal hex escapes
-			else if (state == ST_STR_XESC) {
-				u8 val = 0;
-				
-				// Currently only works with 7-bit ascii
-
-				// Add the first number
-				if ((c >= '0') && (c <= '7')) {
-					val += c - '0';
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape "
-						"sequence at", line, col, ctr->currPath);
-				}
-
-				val <<= 4;
-
-				++col;
-				c = fileBuf[++fileIter];
-
-				if ((c == EOF) || (c == 0)) {
-					break;
-				}
-
-				// Add the second number
-				if ((c >= '0') && (c <= '9')) {
-					val += c - '0';
-				}
-				else if ((c >= 'a') && (c <= 'f')) {
-					val += c - 'a' + 10;
-				}
-				else if ((c >= 'A') && (c <= 'F')) {
-					val += c - 'A' + 10;
-				}
-				else {
-					return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-						line, col, ctr->currPath);
-				}
-
-				litBuf[litIter++] = val;
-				state = ST_STR;
 			}
 			// Number literals
 			else if (state == ST_NUM_HEX || state == ST_NUM_DEC || 
