@@ -34,7 +34,8 @@ enum {
 
 	BA_TK_LITSTR     = 0x200,
 	BA_TK_LITINT     = 0x201,
-	BA_TK_IDENTIFIER = 0x202,
+	BA_TK_LITCHAR    = 0x202,
+	BA_TK_IDENTIFIER = 0x203,
 
 	BA_TK_KW_WRITE   = 0x300,
 	BA_TK_KW_U64     = 0x301,
@@ -167,6 +168,7 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_DEC:        return "'--'";
 		case BA_TK_LITSTR:     return "string literal";
 		case BA_TK_LITINT:     return "integer literal";
+		case BA_TK_LITCHAR:    return "character literal";
 		case BA_TK_IDENTIFIER: return "identifier";
 		case BA_TK_KW_U64:     return "keyword 'u64'";
 		case BA_TK_KW_I64:     return "keyword 'i64'";
