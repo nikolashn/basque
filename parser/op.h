@@ -402,7 +402,7 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 	}
 	if (lhsType.type == BA_TYPE_PTR) {
 		// 0 for null pointer is fine
-		if (rhs->lexemeType == BA_TK_LITINT && (u64)rhs->val == 0) {
+		if (ba_IsLexemeLiteral(rhs->lexemeType) && (u64)rhs->val == 0) {
 			return 1;
 		}
 		if (rhs->typeInfo.type != BA_TYPE_PTR) {
