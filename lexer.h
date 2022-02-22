@@ -46,15 +46,15 @@ char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf,
 		c = fileBuf[++fileIter];
 		++col;
 		if ((c < '0') || (c > '7')) {
-			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape "
-				"sequence at", line, col, ctr->currPath);
+			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
+				line, col, ctr->currPath);
 		}
 		val += c - '0';
 		val <<= 4;
 
 		if ((c == EOF) || (c == 0)) {
-			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape "
-				"sequence at", line, col, ctr->currPath);
+			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
+				line, col, ctr->currPath);
 		}
 
 		// Add the second number
@@ -142,6 +142,48 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					colStart = col;
 					goto BA_LBL_LEX_LOOPITER;
 				}
+				// Char literals
+				else if (c == '\'') {
+					colStart = col++;
+					char charVal = 0;
+
+					c = fileBuf[++fileIter];
+					if (c == '\n') {
+						++line;
+						col = 1;
+						charVal = c;
+						++fileIter;
+					}
+					else if (c == '\\') {
+						charVal = ba_LexerEscSequence(ctr, fileBuf, 
+							&col, &line, &fileIter);
+					}
+					else {
+						charVal = c;
+						++col;
+						++fileIter;
+					}
+
+					c = fileBuf[fileIter];
+					if (c != '\'') {
+						return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid "
+							"character literal at", line, col, ctr->currPath);
+					}
+
+					nextLex->line = line;
+					nextLex->colStart = colStart;
+					nextLex->val = malloc(1);
+					if (!nextLex->val) {
+						return ba_ErrorMallocNoMem();
+					}
+					nextLex->valLen = 1;
+					*nextLex->val = charVal;
+					nextLex->type = BA_TK_LITCHAR;
+
+					nextLex->next = ba_NewLexeme();
+					nextLex = nextLex->next;
+					litIter = 0;
+				}
 				// Number literals
 				else if (c == '0') {
 					colStart = col++;
@@ -197,7 +239,6 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 						nextLex = nextLex->next;
 						
 						litIter = 0;
-						state = 0;
 
 						if (!((c == 'u') || (c == 'U'))) {
 							goto BA_LBL_LEX_LOOPEND;
