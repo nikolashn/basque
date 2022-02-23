@@ -5,8 +5,18 @@
 
 #include "common/common.h"
 
-char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf, 
-	u64* colPtr, u64* linePtr, u64* fileIterPtr) 
+u64 ba_LexerSafeIncFileIter(u64* fileIterPtr) {
+	u64 fileIter = *fileIterPtr;
+	++fileIter;
+	if (fileIter >= BA_FILE_BUF_SIZE) {
+		fileIter = 0;
+	}
+	*fileIterPtr = fileIter;
+	return fileIter;
+}
+
+char ba_LexerEscSequence(struct ba_Controller* ctr, FILE* srcFile, 
+	char* fileBuf, u64* colPtr, u64* linePtr, u64* fileIterPtr) 
 {
 	char ret = 0;
 
@@ -14,7 +24,7 @@ char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf,
 	u64 line = *linePtr;
 	u64 fileIter = *fileIterPtr;
 
-	char c = fileBuf[++fileIter];
+	char c = fileBuf[fileIter];
 	++col;
 
 	switch (c) {
@@ -31,19 +41,23 @@ char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf,
 
 	if (ret) {
 		++col;
-		++fileIter;
+		ba_LexerSafeIncFileIter(&fileIter) &&
+			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 	}
 	else if (c == '0') {
 		ret = 0;
 		++col;
-		++fileIter;
+		ba_LexerSafeIncFileIter(&fileIter) &&
+			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 	}
 	else if (c == 'x') {
 		u8 val = 0;
 		// Note: Currently only works with 7-bit ascii
 		
 		// Add the first number
-		c = fileBuf[++fileIter];
+		ba_LexerSafeIncFileIter(&fileIter) &&
+			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
+		c = fileBuf[fileIter];
 		++col;
 		if ((c < '0') || (c > '7')) {
 			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
@@ -58,7 +72,9 @@ char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf,
 		}
 
 		// Add the second number
-		c = fileBuf[++fileIter];
+		ba_LexerSafeIncFileIter(&fileIter) &&
+			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
+		c = fileBuf[fileIter];
 		++col;
 		if ((c >= '0') && (c <= '9')) {
 			val += c - '0';
@@ -76,7 +92,8 @@ char ba_LexerEscSequence(struct ba_Controller* ctr, char* fileBuf,
 
 		ret = val;
 		++col;
-		++fileIter;
+		ba_LexerSafeIncFileIter(&fileIter) &&
+			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 	}
 	// TODO: add more escape patterns
 	else {
@@ -147,21 +164,30 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					colStart = col++;
 					char charVal = 0;
 
-					c = fileBuf[++fileIter];
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
+					c = fileBuf[fileIter];
 					if (c == '\n') {
 						++line;
 						col = 1;
 						charVal = c;
-						++fileIter;
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+								BA_FILE_BUF_SIZE, srcFile);
 					}
 					else if (c == '\\') {
-						charVal = ba_LexerEscSequence(ctr, fileBuf, 
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+								BA_FILE_BUF_SIZE, srcFile);
+						charVal = ba_LexerEscSequence(ctr, srcFile, fileBuf, 
 							&col, &line, &fileIter);
 					}
 					else {
 						charVal = c;
 						++col;
-						++fileIter;
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+								BA_FILE_BUF_SIZE, srcFile);
 					}
 
 					c = fileBuf[fileIter];
@@ -189,10 +215,15 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					colStart = col++;
 					litBuf[litIter++] = c;
 
-					c = fileBuf[++fileIter];
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
+					c = fileBuf[fileIter];
 
 					while (c == '_') {
-						c = fileBuf[++fileIter];
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+							BA_FILE_BUF_SIZE, srcFile);
+						c = fileBuf[fileIter];
 					}
 
 					if ((c == EOF) || (c == 0)) {
@@ -259,7 +290,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					if (c == '\n') {
 						++line;
 						col = 1;
-						++fileIter;
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+								BA_FILE_BUF_SIZE, srcFile);
 						goto BA_LBL_LEX_LOOPEND;
 					}
 					else if (c == ';' || c == ':' || c == '~' || c == '$' || 
@@ -271,7 +304,10 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					else {
 						char oldC = c;
 						colStart = col++;
-						c = fileBuf[++fileIter];
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+								BA_FILE_BUF_SIZE, srcFile);
+						c = fileBuf[fileIter];
 
 						if (oldC == '=') {
 							((c == '=') && (nextLex->type = BA_TK_DBEQUAL)) || 
@@ -319,7 +355,10 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 							}
 							else if (c == '>') {
 								colStart = col++;
-								c = fileBuf[++fileIter];
+								ba_LexerSafeIncFileIter(&fileIter) &&
+									fread(fileBuf, sizeof(char), 
+										BA_FILE_BUF_SIZE, srcFile);
+								c = fileBuf[fileIter];
 								
 								if (c == '=') {
 									nextLex->type = BA_TK_RSHIFTEQ;
@@ -340,7 +379,10 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 							}
 							else if (c == '<') {
 								colStart = col++;
-								c = fileBuf[++fileIter];
+								ba_LexerSafeIncFileIter(&fileIter) &&
+									fread(fileBuf, sizeof(char), 
+										BA_FILE_BUF_SIZE, srcFile);
+								c = fileBuf[fileIter];
 								
 								if (c == '=') {
 									nextLex->type = BA_TK_LSHIFTEQ;
@@ -361,7 +403,10 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 							}
 							else if (c == '/') {
 								colStart = col++;
-								c = fileBuf[++fileIter];
+								ba_LexerSafeIncFileIter(&fileIter) &&
+									fread(fileBuf, sizeof(char), 
+										BA_FILE_BUF_SIZE, srcFile);
+								c = fileBuf[fileIter];
 								
 								if (c == '=') {
 									nextLex->type = BA_TK_IDIVEQ;
@@ -412,7 +457,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				if (c == '\n') {
 					++line;
 					col = 1;
-					++fileIter;
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 					state = 0;
 					goto BA_LBL_LEX_LOOPEND;
 				}
@@ -421,7 +467,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				if (c == '\n') {
 					++line;
 					col = 1;
-					++fileIter;
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == '}') {
@@ -432,7 +479,8 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 				if (c == '\n') {
 					++line;
 					col = 1;
-					++fileIter;
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 					state = ST_CMNT_ML;
 					goto BA_LBL_LEX_LOOPEND;
 				}
@@ -556,19 +604,24 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					litBuf[litIter++] = c;
 					++line;
 					col = 1;
-					++fileIter;
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 					goto BA_LBL_LEX_LOOPEND;
 				}
 				else if (c == '\\') {
-					if (fileBuf[fileIter+1] == '\n') {
+					ba_LexerSafeIncFileIter(&fileIter) &&
+						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
+					if (fileBuf[fileIter] == '\n') {
 						++line;
 						col = 1;
-						fileIter += 2;
+						ba_LexerSafeIncFileIter(&fileIter) &&
+							fread(fileBuf, sizeof(char), 
+								BA_FILE_BUF_SIZE, srcFile);
 						goto BA_LBL_LEX_LOOPEND;
 					}
 
-					litBuf[litIter++] = ba_LexerEscSequence(ctr, fileBuf, 
-						&col, &line, &fileIter);
+					litBuf[litIter++] = ba_LexerEscSequence(ctr, srcFile, 
+						fileBuf, &col, &line, &fileIter);
 
 					goto BA_LBL_LEX_LOOPEND;
 				}
