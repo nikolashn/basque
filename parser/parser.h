@@ -38,12 +38,13 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* base_type = ("u64" | "i64" | "u8" | "i8" | "void") { "*" } */
-u8 ba_PBaseType(struct ba_Controller* ctr) {
+/* base_type = ("u64" | "i64" | "u8" | "i8" | "void" "*") { "*" }
+ *           | "void" # if isInclVoid */
+u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid) {
 	u64 lexType = ctr->lex->type;
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
 		ba_PAccept(BA_TK_KW_U8, ctr) || ba_PAccept(BA_TK_KW_I8, ctr) || 
-		ba_PAccept(BA_TK_KW_VOID, ctr)) 
+		ba_PAccept(BA_TK_KW_VOID, ctr))
 	{
 		struct ba_Type type = { BA_TYPE_TYPE, 0 };
 		struct ba_Type* fundamentalType = malloc(sizeof(*fundamentalType));
@@ -51,11 +52,16 @@ u8 ba_PBaseType(struct ba_Controller* ctr) {
 			return ba_ErrorMallocNoMem();
 		}
 		*fundamentalType = ba_GetTypeFromKeyword(lexType);
+		bool isVoid = fundamentalType->type == BA_TYPE_VOID;
 		while (ba_PAccept('*', ctr)) {
+			isVoid = 0;
 			struct ba_Type* newFundType = malloc(sizeof(*newFundType));
 			newFundType->extraInfo = fundamentalType;
 			newFundType->type = BA_TYPE_PTR;
 			fundamentalType = newFundType;
+		}
+		if (isVoid && !isInclVoid) {
+			return 0;
 		}
 		type.extraInfo = fundamentalType;
 
@@ -727,8 +733,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 	else if (ba_PScope(ctr)) {
 		return 1;
 	}
-	// base_type identifier ...
-	else if (ba_PBaseType(ctr)) {
+	// ( base_type | "void" ) identifier ...
+	else if (ba_PBaseType(ctr, /* isInclVoid = */ 1)) {
 		struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
 		struct ba_Type type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo);
 

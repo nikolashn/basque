@@ -250,9 +250,9 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 			else if (ba_PAccept('~', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
-				if (!ba_PBaseType(ctr)) {
+				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that is "
-						"not a type on", op->line, op->col, ctr->currPath);
+						"not a valid type on", op->line, op->col, ctr->currPath);
 				}
 			}
 			else if (ba_PAccept(BA_TK_LSHIFT, ctr) || 

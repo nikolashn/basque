@@ -9,7 +9,7 @@
 // ----- Forward declarations -----
 u8 ba_PAccept(u64 type, struct ba_Controller* ctr);
 u8 ba_PExpect(u64 type, struct ba_Controller* ctr);
-u8 ba_PBaseType(struct ba_Controller* ctr);
+u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid);
 u8 ba_PExp(struct ba_Controller* ctr);
 u8 ba_PStmt(struct ba_Controller* ctr);
 // --------------------------------
@@ -92,7 +92,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 			case ST_COMMA:
 			{
 				// ... base_type ...
-				if (!ba_PBaseType(ctr)) {
+				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0)) {
 					return 0;
 				}
 				
