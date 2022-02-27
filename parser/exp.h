@@ -377,7 +377,8 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 		}
 	}
 
-	ba_PCorrectDPtr(ctr, ba_StkTop(ctr->pTkStk));
+	!ba_PCorrectDPtr(ctr, ba_StkTop(ctr->pTkStk)) &&
+		ba_ErrorDerefInvalid(ctr->lex->line, ctr->lex->colStart, ctr->currPath);
 
 	if (ctr->paren || ctr->bracket) {
 		return 1;

@@ -108,4 +108,10 @@ u8 ba_ErrorDerefNonPtr(u64 line, u64 col, char* path) {
 	return ba_ExitMsg(BA_EXIT_ERR, "dereferencing non-pointer on", 
 		line, col, path);
 }
+
+u8 ba_ErrorDerefInvalid(u64 line, u64 col, char* path) {
+	return ba_ExitMsg(BA_EXIT_ERR, "dereferencing invalid pointer on", 
+		line, col, path);
+}
+
 #endif

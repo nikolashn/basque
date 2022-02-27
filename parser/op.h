@@ -370,6 +370,9 @@ u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 	if (item->typeInfo.type == BA_TYPE_DPTR) {
 		item->typeInfo = *(struct ba_Type*)item->typeInfo.extraInfo;
 		u64 size = ba_GetSizeOfType(item->typeInfo);
+		if (!size) {
+			return 0;
+		}
 		if (item->lexemeType == BA_TK_IMREGISTER) {
 			u64 adjReg = ba_AdjRegSize((u64)item->val, size);
 			ba_AddIM(ctr, 4, BA_IM_MOV, adjReg, BA_IM_ADR, (u64)item->val);
@@ -444,9 +447,11 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	switch (op->syntax) {
 		case BA_OP_PREFIX:
 		{
+			// Try to correct dereferenced pointers, and throw error if invalid
 			op->lexemeType != '&' && op->lexemeType != BA_TK_INC && 
 				op->lexemeType != BA_TK_DEC && op->lexemeType != '[' && 
-				ba_PCorrectDPtr(ctr, arg);
+				!ba_PCorrectDPtr(ctr, arg) && 
+				ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 
 			if (op->lexemeType == '+') {
 				if (!ba_IsTypeNumeric(arg->typeInfo.type)) {
@@ -713,7 +718,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 			op->lexemeType != '=' &&
 				!ba_IsLexemeCompoundAssign(op->lexemeType) && 
-				ba_PCorrectDPtr(ctr, lhs);
+				!ba_PCorrectDPtr(ctr, lhs) &&
+				ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 
 			// Bit shifts
 			if (op->lexemeType == BA_TK_LSHIFT || 
@@ -1834,7 +1840,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				struct ba_Stk* argsStk = ba_NewStk();
 				for (u64 i = 0; i < funcArgsCnt; i++) {
 					struct ba_PTkStkItem* argItem = ba_StkPop(ctr->pTkStk);
-					argItem && ba_PCorrectDPtr(ctr, argItem);
+					argItem && !ba_PCorrectDPtr(ctr, argItem) &&
+						ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 					ba_StkPush(argsStk, argItem);
 				}
 
@@ -1973,7 +1980,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 2; // Go back to parsing as if having followed an atom
 			}
 			else if (op->lexemeType == '~') {
-				ba_PCorrectDPtr(ctr, arg);
+				!ba_PCorrectDPtr(ctr, arg) && 
+					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
 				if (!castedExp) {
 					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 
