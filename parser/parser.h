@@ -38,9 +38,12 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* base_type = ("u64" | "i64" | "u8" | "i8" | "void" "*") { "*" }
+/* base_type = ("u64" | "i64" | "u8" | "i8" | "void" "*") 
+ *             { "*" | "[" exp "]" } [ "[" "]" ]
  *           | "void" # if isInclVoid */
-u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid) {
+u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid, 
+	bool isInclIndefArr) 
+{
 	u64 lexType = ctr->lex->type;
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
 		ba_PAccept(BA_TK_KW_U8, ctr) || ba_PAccept(BA_TK_KW_I8, ctr) || 
@@ -53,26 +56,78 @@ u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid) {
 		}
 		*fundamentalType = ba_GetTypeFromKeyword(lexType);
 		bool isVoid = fundamentalType->type == BA_TYPE_VOID;
-		while (ba_PAccept('*', ctr)) {
-			isVoid = 0;
-			struct ba_Type* newFundType = malloc(sizeof(*newFundType));
-			newFundType->extraInfo = fundamentalType;
-			newFundType->type = BA_TYPE_PTR;
-			fundamentalType = newFundType;
+		while (1) {
+			if (ba_PAccept('[', ctr)) {
+				if (isVoid) {
+					return ba_ExitMsg(BA_EXIT_ERR, "array of void on",
+						ctr->lex->line, ctr->lex->colStart, ctr->currPath);
+				}
+				isVoid = 0;
+
+				bool isArrCntDefinite = 1;
+				struct ba_ArrExtraInfo* extraInfo = malloc(sizeof(*extraInfo));
+
+				if (ba_PAccept(']', ctr)) {
+					if (!isInclIndefArr) {
+						return ba_ExitMsg(BA_EXIT_ERR, "invalid usage of "
+							"indefinite size array on", ctr->lex->line, 
+							ctr->lex->colStart, ctr->currPath);
+					}
+					isArrCntDefinite = 0;
+					extraInfo->cnt = 0;
+				}
+				else if (ba_PExp(ctr)) {
+					struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
+					if (!ba_IsTypeIntegral(expItem->typeInfo.type) || 
+						!(ba_IsTypeConst(expItem->lexemeType) || 
+							ba_IsLexemeLiteral(expItem->lexemeType)))
+					{
+						return ba_ExitMsg2(BA_EXIT_ERR, "invalid array size on", 
+							ctr->lex->line, ctr->lex->colStart, ctr->currPath, 
+							" (must be a constant integer)");
+					}
+					extraInfo->cnt = (u64)expItem->val;
+					ba_PExpect(']', ctr);
+				}
+				else {
+					return ba_ExitMsg(BA_EXIT_ERR, "invalid usage of "
+						"indefinite size array on", ctr->lex->line, 
+						ctr->lex->colStart, ctr->currPath);
+				}
+
+				extraInfo->type = *fundamentalType;
+
+				struct ba_Type* newFundType = malloc(sizeof(*newFundType));
+				newFundType->type = BA_TYPE_ARR;
+				newFundType->extraInfo = extraInfo;
+				fundamentalType = newFundType;
+
+				if (!isArrCntDefinite) {
+					break;
+				}
+			}
+			else if (ba_PAccept('*', ctr)) {
+				isVoid = 0;
+				struct ba_Type* newFundType = malloc(sizeof(*newFundType));
+				newFundType->type = BA_TYPE_PTR;
+				newFundType->extraInfo = fundamentalType;
+				fundamentalType = newFundType;
+			}
+			else {
+				break;
+			}
 		}
 		if (isVoid && !isInclVoid) {
-			return 0;
+			return ba_ExitMsg(BA_EXIT_ERR, "type cannot be void on", 
+				ctr->lex->line, ctr->lex->colStart, ctr->currPath);
 		}
 		type.extraInfo = fundamentalType;
 
 		ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, type, lexType, 
 			/* isLValue = */ 0);
+		return 1;
 	}
-	else {
-		return 0;
-	}
-
-	return 1;
+	return 0;
 }
 
 /* atom = lit_str { lit_str } | lit_int | lit_char | identifier */
@@ -734,7 +789,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		return 1;
 	}
 	// ( base_type | "void" ) identifier ...
-	else if (ba_PBaseType(ctr, /* isInclVoid = */ 1)) {
+	else if (ba_PBaseType(ctr, /* isInclVoid = */ 1, /* isInclIndefArr = */ 1)) {
 		struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
 		struct ba_Type type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo);
 

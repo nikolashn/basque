@@ -250,7 +250,9 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 			}
 			else if (ba_PAccept('~', ctr)) {
 				op->syntax = BA_OP_POSTFIX;
-				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0)) {
+				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0, 
+					/* isInclIndefArr = */ 0)) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that is "
 						"not a valid type on", op->line, op->col, ctr->currPath);
 				}

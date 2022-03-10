@@ -9,7 +9,7 @@
 // ----- Forward declarations -----
 u8 ba_PAccept(u64 type, struct ba_Controller* ctr);
 u8 ba_PExpect(u64 type, struct ba_Controller* ctr);
-u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid);
+u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid, bool isInclIndefArr);
 u8 ba_PExp(struct ba_Controller* ctr);
 u8 ba_PStmt(struct ba_Controller* ctr);
 // --------------------------------
@@ -92,7 +92,9 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 			case ST_COMMA:
 			{
 				// ... base_type ...
-				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0)) {
+				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0, 
+					/* isInclIndefArr = */ 0)) 
+				{
 					return 0;
 				}
 				
@@ -301,8 +303,6 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 u8 ba_PVarDef(struct ba_Controller* ctr, char* idName, 
 	u64 line, u64 col, struct ba_Type type)
 {
-	ba_PExpect('=', ctr);
-
 	if (ba_HTGet(ctr->currScope->ht, idName)) {
 		return ba_ErrorVarRedef(idName, line, col, ctr->currPath);
 	}
@@ -338,6 +338,25 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	line = ctr->lex->line;
 	col = ctr->lex->colStart;
 	
+	if (!ba_PAccept('=', ctr)) {
+		if (ba_IsTypeNumeric(idVal->type.type)) {
+			if (dataSize == 8) {
+				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+			}
+			else if (dataSize == 1) {
+				ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
+			}
+			else {
+				ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RSP, dataSize);
+			}
+		}
+		else if (idVal->type.type == BA_TYPE_ARR) {
+			// TODO
+		}
+		idVal->isInited = 0;
+		return ba_PExpect(';', ctr);
+	}
+
 	if (!ba_PExp(ctr)) {
 		return 0;
 	}
@@ -346,8 +365,6 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	ba_POpAssignChecks(ctr, idVal->type, expItem, line, col);
 	
 	if (ba_IsTypeNumeric(idVal->type.type)) {
-		u64 idSize = ba_GetSizeOfType(idVal->type);
-
 		if (!ba_IsTypeNumeric(expItem->typeInfo.type)) {
 			char* expTypeStr = ba_GetTypeStr(expItem->typeInfo);
 			char* varTypeStr = ba_GetTypeStr(idVal->type);
@@ -356,7 +373,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		}
 
 		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-			ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, idSize), 
+			ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, dataSize), 
 				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 				ba_CalcSTValOffset(ctr->currScope, expItem->val));
 		}
@@ -368,19 +385,22 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		u64 reg = expItem->lexemeType == BA_TK_IMREGISTER 
 			? (u64)expItem->val : BA_IM_RAX;
 
-		if (idSize == 8) {
+		if (dataSize == 8) {
 			ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
 		}
 		else {
-			if (idSize == 1) {
+			if (dataSize == 1) {
 				ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
 			}
 			else {
-				ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RSP, idSize);
+				ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RSP, dataSize);
 			}
 			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
-				ba_AdjRegSize(reg, idSize));
+				ba_AdjRegSize(reg, dataSize));
 		}
+	}
+	else if (idVal->type.type == BA_TYPE_ARR) {
+		// TODO
 	}
 	
 	ctr->currScope->dataSize += dataSize;

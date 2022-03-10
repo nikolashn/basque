@@ -15,10 +15,9 @@ struct ba_STVal {
 	/* If a label, the label ID
 	 * If a variable, relative to start of scope's stack */
 	u64 address;
-
-	// initVal, isInited only used for funcs
-	void* initVal;
+	
 	bool isInited;
+	void* initVal; // Only used for funcs (TODO: consts)
 };
 
 struct ba_SymTable {
