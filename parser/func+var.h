@@ -30,6 +30,13 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 		return ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
 	}
 
+	if (retType.type == BA_TYPE_ARR && 
+		!((struct ba_ArrExtraInfo*)retType.extraInfo)->cnt) 
+	{
+		return ba_ExitMsg(BA_EXIT_ERR, "func return type cannot be indefinite "
+			"size array on", line, col, ctr->currPath);
+	}
+
 	struct ba_STVal* funcIdVal = malloc(sizeof(struct ba_STVal));
 	if (!funcIdVal) {
 		return ba_ErrorMallocNoMem();
@@ -226,6 +233,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblStart);
 	// TODO: preserve registers
+	// TODO: arr
 	func->childScope->dataSize += 8; // For the return location
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 
