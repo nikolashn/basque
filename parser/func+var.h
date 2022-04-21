@@ -233,7 +233,6 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblStart);
 	// TODO: preserve registers
-	// TODO: arr
 	func->childScope->dataSize += 8; // For the return location
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 
@@ -359,9 +358,14 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 			}
 		}
 		else if (idVal->type.type == BA_TYPE_ARR) {
-			// TODO
+			if (!((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt) {
+				return ba_ExitMsg(BA_EXIT_ERR, "uninitialized array with "
+					"undefined size on", line, col, ctr->currPath);
+			}
+			ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		}
 		idVal->isInited = 0;
+		ctr->currScope->dataSize += dataSize;
 		return ba_PExpect(';', ctr);
 	}
 
@@ -409,10 +413,11 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {
 		// TODO
+		// remember, for uninitialized arrays, their size needs to be set here,
+		// changing their address, and also the scope's data size
 	}
 	
 	ctr->currScope->dataSize += dataSize;
-
 	return ba_PExpect(';', ctr);
 }
 
