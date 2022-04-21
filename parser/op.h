@@ -118,21 +118,33 @@ u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 	u64 reg, bool isLiteral) 
 {
 	u64 argSize = ba_GetSizeOfType(arg->typeInfo);
+
+	// Arrays are resolved as pointers to their starting location
+	bool isArr = arg->typeInfo.type == BA_TYPE_ARR;
+	if (isArr) {
+		argSize = ba_GetSizeOfType((struct ba_Type){
+			.type = BA_TYPE_PTR,
+			.extraInfo = (void*)0
+		});
+	}
+
 	if (arg->lexemeType == BA_TK_IDENTIFIER) {
 		if (argSize < 4) {
 			ba_AddIM(ctr, 3, BA_IM_XOR, reg, reg);
 		}
-		ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(reg, argSize), 
+		ba_AddIM(ctr, 5, isArr ? BA_IM_LEA : BA_IM_MOV, 
+			ba_AdjRegSize(reg, argSize), 
 			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 			ba_CalcSTValOffset(ctr->currScope, arg->val));
 		return 1;
 	}
-	else if (arg->lexemeType == BA_TK_IMRBPSUB) {
-		ba_AddIM(ctr, 5, BA_IM_MOV, reg, 
+	if (arg->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(ctr, 5, isArr ? BA_IM_LEA : BA_IM_MOV, reg, 
 			BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
 		return 1;
 	}
-	else if (isLiteral) {
+	if (isLiteral) {
+		// TODO: handle array literals
 		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
 			argSize < 8 ? (u64)arg->val & ((1llu << (argSize*8))-1)
 				: (u64)arg->val);

@@ -33,7 +33,7 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 		if (derefArgsCnt == 1) {
 			type = item->typeInfo;
 
-			if (type.type != BA_TYPE_PTR) {
+			if (type.type != BA_TYPE_PTR && type.type != BA_TYPE_ARR) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
 
@@ -46,7 +46,7 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 			if (derefArgsCnt > 2) {
 				type = *(struct ba_Type*)type.extraInfo;
 			}
-			if (type.type != BA_TYPE_PTR) {
+			if (type.type != BA_TYPE_PTR && type.type != BA_TYPE_ARR) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
 			
