@@ -105,8 +105,8 @@ u8 ba_ErrorVarVoid(u64 line, u64 col, char* path) {
 }
 
 u8 ba_ErrorDerefNonPtr(u64 line, u64 col, char* path) {
-	return ba_ExitMsg(BA_EXIT_ERR, "dereferencing non-pointer on", 
-		line, col, path);
+	return ba_ExitMsg(BA_EXIT_ERR, "dereferencing data which is not castable "
+		"to a pointer on", line, col, path);
 }
 
 u8 ba_ErrorDerefInvalid(u64 line, u64 col, char* path) {
