@@ -15,9 +15,14 @@ u8 ba_PAtom(struct ba_Controller* ctr);
 u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 	struct ba_Type type;
 	struct ba_Stk* originalOpStk = ctr->pOpStk;
+
 	u64 derefArgsCnt = 0;
 	u64 deStackPos = 0;
 	u64 deReg = 0;
+
+	bool isArrLeaOfst = 0;
+	i64 arrLeaOfst = 0;
+
 	while (1) {
 		ctr->pOpStk = ba_NewStk();
 		if (!ba_PExp(ctr)) {
@@ -44,12 +49,29 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 		}
 		else {
 			if (derefArgsCnt > 2) {
-				type = *(struct ba_Type*)type.extraInfo;
+				type = type.type == BA_TYPE_ARR
+					? ((struct ba_ArrExtraInfo*)type.extraInfo)->type
+					: *(struct ba_Type*)type.extraInfo;
 			}
+
 			if (type.type != BA_TYPE_PTR && type.type != BA_TYPE_ARR) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
-			
+
+			if (type.type == BA_TYPE_ARR) {
+				if (ba_IsLexemeLiteral(item->lexemeType)) {
+					arrLeaOfst += (i64)item->val * ba_GetSizeOfType(
+						((struct ba_ArrExtraInfo*)type.extraInfo)->type);
+					isArrLeaOfst = 1;
+				}
+				else {
+					// TODO: non literals
+				}
+				goto BA_LBL_PDEREFMAKE_LOOPEND;
+			}
+
+			// Non-array (pointer) dereferencing
+
 			u64 pntdTypeSize = 
 				ba_GetSizeOfType(*(struct ba_Type*)type.extraInfo);
 			if (pntdTypeSize != 1 && pntdTypeSize != 2 && 
@@ -100,6 +122,24 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 		}
 		
 		BA_LBL_PDEREFMAKE_LOOPEND:
+
+		// Array lea offset: calculated array offset handling
+		if (type.type == BA_TYPE_ARR) {
+			struct ba_Type tmpType = 
+				((struct ba_ArrExtraInfo*)type.extraInfo)->type;
+			if (isArrLeaOfst && tmpType.type != BA_TYPE_ARR) {
+				u64 size = ba_GetSizeOfType(tmpType);
+				bool isNeg = (i64)arrLeaOfst < 0;
+				ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, 
+					isLastArg ? deReg : ba_AdjRegSize(deReg, size),
+					isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, 
+					isNeg ? -arrLeaOfst : arrLeaOfst);
+				isArrLeaOfst = 0;
+				arrLeaOfst = 0;
+			}
+		}
+		
+		// Leave if last item in the dereferencing list
 		if (isLastArg) {
 			break;
 		}

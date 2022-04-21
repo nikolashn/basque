@@ -145,6 +145,9 @@ u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 	}
 	if (isLiteral) {
 		// TODO: handle array literals
+		if (isArr) {
+			return 0;
+		}
 		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
 			argSize < 8 ? (u64)arg->val & ((1llu << (argSize*8))-1)
 				: (u64)arg->val);
