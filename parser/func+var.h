@@ -405,13 +405,14 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 				ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
 			}
 			else {
-				ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RSP, dataSize);
+				ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 			}
 			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
 				ba_AdjRegSize(reg, dataSize));
 		}
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {
+		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		// TODO
 		// remember, for uninitialized arrays, their size needs to be set here,
 		// changing their address, and also the scope's data size
