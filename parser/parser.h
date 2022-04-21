@@ -605,12 +605,16 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					"return type 'void' on", line, col, ctr->currPath);
 			}
 
-			// Move return value into rax
-			// TODO: or onto stack if too big
-			
 			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
 			if (!stkItem) {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
+					ctr->currPath);
+			}
+			if (!ba_IsTypeNumeric(ctr->currFunc->retType.type) &&
+				ba_IsTypeNumeric(stkItem->typeInfo.type)) 
+			{
+				return ba_ExitMsg(BA_EXIT_ERR, "returning numeric value "
+					"from a function with non-numeric type", line, col, 
 					ctr->currPath);
 			}
 			if (stkItem->lexemeType == BA_TK_LITSTR) {
@@ -618,6 +622,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					"a func currently not implemented,", line, col, ctr->currPath);
 			}
 			if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
+				// Return value in rax
 				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, 
 					ba_IsLexemeLiteral(stkItem->lexemeType));
 				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
@@ -626,6 +631,10 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
 				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
+			}
+			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
+				// Return value should already be on the stack
+				// TODO
 			}
 		}
 		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
