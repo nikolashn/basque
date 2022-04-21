@@ -395,6 +395,25 @@ u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType, 
 	struct ba_PTkStkItem* rhs, u64 line, u64 col) 
 {
+	if (rhs->typeInfo.type == BA_TYPE_ARR) {
+		if (lhsType.type == BA_TYPE_ARR) {
+			if (!ba_AreTypesEqual(lhsType, rhs->typeInfo)) {
+				return ba_ExitMsg(BA_EXIT_ERR, "assignement of incompatible "
+					"array types on", line, col, ctr->currPath);
+			}
+			return 1;
+		}
+		if (lhsType.type == BA_TYPE_PTR) {
+			if (((struct ba_Type*)lhsType.extraInfo)->type == BA_TYPE_VOID && 
+				!ba_AreTypesEqual(lhsType, rhs->typeInfo)) 
+			{
+				return ba_ExitMsg(BA_EXIT_ERR, "assignement of array to " 
+					"incompatible pointer type on", line, col, ctr->currPath);
+			}
+			return 1;
+		}
+		return 0;
+	}
 	if (!ba_IsTypeNumeric(lhsType.type) && lhsType.type != rhs->typeInfo.type) {
 		return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible types on", 
 			line, col, ctr->currPath);
@@ -1403,6 +1422,21 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				ba_POpAssignChecks(ctr, lhsType, rhs, op->line, op->col);
 
+				if (opLex != '=' && (!ba_IsTypeNumeric(lhsType.type) ||
+					!ba_IsTypeNumeric(rhs->typeInfo.type)))
+				{
+					return ba_ExitMsg(BA_EXIT_ERR, "numeric operation "
+						"used with non numeric operand(s) on", op->line,
+						op->col, ctr->currPath);
+				}
+
+				if (lhsType.type == BA_TYPE_ARR) {
+					// TODO
+					return ba_ExitMsg(BA_EXIT_ERR, "assignment to array "
+						"currently not implemented, ", op->line, op->col,
+						ctr->currPath);
+				}
+
 				if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
 					opLex == BA_TK_BITOREQ || opLex == BA_TK_LSHIFTEQ || 
 					opLex == BA_TK_RSHIFTEQ) && 
@@ -1991,19 +2025,31 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				struct ba_Type newType = 
 					*(struct ba_Type*)typeArg->typeInfo.extraInfo;
 
+				bool isNewTypeNumeric = ba_IsTypeNumeric(newType.type);
+				bool isOldTypeNumeric = 
+					ba_IsTypeNumeric(castedExp->typeInfo.type);
+
 				if (!newType.type || newType.type == BA_TYPE_VOID) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that "
 						"is not a (castable) type on", op->line, op->col, 
 						ctr->currPath);
 				}
 
-				if (ba_IsTypeNumeric(newType.type) != 
-					ba_IsTypeNumeric(castedExp->typeInfo.type))
+				if (castedExp->typeInfo.type == BA_TYPE_ARR) {
+					if (newType.type != BA_TYPE_PTR) {
+						return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
+							"types on", op->line, op->col, ctr->currPath);
+					}
+					// TODO
+				}
+				else if ((isNewTypeNumeric != isOldTypeNumeric) || 
+					(!isNewTypeNumeric && !isOldTypeNumeric)) 
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
 						"types on", op->line, op->col, ctr->currPath);
 				}
-				
+
+
 				arg = castedExp;
 				arg->typeInfo = newType;
 				arg->isLValue = 0;
