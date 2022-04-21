@@ -6,7 +6,7 @@ i64[5] x;
 [x, 4] = 11;
 
 u64 i = 0;
-while i < 5 {
+while i < 5u {
 	write [x, i]; "\n";
 	++i;
 }
