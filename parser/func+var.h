@@ -372,18 +372,13 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	if (!ba_PExp(ctr)) {
 		return 0;
 	}
-	
+
 	struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
+	ba_PExpect(';', ctr);
+
 	ba_POpAssignChecks(ctr, idVal->type, expItem, line, col);
 	
 	if (ba_IsTypeNumeric(idVal->type.type)) {
-		if (!ba_IsTypeNumeric(expItem->typeInfo.type)) {
-			char* expTypeStr = ba_GetTypeStr(expItem->typeInfo);
-			char* varTypeStr = ba_GetTypeStr(idVal->type);
-			return ba_ErrorAssignTypes(expTypeStr, idName, 
-				varTypeStr, line, col, ctr->currPath);
-		}
-
 		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
 			ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, dataSize), 
 				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
@@ -412,14 +407,49 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		}
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {
+		// Set size of uninitialized arrays
+		u64* cntPtr = ((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt;
+		(!*cntPtr) && (*cntPtr = 
+			((struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo)->cnt);
+
+		u64 size = ba_GetSizeOfType(idVal->type);
+
+		// TODO: if possible remove this and simply add the memory onto the stack
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
+
+		// Memory can't be BA_TK_IMRBPSUB
+		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
+			// TODO
+			return 0;
+		}
+		else if (expItem->lexemeType == BA_TK_IMREGISTER) {
+			u64 reg = (u64)expItem->val;
+			// MemCpy is needed
+			if (!ba_BltinFlagsTest(BA_BLTIN_MemCpy)) {
+				ba_BltinMemCpy(ctr);
+			}
+			// src ptr
+			ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
+			// mem size
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, size);
+			ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+			// dest ptr
+			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, BA_IM_RSP);
+
+			ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
+				ba_BltinLabels[BA_BLTIN_MemCpy]);
+		}
+		else if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+			// TODO
+			return 0;
+		}
 		// TODO
 		// remember, for uninitialized arrays, their size needs to be set here,
 		// changing their address, and also the scope's data size
 	}
 	
 	ctr->currScope->dataSize += dataSize;
-	return ba_PExpect(';', ctr);
+	return 1;
 }
 
 #endif
