@@ -4,5 +4,6 @@
 #define BA__BLTIN_H
 
 #include "u64tostr.h"
+#include "memcpy.h"
 
 #endif
