@@ -58,45 +58,32 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 				return ba_ErrorDerefNonPtr(line, col, ctr->currPath);
 			}
 
-			if (type.type == BA_TYPE_ARR) {
-				if (ba_IsLexemeLiteral(item->lexemeType)) {
+			u64 pntdSz = ba_GetSizeOfType(*(struct ba_Type*)type.extraInfo);
+
+			if (ba_IsLexemeLiteral(item->lexemeType)) {
+				// Handle literal array indices by simple multiplication
+				if (type.type == BA_TYPE_ARR) {
 					arrLeaOfst += (i64)item->val * ba_GetSizeOfType(
 						((struct ba_ArrExtraInfo*)type.extraInfo)->type);
 					isArrLeaOfst = 1;
 				}
+				// Literal dereferencing list items for pointers use lea/mov
 				else {
-					// TODO: non literals
+					bool isNeg = (i64)item->val < 0;
+					u64 ofst = pntdSz * 
+						(isNeg ? -(u64)item->val : (u64)item->val);
+					ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, 
+						isLastArg ? deReg : ba_AdjRegSize(deReg, pntdSz),
+						isNeg ? BA_IM_ADRSUB : BA_IM_ADRADD, deReg, ofst);
 				}
 				goto BA_LBL_PDEREFMAKE_LOOPEND;
 			}
 
-			// Non-array (pointer) dereferencing
+			// Non-literal dereferencing list item
 
-			u64 pntdTypeSize = 
-				ba_GetSizeOfType(*(struct ba_Type*)type.extraInfo);
-			if (pntdTypeSize != 1 && pntdTypeSize != 2 && 
-				pntdTypeSize != 4 && pntdTypeSize != 8)
-			{
-				fprintf(stderr, "Error: dereferencing pointer pointing to type "
-					"with size %llu not implemented, line %llu:%llu in %s\n", 
-					pntdTypeSize, line, col, ctr->currPath);
-				exit(-1);
-			}
-
-			if (ba_IsLexemeLiteral(item->lexemeType)) {
-				bool isNeg = (i64)item->val < 0;
-				u64 ofst = pntdTypeSize * 
-					(isNeg ? (u64)item->val : -(u64)item->val);
-				ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, 
-					isLastArg ? deReg : ba_AdjRegSize(deReg, pntdTypeSize),
-					isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, ofst);
-				goto BA_LBL_PDEREFMAKE_LOOPEND;
-			}
-
-			u64 addReg = (u64)item->val;
-			if (item->lexemeType != BA_TK_IMREGISTER) {
-				addReg = ba_NextIMRegister(ctr);
-			}
+			u64 addReg = item->lexemeType == BA_TK_IMREGISTER
+				? (u64)item->val
+				: ba_NextIMRegister(ctr);
 
 			u64 effAddReg = addReg;
 			if (!addReg) {
@@ -111,9 +98,35 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 
 			ba_POpMovArgToReg(ctr, item, effAddReg, /* isLiteral = */ 0);
 
-			ba_AddIM(ctr, 6, isLastArg ? BA_IM_LEA : BA_IM_MOV,
-				isLastArg ? deReg : ba_AdjRegSize(deReg, pntdTypeSize),
-				BA_IM_ADRADDREGMUL, deReg, pntdTypeSize, addReg);
+			if (type.type == BA_TYPE_ARR) {
+				u64 tmpReg = ba_NextIMRegister(ctr);
+				if (!tmpReg) {
+					ba_AddIM(ctr, 2, BA_IM_PUSH, deReg);
+				}
+
+				ba_AddIM(ctr, 4, BA_IM_MOV, tmpReg ? tmpReg : deReg, 
+					BA_IM_IMM, pntdSz);
+				// effAddReg can't be RSP, but if it was there would be an issue
+				ba_AddIM(ctr, 3, BA_IM_IMUL, effAddReg, tmpReg ? tmpReg : deReg);
+
+				if (!tmpReg) {
+					ba_AddIM(ctr, 2, BA_IM_POP, deReg);
+				}
+
+				ba_AddIM(ctr, 6, BA_IM_LEA, deReg, BA_IM_ADRADDREGMUL,
+					deReg, 1, effAddReg);
+
+				tmpReg && (ctr->usedRegisters &= ~ba_IMToCtrReg(tmpReg));
+			}
+			else if (pntdSz == 1 || pntdSz == 2 || pntdSz == 4 || pntdSz == 8) {
+				ba_AddIM(ctr, 6, isLastArg ? BA_IM_LEA : BA_IM_MOV,
+					isLastArg ? deReg : ba_AdjRegSize(deReg, pntdSz),
+					BA_IM_ADRADDREGMUL, deReg, pntdSz, effAddReg);
+			}
+			else {
+				fprintf(stderr, "Error: Dereferencing non-arrays with "
+					"nonstandard pntdSz not implemented yet\n");
+			}
 
 			if (!addReg) {
 				ba_AddIM(ctr, 2, BA_IM_POP, effAddReg);
@@ -130,9 +143,8 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 			if (isArrLeaOfst && tmpType.type != BA_TYPE_ARR) {
 				u64 size = ba_GetSizeOfType(tmpType);
 				bool isNeg = (i64)arrLeaOfst < 0;
-				ba_AddIM(ctr, 5, isLastArg ? BA_IM_LEA : BA_IM_MOV, 
-					isLastArg ? deReg : ba_AdjRegSize(deReg, size),
-					isNeg ? BA_IM_ADRADD : BA_IM_ADRSUB, deReg, 
+				ba_AddIM(ctr, 5, BA_IM_LEA, deReg,
+					isNeg ? BA_IM_ADRSUB : BA_IM_ADRADD, deReg, 
 					isNeg ? -arrLeaOfst : arrLeaOfst);
 				isArrLeaOfst = 0;
 				arrLeaOfst = 0;
