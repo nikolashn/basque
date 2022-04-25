@@ -380,13 +380,16 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 	return 0;
 }
 
-// Correct the type of dereferenced pointers
+// Correct the type of dereferenced pointers/arrays
 u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 	if (item->typeInfo.type == BA_TYPE_DPTR) {
 		item->typeInfo = *(struct ba_Type*)item->typeInfo.extraInfo;
 		u64 size = ba_GetSizeOfType(item->typeInfo);
 		if (!size) {
 			return 0;
+		}
+		if (item->typeInfo.type == BA_TYPE_ARR) {
+			return 1;
 		}
 		if (item->lexemeType == BA_TK_IMREGISTER) {
 			u64 adjReg = ba_AdjRegSize((u64)item->val, size);
@@ -413,7 +416,7 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 	if (rhs->typeInfo.type == BA_TYPE_ARR) {
 		if (lhsType.type == BA_TYPE_ARR) {
 			if (!ba_AreTypesEqual(lhsType, rhs->typeInfo)) {
-				return ba_ExitMsg(BA_EXIT_ERR, "assignement of incompatible "
+				return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible "
 					"array types on", line, col, ctr->currPath);
 			}
 			return 1;
