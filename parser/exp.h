@@ -141,7 +141,6 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 			struct ba_Type tmpType = 
 				((struct ba_ArrExtraInfo*)type.extraInfo)->type;
 			if (isArrLeaOfst && tmpType.type != BA_TYPE_ARR) {
-				u64 size = ba_GetSizeOfType(tmpType);
 				bool isNeg = (i64)arrLeaOfst < 0;
 				ba_AddIM(ctr, 5, BA_IM_LEA, deReg,
 					isNeg ? BA_IM_ADRSUB : BA_IM_ADRADD, deReg, 
