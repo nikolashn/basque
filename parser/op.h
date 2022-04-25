@@ -415,7 +415,13 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 {
 	if (rhs->typeInfo.type == BA_TYPE_ARR) {
 		if (lhsType.type == BA_TYPE_ARR) {
-			if (!ba_AreTypesEqual(lhsType, rhs->typeInfo)) {
+			struct ba_ArrExtraInfo* lhsExtra = lhsType.extraInfo;
+			struct ba_ArrExtraInfo* rhsExtra = rhs->typeInfo.extraInfo;
+			bool areTypesCompatible =
+				!ba_AreTypesEqual(lhsType, rhs->typeInfo) && 
+				!(ba_AreTypesEqual(lhsExtra->type, rhsExtra->type) &&
+					!lhsExtra->cnt);
+			if (areTypesCompatible) {
 				return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible "
 					"array types on", line, col, ctr->currPath);
 			}
