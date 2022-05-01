@@ -902,6 +902,11 @@ u8 ba_Parse(struct ba_Controller* ctr) {
 					ctr->currPath);
 				ctr->currPath = ctr->lex->val;
 			}
+			else if (ctr->lex->type == BA_TK_EOF) {
+				fprintf(stderr, "Error: unexpected end of file in %s\n",
+					ctr->currPath);
+				exit(-1);
+			}
 			else {
 				sprintf(msg, "unexpected %s at", 
 					ba_GetLexemeStr(ctr->lex->type));
