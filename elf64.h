@@ -314,7 +314,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 						byte0 |= ((reg0 >= 8) << 2) | (reg1 >= 8);
 						byte2 |= ((reg0 & 7) << 3) | (reg1 & 7);
 
-						bool hasByte0 = (reg0 >= 8) | (reg1 >= 8);
+						bool hasByte0 = (reg0 >= 4) | (reg1 >= 8);
 						bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
 						bool isReg1Mod5 = (reg1 & 7) == 5; // RBP or R13
 						
