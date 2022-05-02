@@ -147,7 +147,7 @@ char* ba_GetTypeStr(struct ba_Type type) {
 					paramsStr[paramsStrLen++] = ' ';
 				}
 				char* pStr = ba_GetTypeStr(param->type);
-				char* pStrLen = strlen(pStr);
+				u64 pStrLen = strlen(pStr);
 				paramsStrLen += pStrLen;
 				// The +2 ensures that ", " can be added without overflow
 				if (paramsStrCap <= paramsStrLen + 2) {
