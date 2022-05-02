@@ -1,0 +1,18 @@
+# Expected output:
+# 0 10 20 30 40 50 60 70 80 90
+
+i64[10] srcArr;
+i64 i = 10;
+while i {
+	--i;
+	[srcArr,i] = i * 10;
+}
+
+i64[10] destArr = srcArr;
+while i < 10 {
+	write [destArr,i]; " ";
+	++i;
+}
+
+"\n";
+
