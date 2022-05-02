@@ -2065,6 +2065,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							"types on", op->line, op->col, ctr->currPath);
 					}
 					// TODO
+					return 0;
 				}
 				else if ((isNewTypeNumeric != isOldTypeNumeric) || 
 					(!isNewTypeNumeric && !isOldTypeNumeric)) 
@@ -2072,7 +2073,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
 						"types on", op->line, op->col, ctr->currPath);
 				}
-
 
 				arg = castedExp;
 				arg->typeInfo = newType;
