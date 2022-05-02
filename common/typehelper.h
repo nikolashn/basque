@@ -118,11 +118,10 @@ char* ba_GetTypeStr(struct ba_Type type) {
 		case BA_TYPE_DPTR:
 			return ba_GetTypeStr(*(struct ba_Type*)type.extraInfo);
 		case BA_TYPE_ARR: {
-			struct ba_ArrExtraInfo info = 
-				*(struct ba_ArrExtraInfo*)type.extraInfo;
-			char* pntdTypeStr = ba_GetTypeStr(info.type);
+			struct ba_ArrExtraInfo* info = type.extraInfo;
+			char* pntdTypeStr = ba_GetTypeStr(info->type);
 			char sizeStr[20];
-			sprintf(sizeStr, "%lld", info.cnt);
+			sprintf(sizeStr, "%lld", info->cnt);
 			u64 pntdTypeStrLen = strlen(pntdTypeStr);
 			u64 sizeStrLen = strlen(sizeStr);
 			u64 typeStrSize = pntdTypeStrLen+sizeStrLen+3;
@@ -134,7 +133,34 @@ char* ba_GetTypeStr(struct ba_Type type) {
 			typeStr[typeStrSize-1] = 0;
 			return typeStr;
 		}
-		// TODO: FUNC
+		case BA_TYPE_FUNC: {
+			struct Func* func = type.extraInfo;
+			char* retTypeStr = ba_GetTypeStr(func->retType);
+			
+			u64 paramsStrLen = 0;
+			u64 paramsStrCap = 20;
+			char* paramsStr = malloc(paramsStrCap);
+			struct FuncParam* param = func->firstParam;
+			while (param) {
+				if (param != func->firstParam) {
+					paramsStr[paramsStrLen++] = ',';
+					paramsStr[paramsStrLen++] = ' ';
+				}
+				char* pStr = ba_GetTypeStr(param->type);
+				char* pStrLen = strlen(pStr);
+				paramsStrLen += pStrLen;
+				// The +2 ensures that ", " can be added without overflow
+				if (paramsStrCap <= paramsStrLen + 2) {
+					paramsStr = realloc(paramsStr, 2 * paramsStrCap);
+				}
+				strcpy(paramsStr+paramsStrLen-pStrLen, pStr);
+				param = param->next;
+			}
+			
+			char* typeStr = malloc(strlen(retTypeStr)+paramsStrLen+8);
+			sprintf(typeStr, "func %s(%s)", retTypeStr, paramsStr);
+			return typeStr;
+		}
 	}
 	return 0;
 }
