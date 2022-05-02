@@ -134,13 +134,13 @@ char* ba_GetTypeStr(struct ba_Type type) {
 			return typeStr;
 		}
 		case BA_TYPE_FUNC: {
-			struct Func* func = type.extraInfo;
+			struct ba_Func* func = type.extraInfo;
 			char* retTypeStr = ba_GetTypeStr(func->retType);
 			
 			u64 paramsStrLen = 0;
 			u64 paramsStrCap = 20;
 			char* paramsStr = malloc(paramsStrCap);
-			struct FuncParam* param = func->firstParam;
+			struct ba_FuncParam* param = func->firstParam;
 			while (param) {
 				if (param != func->firstParam) {
 					paramsStr[paramsStrLen++] = ',';
