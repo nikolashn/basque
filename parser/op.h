@@ -129,13 +129,17 @@ u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 	}
 
 	if (arg->lexemeType == BA_TK_IDENTIFIER) {
-		if (argSize < 4) {
+		bool isSigned = ba_IsTypeSigned(arg->typeInfo.type);
+		if (!isSigned && (argSize < 4)) {
 			ba_AddIM(ctr, 3, BA_IM_XOR, reg, reg);
 		}
 		ba_AddIM(ctr, 5, isArr ? BA_IM_LEA : BA_IM_MOV, 
 			ba_AdjRegSize(reg, argSize), 
 			BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 			ba_CalcSTValOffset(ctr->currScope, arg->val));
+		if (isSigned && (argSize < 8)) {
+			ba_AddIM(ctr, 3, BA_IM_MOVZX, reg, ba_AdjRegSize(reg, argSize));
+		}
 		return 1;
 	}
 	if (arg->lexemeType == BA_TK_IMRBPSUB) {
@@ -182,10 +186,8 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 		u64 adjSizeReg = ba_AdjRegSize(realReg, 
 			ba_GetSizeOfType(arg->typeInfo));
 		ba_AddIM(ctr, 3, BA_IM_TEST, adjSizeReg, adjSizeReg);
-		ba_AddIM(ctr, 2, BA_IM_SETZ, 
-			realReg - BA_IM_RAX + BA_IM_AL);
-		ba_AddIM(ctr, 3, BA_IM_MOVZX, realReg, 
-			realReg - BA_IM_RAX + BA_IM_AL);
+		ba_AddIM(ctr, 2, BA_IM_SETZ, realReg - BA_IM_RAX + BA_IM_AL);
+		ba_AddIM(ctr, 3, BA_IM_MOVZX, realReg, realReg - BA_IM_RAX + BA_IM_AL);
 	}
 	else {
 		ba_AddIM(ctr, 2, imOp, realReg);
@@ -234,15 +236,7 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	ba_POpMovArgToReg(ctr, rhs, realRegR, isRhsLiteral);
 
 	u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
-	if (lhsSize < 8) {
-		ba_AddIM(ctr, 3, BA_IM_MOVZX, realRegL, 
-			ba_AdjRegSize(realRegL, lhsSize));
-	}
 	u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
-	if (rhsSize < 8) {
-		ba_AddIM(ctr, 3, BA_IM_MOVZX, realRegR, 
-			ba_AdjRegSize(realRegR, rhsSize));
-	}
 
 	ba_AddIM(ctr, 3, imOp, realRegL, realRegR);
 
@@ -832,28 +826,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath);
 				}
 
-				if (ba_IsTypeIntegral(lhs->typeInfo.type) && 
-					ba_IsTypeIntegral(rhs->typeInfo.type)) 
-				{
-					u64 argType = BA_TYPE_I64; // Default, most likely type
-					if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
-						ba_IsTypeUnsigned(rhs->typeInfo.type)) 
-					{
-						// Different signedness
-						char msg[128];
-						strcat(msg, opName);
-						strcat(msg, " of integers of different signedness on");
-						char* msgAfter = ba_IsWarningsAsErrors ? ""
-							: ", implicitly converted lhs to i64";
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, op->line, 
-							op->col, ctr->currPath, msgAfter);
-					}
-					else if (ba_IsTypeUnsigned(lhs->typeInfo.type)) {
-						argType = BA_TYPE_U64;
-					}
-					arg->typeInfo.type = argType;
-				}
-
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 argVal = 0;
 					((op->lexemeType == '*') && 
@@ -907,6 +879,28 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					BA_LBL_POPHANDLE_MULADDSUB_NONLIT:
 					ba_POpNonLitBinary(imOp, arg, lhs, rhs, isLhsLiteral, 
 						isRhsLiteral, /* isShortCirc = */ 0, ctr);
+				}
+
+				if (ba_IsTypeIntegral(lhs->typeInfo.type) && 
+					ba_IsTypeIntegral(rhs->typeInfo.type)) 
+				{
+					u64 argType = BA_TYPE_I64; // Default, most likely type
+					if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
+						ba_IsTypeUnsigned(rhs->typeInfo.type)) 
+					{
+						// Different signedness
+						char msg[128];
+						strcat(msg, opName);
+						strcat(msg, " of integers of different signedness on");
+						char* msgAfter = ba_IsWarningsAsErrors ? ""
+							: ", implicitly converted lhs to i64";
+						ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, op->line, 
+							op->col, ctr->currPath, msgAfter);
+					}
+					else if (ba_IsTypeUnsigned(lhs->typeInfo.type)) {
+						argType = BA_TYPE_U64;
+					}
+					arg->typeInfo.type = argType;
 				}
 
 				arg->isLValue = 0;
@@ -1924,9 +1918,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 				}
 
+				// Enter a new stack frame
+				ba_UsedRegPreserve(ctr);
+				ba_StkPush(ctr->funcFrameStk, (void*)ctr->usedRegisters);
+
+				// Add arguments onto the stack
 				struct ba_FuncParam* param = func->firstParam;
 				u64 originalImStackSize = ctr->imStackSize;
-
 				while (argsStk->count) {
 					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
 					u64 paramSize = ba_GetSizeOfType(param->type);
@@ -2010,28 +2008,65 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					param = param->next;
 				}
 
+				// Reset stack
 				ba_DelStk(argsStk);
 				ctr->imStackSize = originalImStackSize;
 
-				// TODO: Preserve+restore registers (ctr->usedRegisters)
-
+				// Call the function, clear args from stack, init return value
 				ba_AddIM(ctr, 2, BA_IM_LABELCALL, func->lblStart);
-
-				// Clear func args from the stack
 				if (func->paramStackSize) {
 					ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, 
 						BA_IM_IMM, func->paramStackSize);
 				}
-
-				// Get return value from rax
-				// TODO: or from stack if too big
 				struct ba_PTkStkItem* retVal = malloc(sizeof(*retVal));
 				if (!retVal) {
 					return ba_ErrorMallocNoMem();
 				}
-				retVal->val = (void*)BA_IM_RAX;
+
+				// TODO: get return value from stack
+				
+				// Leave the stack frame
+				ctr->usedRegisters = (u64)ba_StkPop(ctr->funcFrameStk);
+
+				// Get return value from rax
+				u64 regRet = BA_IM_RAX;
+				u64 stackPos = 0;
+				if (ctr->usedRegisters & BA_CTRREG_RAX) {
+					ba_POpAsgnRegOrStack(ctr, /* lexType = */ 0, 
+						&regRet, &stackPos);
+					if (regRet) {
+						ba_AddIM(ctr, 3, BA_IM_MOV, regRet, BA_IM_RAX);
+					}
+					else {
+						// Restore every register except the last two (should be RCX, RAX)
+						ba_UsedRegRestore(ctr, 2);
+						// Swap the return value and the original rax value
+						ba_AddIM(ctr, 2, BA_IM_MOV, BA_IM_RCX, BA_IM_RAX);
+						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRADD, 
+							BA_IM_RSP, 0x8);
+						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+							0x8, BA_IM_RCX);
+						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
+						ctr->imStackSize += 8;
+					}
+				}
+				else {
+					ba_UsedRegRestore(ctr, 0);
+					ctr->usedRegisters |= BA_CTRREG_RAX;
+				}
+
+				if (regRet) {
+					retVal->lexemeType = BA_TK_IMREGISTER;
+					retVal->val = (void*)regRet;
+				}
+				else {
+					retVal->lexemeType = BA_TK_IMRBPSUB;
+					retVal->val = (void*)ctr->imStackSize;
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+						stackPos, BA_IM_RAX);
+				}
+				
 				retVal->typeInfo = func->retType;
-				retVal->lexemeType = BA_TK_IMREGISTER;
 				retVal->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, retVal);
 
