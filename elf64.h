@@ -29,7 +29,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		/* Because of optimization passes in the future, perhaps this should be
 		   at the end of the parser instead? */
 		if (val->type.type == BA_TYPE_FUNC) {
-			struct ba_Func* func = ((struct ba_Func*)val->initVal);
+			struct ba_Func* func = val->type.extraInfo;
 			if (!func->isCalled) {
 				goto BA_LBL_GENFUNCS_LOOPEND;
 			}

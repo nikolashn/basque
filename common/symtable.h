@@ -17,7 +17,7 @@ struct ba_STVal {
 	u64 address;
 	
 	bool isInited;
-	void* initVal; // Only used for funcs (TODO: consts)
+//	void* initVal; // A relic of ancient code. TODO: use this for consts
 };
 
 struct ba_SymTable {

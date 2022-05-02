@@ -47,7 +47,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	funcIdVal->type.type = BA_TYPE_FUNC;
 
 	struct ba_Func* func = ba_NewFunc();
-	funcIdVal->initVal = func;
+	funcIdVal->type.extraInfo = (void*)func;
 
 	func->retType = retType;
 	if (!func->childScope) {
@@ -261,7 +261,7 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 
 	// Error for mismatch with forward declaration types
 	if (prevFuncIdVal) {
-		struct ba_Func* prevFunc = prevFuncIdVal->initVal;
+		struct ba_Func* prevFunc = prevFuncIdVal->type.extraInfo;
 		struct ba_FuncParam* fwdDecParam = prevFunc->firstParam;
 		param = func->firstParam;
 		while (fwdDecParam && param) {

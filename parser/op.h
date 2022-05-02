@@ -1875,7 +1875,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				struct ba_Func* func = 
-					((struct ba_STVal*)funcTk->val)->initVal;
+					((struct ba_STVal*)funcTk->val)->type.extraInfo;
 				func->isCalled = 1;
 
 				if (funcArgsCnt < func->paramCnt) {
