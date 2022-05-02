@@ -1672,7 +1672,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				}
 				else if (im->vals[2] == BA_IM_ADR) {
 					u8 reg1 = im->vals[3] - BA_IM_RAX;
-					bool hasByte0 = (reg0 >= 8) | (reg1 >= 8);
+					bool hasByte0 = (reg0 >= 4) | (reg1 >= 8);
 					bool isReg1Mod4 = (reg1 & 7) == 4; // RSP or R12
 					bool isReg1Mod5 = (reg1 & 7) == 5; // RBP or R13
 					return 2 + hasByte0 + isReg1Mod4 + isReg1Mod5;
