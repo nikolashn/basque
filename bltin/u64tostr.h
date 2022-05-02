@@ -13,8 +13,8 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ctr->labelCnt += 5;
 	
 	struct ba_IM* oldIM = ctr->im;
+	struct ba_IM* oldStartIM = ctr->startIM;
 
-	ctr->entryIM = ctr->startIM;
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 
@@ -34,9 +34,11 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 	// In the case that the number is 0
 	ba_AddIM(ctr, 2, BA_IM_LABELJNZ, ctr->labelCnt-4);
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0x30);
+	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_RAX, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 0x30);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 	ba_AddIM(ctr, 2, BA_IM_INC, BA_IM_R9);
 	ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->labelCnt-1);
 
@@ -45,9 +47,10 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_IMM, 0);
+	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_RAX, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 	// Offset from the bottom of the stack of where the digits start
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R10, BA_IM_IMM, 0x30);
 	// Ensures that later test cl,cl doesn't use garbage data
@@ -133,7 +136,7 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	}
 	ctr->im->vals[0] = BA_IM_RET;
 	ctr->im->count = 1;
-	ctr->im->next = ctr->entryIM;
+	ctr->im->next = oldStartIM;
 	ctr->im = oldIM;
 }
 

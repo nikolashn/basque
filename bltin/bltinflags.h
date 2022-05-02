@@ -5,7 +5,7 @@
 
 enum {
 	BA_BLTIN_U64ToStr = 0,
-	BA_BLTIN_MemCpy = 1,
+	BA_BLTIN_MemCopy = 1,
 	
 	BA_BLTIN__COUNT = 2
 };
