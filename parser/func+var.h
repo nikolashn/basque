@@ -391,6 +391,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		
 		u64 reg = expItem->lexemeType == BA_TK_IMREGISTER 
 			? (u64)expItem->val : BA_IM_RAX;
+		ctr->currScope->dataSize += dataSize;
 
 		if (dataSize == 8) {
 			ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
@@ -408,47 +409,53 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {
 		// Set size of uninitialized arrays
-		u64* cntPtr = ((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt;
+		u64* cntPtr = &((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt;
 		(!*cntPtr) && (*cntPtr = 
 			((struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo)->cnt);
 
 		u64 size = ba_GetSizeOfType(idVal->type);
 
-		// TODO: if possible remove this and simply add the memory onto the stack
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
+		ctr->currScope->dataSize += dataSize;
+
+		u64 reg = 0;
 
 		// Memory can't be BA_TK_IMRBPSUB
 		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-			// TODO
-			return 0;
+			ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RSP, 
+				ba_CalcSTValOffset(ctr->currScope, expItem->val));
+			reg = BA_IM_RAX;
 		}
 		else if (expItem->lexemeType == BA_TK_IMREGISTER) {
-			u64 reg = (u64)expItem->val;
-			// MemCpy is needed
-			if (!ba_BltinFlagsTest(BA_BLTIN_MemCpy)) {
-				ba_BltinMemCpy(ctr);
-			}
-			// src ptr
-			ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
-			// mem size
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, size);
-			ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-			// dest ptr
-			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, BA_IM_RSP);
-
-			ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
-				ba_BltinLabels[BA_BLTIN_MemCpy]);
+			reg = (u64)expItem->val;
 		}
 		else if (ba_IsLexemeLiteral(expItem->lexemeType)) {
 			// TODO
 			return 0;
 		}
+		
+		// MemCopy is needed
+		if (!ba_BltinFlagsTest(BA_BLTIN_MemCopy)) {
+			ba_BltinMemCopy(ctr);
+		}
+		// dest ptr
+		ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_RSP);
+		// src ptr
+		ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
+		// mem size
+		ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, size);
+		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+
+		ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLabels[BA_BLTIN_MemCopy]);
+		
+		// deallocate stack memory
+		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
+		
 		// TODO
 		// remember, for uninitialized arrays, their size needs to be set here,
 		// changing their address, and also the scope's data size
 	}
 	
-	ctr->currScope->dataSize += dataSize;
 	return 1;
 }
 
