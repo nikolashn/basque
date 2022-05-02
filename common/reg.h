@@ -75,4 +75,28 @@ u64 ba_NextIMRegister(struct ba_Controller* ctr) {
 	return 0;
 }
 
+// Note: does not modify ctr->funcFrameStk, ctr->usedRegisters
+void ba_UsedRegPreserve(struct ba_Controller* ctr) {
+	u64 ctrReg = BA_CTRREG_RAX;
+	while (ctrReg <= BA_CTRREG_R15) {
+		if (ctr->usedRegisters & ctrReg) {
+			ba_AddIM(ctr, 2, BA_IM_PUSH, ba_CtrRegToIM(ctrReg));
+			ctr->imStackSize += 8;
+		}
+		ctrReg <<= 1;
+	}
+}
+
+// Note: does not modify ctr->funcFrameStk, ctr->usedRegisters
+void ba_UsedRegRestore(struct ba_Controller* ctr, u64 until) {
+	u64 ctrReg = BA_CTRREG_R15;
+	while (ctrReg >= (BA_CTRREG_RAX << until)) {
+		if (ctr->usedRegisters & ctrReg) {
+			ba_AddIM(ctr, 2, BA_IM_POP, ba_CtrRegToIM(ctrReg));
+			ctr->imStackSize -= 8;
+		}
+		ctrReg >>= 1;
+	}
+}
+
 #endif

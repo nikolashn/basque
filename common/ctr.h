@@ -28,6 +28,8 @@ struct ba_Controller {
 	struct ba_Stk* cmpRegStk; // Takes u64 (im enum for registers) as items
 	// Used in breaking out of loops and returning from funcs
 	struct ba_Stk* breakLblStk; // Takes u64 (label IDs) as items
+	// Func stack frame
+	struct ba_Stk* funcFrameStk; // Takes u64 (usedRegisters) as items
 
 	// Used with return statements
 	struct ba_Func* currFunc;
@@ -63,6 +65,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->cmpRegStk->count = 1;
 	ctr->cmpRegStk->items[0] = (void*)0;
 	ctr->breakLblStk = ba_NewStk();
+	ctr->funcFrameStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
