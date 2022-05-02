@@ -439,8 +439,7 @@ u8 ba_PExp(struct ba_Controller* ctr) {
 
 	ctr->usedRegisters = 0;
 	if (ctr->imStackSize) {
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
-			ctr->imStackSize);
+		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, ctr->imStackSize);
 	}
 	ctr->imStackSize = 0;
 
