@@ -5,7 +5,7 @@
 
 #include "bltinflags.h"
 
-/* Params (rax): int to convert
+/* Params (stack): int to convert
  * Returns (rax): string length; (stack): string (0x18) */
 void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_U64ToStr);
@@ -21,14 +21,14 @@ void ba_BltinU64ToStr(struct ba_Controller* ctr) {
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-5);
 	// Store return location in RBX
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX);
+	// Integer value to be convertedj
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R8);
 	// Preserve RBP, R8, R9, R10
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R8);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R9);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R10);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-	// Integer value
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_R8, BA_IM_RAX);
 	// String length
 	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_R9, BA_IM_R9);
 	ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);

@@ -402,6 +402,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
 				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
+				
+				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 
 				ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
 					ba_BltinLabels[BA_BLTIN_U64ToStr]);
