@@ -49,9 +49,8 @@ struct ba_Str {
 #include "lexeme.h"
 #include "im.h"
 #include "exitmsg_im.h"
+#include "typehelper.h"
 #include "ctr.h"
-#include "types.h"
-#include "func.h"
 
 // ----- Other useful functions -----
 

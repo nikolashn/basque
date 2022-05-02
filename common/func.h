@@ -3,7 +3,9 @@
 #ifndef BA__FUNC_H
 #define BA__FUNC_H
 
+#include "types.h"
 #include "im.h"
+#include "symtable.h"
 
 struct ba_FuncParam {
 	struct ba_Type type;
@@ -11,14 +13,6 @@ struct ba_FuncParam {
 	void* defaultVal;
 	u8 hasDefaultVal;
 };
-
-struct ba_FuncParam* ba_NewFuncParam() {
-	struct ba_FuncParam* param = calloc(1, sizeof(*param));
-	if (!param) {
-		ba_ErrorMallocNoMem();
-	}
-	return param;
-}
 
 struct ba_Func {
 	struct ba_Type retType;
@@ -33,6 +27,14 @@ struct ba_Func {
 	bool isCalled;
 	bool doesReturn;
 };
+
+struct ba_FuncParam* ba_NewFuncParam() {
+	struct ba_FuncParam* param = calloc(1, sizeof(*param));
+	if (!param) {
+		ba_ErrorMallocNoMem();
+	}
+	return param;
+}
 
 struct ba_Func* ba_NewFunc() {
 	struct ba_Func* func = malloc(sizeof(*func));
