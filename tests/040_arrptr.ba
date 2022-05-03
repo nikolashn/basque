@@ -1,0 +1,9 @@
+i64[2] arr;
+[arr,0]=21;
+[arr,1]=441;
+i64[2]* arrPtr;
+arrPtr = &arr;
+
+write [arr,0]; " = ";
+write [arrPtr ~ i64*]; "\n";
+
