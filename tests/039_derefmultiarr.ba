@@ -1,0 +1,24 @@
+# Expected output:
+#{
+3 6 9 12 15
+}#
+
+i64[5][3] srcArr;
+u64 i = 0;
+while i < 3u {
+	u64 j = 0;
+	while j < 5u {
+		[srcArr, i, j] = (i + 1) * (j + 1);
+		++j;
+	}
+	++i;
+}
+
+i64[5] destArr = [srcArr, 2];
+i = 0;
+while i < 5u {
+	write [destArr, i]; " ";
+	++i;
+}
+"\n";
+
