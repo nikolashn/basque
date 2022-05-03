@@ -414,15 +414,6 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 			}
 			return 1;
 		}
-		if (lhsType.type == BA_TYPE_PTR) {
-			if (((struct ba_Type*)lhsType.extraInfo)->type == BA_TYPE_VOID && 
-				!ba_AreTypesEqual(lhsType, rhs->typeInfo)) 
-			{
-				return ba_ExitMsg(BA_EXIT_ERR, "assignement of array to " 
-					"incompatible pointer type on", line, col, ctr->currPath);
-			}
-			return 1;
-		}
 		return 0;
 	}
 	if (!ba_IsTypeNumeric(lhsType.type) && lhsType.type != rhs->typeInfo.type) {
