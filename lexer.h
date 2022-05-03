@@ -522,6 +522,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
 					else if (!strcmp(idBuf, "exit")) {
 						nextLex->type = BA_TK_KW_EXIT;
 					}
+					else if (!strcmp(idBuf, "garbage")) {
+						nextLex->type = BA_TK_KW_GARBAGE;
+					}
 					else if (!strcmp(idBuf, "goto")) {
 						nextLex->type = BA_TK_KW_GOTO;
 					}

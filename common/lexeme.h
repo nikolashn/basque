@@ -52,6 +52,7 @@ enum {
 	BA_TK_KW_EXIT    = 0x30c,
 	BA_TK_KW_U8      = 0x30d,
 	BA_TK_KW_I8      = 0x30e,
+	BA_TK_KW_GARBAGE = 0x30f,
 
 	// Used to change ctr->currPath
 	BA_TK_FILECHANGE = 0xfff,
@@ -185,6 +186,7 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_KW_EXIT:    return "keyword 'exit'";
 		case BA_TK_KW_U8:      return "keyword 'u8'";
 		case BA_TK_KW_I8:      return "keyword 'i8'";
+		case BA_TK_KW_GARBAGE: return "keyword 'garbage'";
 	}
 	return 0;
 }

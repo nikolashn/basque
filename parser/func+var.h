@@ -348,79 +348,70 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 
 	line = ctr->lex->line;
 	col = ctr->lex->colStart;
-	
-	if (!ba_PAccept('=', ctr)) {
-		if (ba_IsTypeNumeric(idVal->type.type)) {
-			if (dataSize == 8) {
-				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-			}
-			else if (dataSize == 1) {
-				ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
-			}
-			else {
-				ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RSP, dataSize);
-			}
-		}
-		else if (idVal->type.type == BA_TYPE_ARR) {
-			if (!((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt) {
-				return ba_ExitMsg(BA_EXIT_ERR, "uninitialized array with "
-					"undefined size on", line, col, ctr->currPath);
-			}
-			ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
-		}
-		idVal->isInited = 0;
-		ctr->currScope->dataSize += dataSize;
-		return ba_PExpect(';', ctr);
-	}
 
-	if (!ba_PExp(ctr)) {
+	ba_PExpect('=', ctr);
+
+	bool isGarbage = 0;
+	struct ba_PTkStkItem* expItem = 0;
+
+	if (ba_PAccept(BA_TK_KW_GARBAGE, ctr)) {
+		isGarbage = 1;
+	}
+	else if (ba_PExp(ctr)) {
+		expItem = ba_StkPop(ctr->pTkStk);
+		ba_POpAssignChecks(ctr, idVal->type, expItem, line, col);
+	}
+	else {
 		return 0;
 	}
 
-	struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 	ba_PExpect(';', ctr);
-
-	ba_POpAssignChecks(ctr, idVal->type, expItem, line, col);
 	
 	if (ba_IsTypeNumeric(idVal->type.type)) {
-		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-			ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, dataSize), 
-				BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-				ba_CalcSTValOffset(ctr->currScope, expItem->val));
+		u64 reg = BA_IM_RAX;
+		
+		if (!isGarbage) {
+			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
+				ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, dataSize), 
+					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+					ba_CalcSTValOffset(ctr->currScope, expItem->val));
+			}
+			if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 
+					(u64)expItem->val);
+			}
+			(expItem->lexemeType == BA_TK_IMREGISTER) && 
+				(reg = (u64)expItem->val);
 		}
 
-		if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, (u64)expItem->val);
-		}
-		
-		u64 reg = expItem->lexemeType == BA_TK_IMREGISTER 
-			? (u64)expItem->val : BA_IM_RAX;
 		ctr->currScope->dataSize += dataSize;
 
 		if (dataSize == 8) {
 			ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
 		}
+		else if (dataSize == 1) {
+			ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
+		}
 		else {
-			if (dataSize == 1) {
-				ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RSP);
-			}
-			else {
-				ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
-			}
+			ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
+		}
+
+		if (dataSize < 8 && !isGarbage) {
 			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
 				ba_AdjRegSize(reg, dataSize));
 		}
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {
-		// Set size of uninitialized arrays
-		u64* cntPtr = &((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt;
-		(!*cntPtr) && (*cntPtr = 
-			((struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo)->cnt);
-
+		if (!((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt) {
+			return ba_ExitMsg(BA_EXIT_ERR, "attempting to initialize array " 
+				"with indefinite size to garbage on", line, col, ctr->currPath);
+		}
+		
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		ctr->currScope->dataSize += dataSize;
-
-		ba_PAssignArr(ctr, expItem, dataSize);
+		if (!isGarbage) {
+			ba_PAssignArr(ctr, expItem, dataSize);
+		}
 	}
 	
 	return 1;
