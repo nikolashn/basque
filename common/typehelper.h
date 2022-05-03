@@ -91,19 +91,19 @@ bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
 char* ba_GetTypeStr(struct ba_Type type) {
 	switch (type.type) {
 		case BA_TYPE_U64:
-			return "'u64'";
+			return "u64";
 		case BA_TYPE_I64:
-			return "'i64'";
+			return "i64";
 		case BA_TYPE_U8:
-			return "'u8'";
+			return "u8";
 		case BA_TYPE_I8:
-			return "'i8'";
+			return "i8";
 		case BA_TYPE_BOOL:
-			return "'bool'";
+			return "bool";
 		case BA_TYPE_F64:
-			return "'f64'";
+			return "f64";
 		case BA_TYPE_F32:
-			return "'f32'";
+			return "f32";
 		case BA_TYPE_TYPE:
 			return "type";
 		case BA_TYPE_PTR: {

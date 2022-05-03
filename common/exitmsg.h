@@ -3,6 +3,12 @@
 #ifndef BA__EXITMSG_H
 #define BA__EXITMSG_H
 
+#include "types.h"
+
+// --- Forward declaration ---
+char* ba_GetTypeStr(struct ba_Type type);
+// ---------------------------
+
 // Options
 
 bool ba_IsSilenceWarnings = 0;
@@ -112,6 +118,16 @@ u8 ba_ErrorDerefNonPtr(u64 line, u64 col, char* path) {
 u8 ba_ErrorDerefInvalid(u64 line, u64 col, char* path) {
 	return ba_ExitMsg(BA_EXIT_ERR, "dereferencing invalid pointer on", 
 		line, col, path);
+}
+
+u8 ba_ErrorCastTypes(u64 line, u64 col, char* path, 
+	struct ba_Type expType, struct ba_Type newType) 
+{
+	fprintf(stderr, "Error: invalid type cast on line %lld:%lld in %s: "
+		"cannot cast expression of type %s to type %s\n", line, col, path, 
+		ba_GetTypeStr(expType), ba_GetTypeStr(newType));
+	exit(-1);
+	return 0;
 }
 
 #endif

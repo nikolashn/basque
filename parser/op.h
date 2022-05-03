@@ -406,13 +406,9 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 {
 	if (rhs->typeInfo.type == BA_TYPE_ARR) {
 		if (lhsType.type == BA_TYPE_ARR) {
-			struct ba_ArrExtraInfo* lhsExtra = lhsType.extraInfo;
-			struct ba_ArrExtraInfo* rhsExtra = rhs->typeInfo.extraInfo;
-			bool areTypesCompatible =
-				!ba_AreTypesEqual(lhsType, rhs->typeInfo) && 
-				!(ba_AreTypesEqual(lhsExtra->type, rhsExtra->type) &&
-					!lhsExtra->cnt);
-			if (areTypesCompatible) {
+			if (ba_GetSizeOfType(lhsType) != 
+				ba_GetSizeOfType(rhs->typeInfo)) 
+			{
 				return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible "
 					"array types on", line, col, ctr->currPath);
 			}
@@ -2120,18 +2116,19 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (castedExp->typeInfo.type == BA_TYPE_ARR) {
-					if (newType.type != BA_TYPE_PTR) {
-						return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
-							"types on", op->line, op->col, ctr->currPath);
+					if (newType.type != BA_TYPE_ARR || 
+						(ba_GetSizeOfType(castedExp->typeInfo) != 
+							ba_GetSizeOfType(newType)))
+					{
+						return ba_ErrorCastTypes(op->line, op->col, 
+							ctr->currPath, castedExp->typeInfo, newType);
 					}
-					// TODO
-					return 0;
 				}
 				else if ((isNewTypeNumeric != isOldTypeNumeric) || 
 					(!isNewTypeNumeric && !isOldTypeNumeric)) 
 				{
-					return ba_ExitMsg(BA_EXIT_ERR, "cast with incompatible "
-						"types on", op->line, op->col, ctr->currPath);
+					return ba_ErrorCastTypes(op->line, op->col, 
+						ctr->currPath, castedExp->typeInfo, newType);
 				}
 
 				arg = castedExp;
