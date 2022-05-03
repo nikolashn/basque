@@ -8,15 +8,22 @@ Basque has no entry point function as there is in C. Code in the outer body of a
 
 ## Types
 ### Integer types
-The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `i8` (signed byte), `u8` (unsigned byte), `bool` (8-bit Boolean) and pointers of those types (`i64*`, `u8*`, `i64**`, etc.), as well as `void*` (generic pointer). Variables can be defined as any of those types, except currently `bool` or any pointer derived from it. Integer types (including pointers) are all commensurate with each other.
+The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `i8` (signed byte), `u8` (unsigned byte), `bool` (8-bit Boolean) and 64-bit pointers to any type (`i64*`, `u8[64]*`, `i64**`, etc.), as well as `void*` (generic pointer). Variables can be defined as any of those types, except currently `bool` or any pointer derived from it. Integer types (including pointers) are all commensurate with each other.
 
 In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, properly functioning `bool`.
 
 ### String type
 String (string literal) currently exists as a temporary type to represent string literals, but will be removed very soon.
 
+### Arrays
+Arrays in Basque are composed of a dimension on another type. This can be written as a rule `type[dimension]`. The type can be any valid data type, and each additional dimension with size *N* represents a repetition of a block of data of the fundamental type N times in series. Arrays in Basque are also different to those in C in some other ways, the main differences being:
+- The syntax for declaring a variable as an array is different: Basque `i8[15] x;` vs C `signed char x[15]`, Basque `i64[6][7] arr;` vs C `long long arr[7][6];`, Basque `u8[99]* users;` vs C `unsigned char* users[99];`.
+- Arrays cannot be cast to pointers in Basque. To get the address of an array, you will have to make a reference to it like any other variable.
+- For the above reason, arrays are passed by value to functions and are value copied in assignments.
+- Arrays can be casted to other array types of the same size, e.g. `u64[3]` can be casted to `i8[24]`.
+
 ### Functions
-Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value).
+Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++.
 
 ### Other future types
 In the future there will be support for many other types: floating point numbers, structures, enumerations, and more.
@@ -182,7 +189,7 @@ Syntax:
 
 The classic if/elif/else conditional statement. Multiple statements can be executed upon a condition using a block (wrapping statements in braces), or a single statement can be executed using a comma. Such statements are in both cases in their own local scope.
 
-For anything with conditions in Basque, zero is false and any other numeric value is true.
+Conditions are cast to bool meaning that zero is false and any other value is true.
 
 ```
 if x == 0 {
@@ -218,6 +225,8 @@ while i < 10u {
 }
 "\n";
 ```
+
+For loops and do-while statements will also be added in the future.
 
 #### Unnamed scopes
 Syntax: `{` { `<statement>` } `}`
