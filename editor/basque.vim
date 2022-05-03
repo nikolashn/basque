@@ -20,6 +20,7 @@ syn match baNumber "\<-\?[0-9_]\+\(u\|U\)\?\>"
 syn match baNumber "\<-\?0x[0-9a-fA-F_]\+\(u\|U\)\?\>"
 syn match baNumber "\<-\?0o[0-7_]\+\(u\|U\)\?\>"
 syn match baNumber "\<-\?0b[01_]\+\(u\|U\)\?\>"
+syn keyword baNumber garbage
 
 syn region baString start='"' end='"' skip='\\"' contains=baEscape
 syn match baEscape contained '\\\(["ntvfrb0\n\\]\|\'\|\(x\o\x\)\)'
