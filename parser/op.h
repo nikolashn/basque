@@ -6,7 +6,7 @@
 #include "../lexer.h"
 #include "../bltin/bltin.h"
 #include "../common/reg.h"
-#include "../common/parser_stacks.h"
+#include "../common/parserstacks.h"
 
 // Some operators cannot handle other operators
 bool ba_POpIsHandler(struct ba_POpStkItem* op) {
@@ -234,9 +234,6 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 	u64 realRegR = regR ? regR : rhsReplacement;
 	ba_POpMovArgToReg(ctr, lhs, realRegL, isLhsLiteral);
 	ba_POpMovArgToReg(ctr, rhs, realRegR, isRhsLiteral);
-
-	u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
-	u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
 
 	ba_AddIM(ctr, 3, imOp, realRegL, realRegR);
 
@@ -470,6 +467,34 @@ void ba_POpFuncCallPushArgReg(struct ba_Controller* ctr, u64 reg, u64 size) {
 	else {
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, size);
 	}
+}
+
+void ba_PAssignArr(struct ba_Controller* ctr, 
+	struct ba_PTkStkItem* expItem, u64 size)
+{
+	u64 reg = 0;
+	if (expItem->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, expItem->val));
+		reg = BA_IM_RAX;
+	}
+	else if (expItem->lexemeType == BA_TK_IMREGISTER) {
+		reg = (u64)expItem->val;
+	}
+	else if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+		// TODO
+	}
+	// Expression can't be BA_TK_IMRBPSUB
+	
+	if (!ba_BltinFlagsTest(BA_BLTIN_MemCopy)) {
+		ba_BltinMemCopy(ctr);
+	}
+	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_RSP); // dest ptr
+	ba_AddIM(ctr, 2, BA_IM_PUSH, reg); // src ptr
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, size); // mem size
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLabels[BA_BLTIN_MemCopy]);
+	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
 }
 
 // Handle operations (i.e. perform operation now or generate code for it)
@@ -1449,7 +1474,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (lhsType.type == BA_TYPE_ARR) {
-					// TODO
+					ba_PAssignArr(ctr, rhs, ba_GetSizeOfType(lhs->typeInfo));
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment to array "
 						"currently not implemented, ", op->line, op->col,
 						ctr->currPath);

@@ -4,7 +4,7 @@
 #define BA__PARSER_FUNCVAR_H
 
 #include "../lexer.h"
-#include "../common/parser_stacks.h"
+#include "../common/parserstacks.h"
 
 // ----- Forward declarations -----
 u8 ba_PAccept(u64 type, struct ba_Controller* ctr);
@@ -338,6 +338,10 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 	}
 	
 	u64 dataSize = ba_GetSizeOfType(idVal->type);
+	if (dataSize >= (1llu << 31)) {
+		ba_ExitMsg(BA_EXIT_ERR, "data with size greater than 2147483647 on",
+			line, col, ctr->currPath);
+	}
 	idVal->address = ctr->currScope->dataSize + dataSize;
 
 	ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
@@ -413,47 +417,10 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		(!*cntPtr) && (*cntPtr = 
 			((struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo)->cnt);
 
-		u64 size = ba_GetSizeOfType(idVal->type);
-
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		ctr->currScope->dataSize += dataSize;
 
-		u64 reg = 0;
-
-		// Memory can't be BA_TK_IMRBPSUB
-		if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-			ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RSP, 
-				ba_CalcSTValOffset(ctr->currScope, expItem->val));
-			reg = BA_IM_RAX;
-		}
-		else if (expItem->lexemeType == BA_TK_IMREGISTER) {
-			reg = (u64)expItem->val;
-		}
-		else if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-			// TODO
-			return 0;
-		}
-		
-		// MemCopy is needed
-		if (!ba_BltinFlagsTest(BA_BLTIN_MemCopy)) {
-			ba_BltinMemCopy(ctr);
-		}
-		// dest ptr
-		ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_RSP);
-		// src ptr
-		ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
-		// mem size
-		ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, size);
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-
-		ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLabels[BA_BLTIN_MemCopy]);
-		
-		// deallocate stack memory
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
-		
-		// TODO
-		// remember, for uninitialized arrays, their size needs to be set here,
-		// changing their address, and also the scope's data size
+		ba_PAssignArr(ctr, expItem, dataSize);
 	}
 	
 	return 1;

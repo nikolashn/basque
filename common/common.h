@@ -48,7 +48,7 @@ struct ba_Str {
 #include "symtable.h"
 #include "lexeme.h"
 #include "im.h"
-#include "exitmsg_im.h"
+#include "exitmsgim.h"
 #include "typehelper.h"
 #include "ctr.h"
 
