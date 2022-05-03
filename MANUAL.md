@@ -117,14 +117,19 @@ Normally, just evaluates the expression. If the expression is made up of string 
 ```
 
 #### Variable definition
-Syntax: `<type> <identifier>` [ `= <expression>` ] `;`
+Syntax: `<type> <identifier> =` ( `<expression>` | `garbage` ) `;`
 
 An identifier begins with a letter and then may contain a series of letters, numbers and underscores.
 ```
-u8* str;
+u64* vals = &firstVal;
 u64 col = 0xfcf4d0u;
-i64 _1234567 = 8;
-u64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
+i8 _1234567 = 8;
+i64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
+```
+
+A variable must be initialized to a value. If no specific value should be set, then the keyword `garbage` can be used:
+```
+u64 mysteriousNumber = garbage;
 ```
 
 #### Func definition/forward declaration
