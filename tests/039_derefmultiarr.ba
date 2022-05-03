@@ -3,7 +3,7 @@
 3 6 9 12 15
 }#
 
-i64[5][3] srcArr;
+i64[5][3] srcArr = garbage;
 u64 i = 0;
 while i < 3u {
 	u64 j = 0;

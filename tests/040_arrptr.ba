@@ -1,7 +1,7 @@
-i64[2] arr;
-[arr,0]=21;
-[arr,1]=441;
-i64[2]* arrPtr;
+i64[2] arr = garbage;
+[arr,0] = 21;
+[arr,1] = 441;
+i64[2]* arrPtr = garbage;
 arrPtr = &arr;
 
 write [arr,0]; " = ";
