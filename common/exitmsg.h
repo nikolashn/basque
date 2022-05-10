@@ -106,7 +106,7 @@ u8 ba_ErrorVarRedef(char* var, u64 line, u64 col, char* path) {
 }
 
 u8 ba_ErrorVarVoid(u64 line, u64 col, char* path) {
-	return ba_ExitMsg(BA_EXIT_ERR, "variable cannot be of type 'void', "
+	return ba_ExitMsg(BA_EXIT_ERR, "variable cannot be of type 'void',"
 		/*"did you mean 'void*'?"*/, line, col, path);
 }
 
