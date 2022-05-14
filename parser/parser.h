@@ -38,7 +38,7 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-/* base_type = ("u64" | "i64" | "u8" | "i8" | "void" "*") 
+/* base_type = ( "u64" | "i64" | "u8" | "i8" | "void" "*" ) 
  *             { "*" | "[" exp "]" } [ "[" "]" ]
  *           | "void" # if isInclVoid */
 u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid, 
@@ -130,7 +130,8 @@ u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid,
 	return 0;
 }
 
-/* atom = lit_str { lit_str } | lit_int | lit_char | identifier */
+/* atom = lit_str { lit_str } | lit_int | lit_char | identifier 
+ *      | "{" exp { "," } [ exp ] "}" */
 u8 ba_PAtom(struct ba_Controller* ctr) {
 	u64 lexLine = ctr->lex->line;
 	u64 lexColStart = ctr->lex->colStart;
