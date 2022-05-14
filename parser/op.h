@@ -404,44 +404,41 @@ u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType, 
 	struct ba_PTkStkItem* rhs, u64 line, u64 col) 
 {
-	if (rhs->typeInfo.type == BA_TYPE_ARR) {
-		if (lhsType.type == BA_TYPE_ARR) {
-			if (ba_GetSizeOfType(lhsType) != 
-				ba_GetSizeOfType(rhs->typeInfo)) 
-			{
-				return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible "
-					"array types on", line, col, ctr->currPath);
+	if (lhsType.type == BA_TYPE_FUNC) {
+		return ba_ExitMsg(BA_EXIT_ERR, "cannot assign func directly to another "
+			"func,", line, col, ctr->currPath);
+	}
+	else if (lhsType.type == BA_TYPE_ARR && rhs->typeInfo.type == BA_TYPE_ARR && 
+		ba_GetSizeOfType(lhsType) == ba_GetSizeOfType(rhs->typeInfo))
+	{
+		return 1;
+	}
+	else if (ba_IsTypeNumeric(lhsType.type) && 
+		ba_IsTypeNumeric(rhs->typeInfo.type)) 
+	{
+		if (lhsType.type == BA_TYPE_PTR) {
+			// 0 for null pointer is fine
+			if (ba_IsLexemeLiteral(rhs->lexemeType) && (u64)rhs->val == 0) {
+				return 1;
 			}
-			return 1;
+			if (rhs->typeInfo.type != BA_TYPE_PTR) {
+				ba_ExitMsg(BA_EXIT_WARN, "assignment of numeric non-pointer "
+					"to pointer on", line, col, ctr->currPath);
+			}
+			if (BA_TYPE_VOID != ((struct ba_Type*)lhsType.extraInfo)->type && 
+				BA_TYPE_VOID != ((struct ba_Type*)rhs->typeInfo.extraInfo)->type && 
+				!ba_AreTypesEqual(lhsType, rhs->typeInfo))
+			{
+				return ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to non-void " 
+					"pointer of different type on", line, col, ctr->currPath);
+			}
 		}
-		return 0;
+		return 1;
 	}
-	if (!ba_IsTypeNumeric(lhsType.type) && lhsType.type != rhs->typeInfo.type) {
-		return ba_ExitMsg(BA_EXIT_ERR, "assignment of incompatible types on", 
-			line, col, ctr->currPath);
+	else if (ba_AreTypesEqual(lhsType, rhs->typeInfo)) {
+		return 1;
 	}
-	if (!ba_IsTypeNumeric(rhs->typeInfo.type)) {
-		return ba_ExitMsg(BA_EXIT_ERR, "assignment of non-numeric expression "
-			"to numeric lvalue on", line, col, ctr->currPath);
-	}
-	if (lhsType.type == BA_TYPE_PTR) {
-		// 0 for null pointer is fine
-		if (ba_IsLexemeLiteral(rhs->lexemeType) && (u64)rhs->val == 0) {
-			return 1;
-		}
-		if (rhs->typeInfo.type != BA_TYPE_PTR) {
-			return ba_ExitMsg(BA_EXIT_WARN, "assignment of numeric non-pointer "
-				"to pointer on", line, col, ctr->currPath);
-		}
-		if (BA_TYPE_VOID != ((struct ba_Type*)lhsType.extraInfo)->type && 
-			BA_TYPE_VOID != ((struct ba_Type*)rhs->typeInfo.extraInfo)->type && 
-			!ba_AreTypesEqual(lhsType, rhs->typeInfo))
-		{
-			return ba_ExitMsg(BA_EXIT_WARN, "assignment of pointer to non-void "
-				"pointer of different type on", line, col, ctr->currPath);
-		}
-	}
-	return 1;
+	return ba_ErrorAssignTypes(line, col, ctr->currPath, lhsType, rhs->typeInfo);
 }
 
 void ba_POpFuncCallPushArgReg(struct ba_Controller* ctr, u64 reg, u64 size) {

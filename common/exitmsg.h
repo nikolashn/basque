@@ -81,16 +81,6 @@ u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, char* path, u64 max) {
 	return 0;
 }
 
-u8 ba_ErrorAssignTypes(char* expType, char* var, char* varType, 
-	u64 line, u64 col, char* path)
-{
-	fprintf(stderr, "Error: cannot assign expression of type %s to variable "
-		"'%s' of type %s on line %llu:%llu in %s\n", expType, var, varType, 
-		line, col, path);
-	exit(-1);
-	return 0;
-}
-
 u8 ba_ErrorIdUndef(char* var, u64 line, u64 col, char* path) {
 	fprintf(stderr, "Error: identifier '%s' not defined on line %llu:%llu "
 		"in %s\n", var, line, col, path);
@@ -126,6 +116,16 @@ u8 ba_ErrorCastTypes(u64 line, u64 col, char* path,
 	fprintf(stderr, "Error: invalid type cast on line %lld:%lld in %s: "
 		"cannot cast expression of type %s to type %s\n", line, col, path, 
 		ba_GetTypeStr(expType), ba_GetTypeStr(newType));
+	exit(-1);
+	return 0;
+}
+
+u8 ba_ErrorAssignTypes(u64 line, u64 col, char* path, struct ba_Type lhsType,
+	struct ba_Type rhsType)
+{
+	fprintf(stderr, "Error: assignment of incompatible types, assigning %s to "
+		"%s, on line %llu:%llu in %s\n", ba_GetTypeStr(rhsType), 
+		ba_GetTypeStr(lhsType), line, col, path);
 	exit(-1);
 	return 0;
 }

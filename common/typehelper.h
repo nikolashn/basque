@@ -90,6 +90,8 @@ bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
 
 char* ba_GetTypeStr(struct ba_Type type) {
 	switch (type.type) {
+		case BA_TYPE_VOID:
+			return "void";
 		case BA_TYPE_U64:
 			return "u64";
 		case BA_TYPE_I64:
@@ -140,8 +142,10 @@ char* ba_GetTypeStr(struct ba_Type type) {
 			u64 paramsStrLen = 0;
 			u64 paramsStrCap = 20;
 			char* paramsStr = malloc(paramsStrCap);
+			paramsStr[0] = 0;
+
 			struct ba_FuncParam* param = func->firstParam;
-			while (param) {
+			while (func->paramCnt && param) {
 				if (param != func->firstParam) {
 					paramsStr[paramsStrLen++] = ',';
 					paramsStr[paramsStrLen++] = ' ';

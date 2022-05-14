@@ -192,9 +192,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 					(!ba_IsTypeNumeric(param->type.type) && 
 					!ba_AreTypesEqual(param->type, expItem->typeInfo)))
 				{
-					return ba_ErrorAssignTypes(
-						ba_GetTypeStr(expItem->typeInfo), paramName, 
-						ba_GetTypeStr(param->type), line, col, ctr->currPath);
+					return ba_ErrorAssignTypes(line, col, ctr->currPath,
+						param->type, expItem->typeInfo);
 				}
 
 				param->defaultVal = expItem->val;
