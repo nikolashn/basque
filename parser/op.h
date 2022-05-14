@@ -425,7 +425,7 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 				ba_ExitMsg(BA_EXIT_WARN, "assignment of numeric non-pointer "
 					"to pointer on", line, col, ctr->currPath);
 			}
-			if (BA_TYPE_VOID != ((struct ba_Type*)lhsType.extraInfo)->type && 
+			else if (BA_TYPE_VOID != ((struct ba_Type*)lhsType.extraInfo)->type && 
 				BA_TYPE_VOID != ((struct ba_Type*)rhs->typeInfo.extraInfo)->type && 
 				!ba_AreTypesEqual(lhsType, rhs->typeInfo))
 			{
