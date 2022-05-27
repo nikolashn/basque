@@ -258,18 +258,7 @@ void ba_POpNonLitBinary(u64 imOp, struct ba_PTkStkItem* arg,
 		ctr->imStackSize -= 8;
 	}
 
-	if (regL) {
-		arg->lexemeType = BA_TK_IMREGISTER;
-		arg->val = (void*)regL;
-	}
-	else {
-		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-			lhsStackPos, BA_IM_RAX);
-		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-		ctr->imStackSize -= 8;
-		arg->lexemeType = BA_TK_IMRBPSUB;
-		arg->val = (void*)ctr->imStackSize;
-	}
+	ba_POpSetArg(ctr, arg, regL, lhsStackPos);
 }
 
 // Handle bit shifts with at least one non literal operand
@@ -352,18 +341,7 @@ void ba_POpNonLitBitShift(u64 imOp, struct ba_PTkStkItem* arg,
 		}
 	}
 
-	if (regL) {
-		arg->lexemeType = BA_TK_IMREGISTER;
-		arg->val = (void*)regL;
-	}
-	else {
-		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-			lhsStackPos, BA_IM_RAX);
-		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-		ctr->imStackSize -= 8;
-		arg->lexemeType = BA_TK_IMRBPSUB;
-		arg->val = (void*)ctr->imStackSize;
-	}
+	ba_POpSetArg(ctr, arg, regL, lhsStackPos);
 }
 
 // Right associative operators don't handle operators of the same precedence
@@ -571,18 +549,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
 				}
 				
-				if (reg) {
-					arg->lexemeType = BA_TK_IMREGISTER;
-					arg->val = (void*)reg;
-				}
-				else {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, 
-						BA_IM_RBP, stackPos, BA_IM_RAX);
-					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-					ctr->imStackSize -= 8;
-					arg->lexemeType = BA_TK_IMRBPSUB;
-					arg->val = (void*)ctr->imStackSize;
-				}
+				ba_POpSetArg(ctr, arg, reg, stackPos);
 
 				arg->typeInfo.type = BA_TYPE_PTR;
 				arg->isLValue = 0;
@@ -1098,19 +1065,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					u64 imOp = areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV;
 					ba_AddIM(ctr, 2, imOp, regR ? regR : BA_IM_RCX);
 
-					if (regL) {
-						if (regL != BA_IM_RAX) {
-							ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RAX);
-						}
-						arg->lexemeType = BA_TK_IMREGISTER;
-						arg->val = (void*)regL;
+					if (regL && regL != BA_IM_RAX) {
+						ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RAX);
 					}
-					else {
-						ba_AddIM(ctr, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-							lhsStackPos, BA_IM_RAX);
-						arg->lexemeType = BA_TK_IMRBPSUB;
-						arg->val = (void*)ctr->imStackSize;
-					}
+					ba_POpSetArg(ctr, arg, regL, lhsStackPos);
 
 					if (isRdxPushed) {
 						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
@@ -2077,16 +2035,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ctr->usedRegisters |= BA_CTRREG_RAX;
 				}
 
-				if (regRet) {
-					retVal->lexemeType = BA_TK_IMREGISTER;
-					retVal->val = (void*)regRet;
-				}
-				else {
-					retVal->lexemeType = BA_TK_IMRBPSUB;
-					retVal->val = (void*)ctr->imStackSize;
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-						stackPos, BA_IM_RAX);
-				}
+				ba_POpSetArg(ctr, retVal, regRet, stackPos);
 				
 				retVal->typeInfo = func->retType;
 				retVal->isLValue = 0;
