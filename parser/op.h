@@ -99,7 +99,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
 	u64* stackPos) 
 {
-	// Return 0 means on the stack
+	// Return 0 means on the stack, which is handled outside of this func
 	(lexType != BA_TK_IMREGISTER) && (*reg = ba_NextIMRegister(ctr));
 
 	if (!*reg) {
@@ -160,6 +160,23 @@ u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 	return 0;
 }
 
+void ba_POpSetArg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
+	u64 reg, u64 stackPos) 
+{
+	if (reg) {
+		arg->lexemeType = BA_TK_IMREGISTER;
+		arg->val = (void*)reg;
+	}
+	else {
+		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, 
+			BA_IM_RBP, stackPos, BA_IM_RAX);
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+		ctr->imStackSize -= 8;
+		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->val = (void*)ctr->imStackSize;
+	}
+}
+
 // Handle unary operators with a non literal operand
 void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 	struct ba_Controller* ctr)
@@ -193,18 +210,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 		ba_AddIM(ctr, 2, imOp, realReg);
 	}
 
-	if (reg) {
-		arg->lexemeType = BA_TK_IMREGISTER;
-		arg->val = (void*)reg;
-	}
-	else {
-		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, 
-			BA_IM_RBP, stackPos, BA_IM_RAX);
-		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-		ctr->imStackSize -= 8;
-		arg->lexemeType = BA_TK_IMRBPSUB;
-		arg->val = (void*)ctr->imStackSize;
-	}
+	ba_POpSetArg(ctr, arg, reg, stackPos);
 }
 
 // Handle binary operators with a non literal operand
@@ -2043,11 +2049,17 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				if (ctr->usedRegisters & BA_CTRREG_RAX) {
 					ba_POpAsgnRegOrStack(ctr, /* lexType = */ 0, 
 						&regRet, &stackPos);
+					ctr->usedRegisters &= ~ba_IMToCtrReg(regRet);
 					if (regRet) {
+						// Restore every register except RAX
+						ba_UsedRegRestore(ctr, 1);
 						ba_AddIM(ctr, 3, BA_IM_MOV, regRet, BA_IM_RAX);
+						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+						ctr->imStackSize -= 8;
 					}
 					else {
-						// Restore every register except the last two (should be RCX, RAX)
+						// Restore every register except the last two 
+						// (should be RCX, RAX)
 						ba_UsedRegRestore(ctr, 2);
 						// Swap the return value and the original rax value
 						ba_AddIM(ctr, 2, BA_IM_MOV, BA_IM_RCX, BA_IM_RAX);
@@ -2058,6 +2070,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
 						ctr->imStackSize += 8;
 					}
+					ctr->usedRegisters |= ba_IMToCtrReg(regRet);
 				}
 				else {
 					ba_UsedRegRestore(ctr, 0);
