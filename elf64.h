@@ -8,12 +8,12 @@
 u8 ba_PessimalInstrSize(struct ba_IM* im);
 
 u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
-	u64 tmp;
-
 	u64 memStart = 0x400000;
+	u64 phCnt = ctr->staticSize ? 3 : 2;
+	u64 pHeaderSz = phCnt * 0x38; // Program header size
+	u64 fHeaderSz = 0x40 + pHeaderSz; // File header size
 	/* Not the final entry point, the actual entry point will 
 	 * use this as an offset */
-	u64 fHeaderSz = 0xb0;
 	u64 entryPoint = memStart + fHeaderSz;
 	
 	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
@@ -1496,80 +1496,101 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 		0x7f, 'E',  'L',  'F',  2,    1,    1,    3,
 		0,    0,    0,    0,    0,    0,    0,    0,
 		2,    0,    62,   0,    1,    0,    0,    0,
-		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {entryPoint}
 		0x40, 0,    0,    0,    0,    0,    0,    0,
-		0,    0,    0,    0,    0,    0,    0,    0,    // No section headers
+		0,    0,    0,    0,    0,    0,    0,    0,  // No section headers
 		0,    0,    0,    0,    0x40, 0,    0x38, 0,
-		2,    0,    0,    0,    0,    0,    0,    0,    // 2 p header entries
+		phCnt,0,    0,    0,    0,    0,    0,    0,  // 2/3 p header entries
 	};
 
 	// Set entry point in header
-	tmp = entryPoint;
-	for (u64 i = 0; i < 8; i++) {
-		fileHeader[0x18+i] = tmp & 0xff;
-		tmp >>= 8;
+	{
+		u64 tmp = entryPoint;
+		for (u64 i = 0; i < 8; i++) {
+			fileHeader[0x18+i] = tmp & 0xff;
+			tmp >>= 8;
+		}
 	}
 
 	// Generate program headers
-	enum {
-		phSz = 2 * 0x38
-	};
-	u8 programHeader[phSz] = {
-		1,    0,    0,    0,    4,    0,    0,    0,    // LOAD, Read
-		0,    0,    0,    0,    0,    0,    0,    0,    // 0x0000 in file
-		0,    0,    0,    0,    0,    0,    0,    0,    // {memStart}
-		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		0xe8, 0,    0,    0,    0,    0,    0,    0,    // f.h.sz (0x40) + p.h.sz (3 * 56)
-		0xe8, 0,    0,    0,    0,    0,    0,    0,    // "
-		1,    0,    0,    0,    0,    0,    0,    0,    // 0x1 offset
+	enum { phArrSz = 3 * 0x38 }; // Program headers array size
+	u8 programHeader[phArrSz] = {
+		1,    0,    0,    0,    4,    0,    0,    0,  // LOAD, Read
+		0,    0,    0,    0,    0,    0,    0,    0,  // 0x0000 in file
+		0,    0,    0,    0,    0,    0,    0,    0,  // {memStart}
+		0,    0,    0,    0,    0,    0,    0,    0,  // "
+		fHeaderSz,0,0,    0,    0,    0,    0,    0,  // fHeaderSz
+		fHeaderSz,0,0,    0,    0,    0,    0,    0,  // "
+		1,    0,    0,    0,    0,    0,    0,    0,  // 0x1 offset
 
-		1,    0,    0,    0,    5,    0,    0,    0,    // LOAD, Read+Execute
-		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint-memStart}
-		0,    0,    0,    0,    0,    0,    0,    0,    // {entryPoint}
-		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		0,    0,    0,    0,    0,    0,    0,    0,    // {code->cnt}
-		0,    0,    0,    0,    0,    0,    0,    0,    // "
-		1,    0,    0,    0,    0,    0,    0,    0,    // 0x1 offset
+		1,    0,    0,    0,    5,    0,    0,    0,  // LOAD, Read+Execute
+		0,    0,    0,    0,    0,    0,    0,    0,  // {entryPoint-memStart}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {entryPoint}
+		0,    0,    0,    0,    0,    0,    0,    0,  // "
+		0,    0,    0,    0,    0,    0,    0,    0,  // {code->cnt}
+		0,    0,    0,    0,    0,    0,    0,    0,  // "
+		1,    0,    0,    0,    0,    0,    0,    0,  // 0x1 offset
+
+		1,    0,    0,    0,    6,    0,    0,    0,  // LOAD, Read+Write
+		0,    0,    0,    0,    0,    0,    0,    0,  // {(below 1)}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {(below 2)}
+		0,    0,    0,    0,    0,    0,    0,    0,  // "
+		0,    0,    0,    0,    0,    0,    0,    0,  // {ctr->staticSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // "
+		1,    0,    0,    0,    0,    0,    0,    0,  // 0x1 offset
 	};
 
-	// {memStart} in first header
-	tmp = memStart;
-	for (u64 i = 0; i < 8; i++) {
-		programHeader[0x10+i] = tmp & 0xff;
-		programHeader[0x18+i] = tmp & 0xff;
-		tmp >>= 8;
-	}
-	// {entryPoint} in second header (code)
-	tmp = entryPoint;
-	for (u64 i = 0; i < 8; i++) {
-		programHeader[0x48+i] = tmp & 0xff;
-		programHeader[0x50+i] = tmp & 0xff;
-		tmp >>= 8;
-	}
-	// {entryPoint-memStart} in second header (code)
-	tmp = entryPoint-memStart;
-	for (u64 i = 0; i < 8; i++) {
-		programHeader[0x40+i] = tmp & 0xff;
-		tmp >>= 8;
-	}
-	// {code->cnt} in second header
-	tmp = code->cnt;
-	for (u64 i = 0; i < 8; i++) {
-		programHeader[0x58+i] = tmp & 0xff;
-		programHeader[0x60+i] = tmp & 0xff;
-		tmp >>= 8;
+	{
+		// {memStart} in first header (file header)
+		u64 tmpStartM = memStart;
+
+		// {entryPoint-memStart} in second header (code)
+		u64 tmpEP = entryPoint - memStart;
+		// {entryPoint} in second header (code)
+		u64 tmpEPM = entryPoint;
+		// {code->cnt} in second header (code)
+		u64 tmpCodeSz = code->cnt;
+
+		// {(below 1)} in third header (static)
+		u64 tmpStatic = tmpEP + code->cnt;
+		// {(below 2)} in third header (static)
+		u64 tmpStaticM = tmpEPM + code->cnt;
+		// {ctr->staticSize} in third header (static)
+		u64 tmpStaticSz = ctr->staticSize;
+
+		for (u64 i = 0; i < 8; i++) {
+			programHeader[0x10+i] = tmpStartM & 0xff;
+			programHeader[0x18+i] = tmpStartM & 0xff;
+
+			programHeader[0x40+i] = tmpEP & 0xff;
+			programHeader[0x48+i] = tmpEPM & 0xff;
+			programHeader[0x50+i] = tmpEPM & 0xff;
+			programHeader[0x58+i] = tmpCodeSz & 0xff;
+			programHeader[0x60+i] = tmpCodeSz & 0xff;
+
+			programHeader[0x78+i] = tmpStatic & 0xff;
+			programHeader[0x80+i] = tmpStaticM & 0xff;
+			programHeader[0x88+i] = tmpStaticM & 0xff;
+			programHeader[0x90+i] = tmpStaticSz & 0xff;
+			programHeader[0x98+i] = tmpStaticSz & 0xff;
+
+			tmpStartM >>= 8;
+			tmpEP >>= 8;
+			tmpEPM >>= 8;
+			tmpCodeSz >>= 8;
+			tmpStatic >>= 8;
+			tmpStaticM >>= 8;
+			tmpStaticSz >>= 8;
+		}
 	}
 
 	// String this together into a file
 	
 	// Create the initial file
-	FILE* file;
+	FILE* file = stdout;
 	bool isFileStdout = !strcmp(fileName, "-");
 
-	if (isFileStdout) {
-		file = stdout;
-	}
-	else {
+	if (!isFileStdout) {
 		file = fopen(fileName, "wb");
 		if (!file) {
 			return 0;
@@ -1586,8 +1607,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
 	// Write headers and code
 	u8 buf[BA_FILE_BUF_SIZE];
 	memcpy(buf, fileHeader, 64);
-	memcpy(64+buf, programHeader, phSz);
-	//memset(64+phSz+buf, 0, fHeaderSz-phSz-64);
+	memcpy(64+buf, programHeader, pHeaderSz);
+	//memset(64+pHeaderSz+buf, 0, fHeaderSz-pHeaderSz-64);
 	u64 bufCodeSize = ( fHeaderSz + code->cnt ) >= BA_FILE_BUF_SIZE ? 
 		(BA_FILE_BUF_SIZE - fHeaderSz) : code->cnt;
 	memcpy(fHeaderSz + buf, code->arr, bufCodeSize);

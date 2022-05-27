@@ -131,7 +131,7 @@ u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid,
 }
 
 /* atom = lit_str { lit_str } | lit_int | lit_char | identifier 
- *      | "{" exp { "," } [ exp ] "}" */
+ *      | "{" exp { "," exp } [ "," ] "}" */
 u8 ba_PAtom(struct ba_Controller* ctr) {
 	u64 lexLine = ctr->lex->line;
 	u64 lexColStart = ctr->lex->colStart;
@@ -219,6 +219,24 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
 			/* isLValue = */ 1);
+	}
+	// "{" exp { "," exp } [ "," ] "}"
+	else if (ba_PAccept('{', ctr)) {
+		struct ba_PTkStkItem* stkItem = 0;
+		while (ba_PExp(ctr)) {
+			stkItem = ba_StkPop(ctr->pTkStk);
+			// TODO: push to the (actual) stack then move them into the 
+			// static section. im instructions will have to be made for 
+			// the static section, like those that exist for labels
+			if (!ba_PAccept(',', ctr)) {
+				break;
+			}
+		}
+		if (!stkItem) {
+			return ba_ExitMsg(BA_EXIT_ERR, "", lexVal, lexLine, ctr->currPath);
+		}
+		// TODO
+		ba_PExpect('}', ctr);
 	}
 	// Other
 	else {

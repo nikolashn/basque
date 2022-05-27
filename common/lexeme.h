@@ -61,6 +61,7 @@ enum {
 	 * the parser for intermediate values */
 	BA_TK_IMREGISTER = 0x1000, // always 8 bytes
 	BA_TK_IMRBPSUB   = 0x1001, // always 8 bytes
+	BA_TK_IMSTATIC   = 0x1002, // size varies
 };
 
 struct ba_Lexeme {
@@ -110,7 +111,8 @@ bool ba_IsLexemeCompare(u64 lexType) {
 bool ba_IsLexemeLiteral(u64 lexType) {
 	return lexType != BA_TK_IDENTIFIER && 
 		lexType != BA_TK_IMRBPSUB && 
-		lexType != BA_TK_IMREGISTER;
+		lexType != BA_TK_IMREGISTER &&
+		lexType != BA_TK_IMSTATIC;
 }
 
 struct ba_Type ba_GetTypeFromKeyword(u64 lexType) {

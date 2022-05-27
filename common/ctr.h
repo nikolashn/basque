@@ -42,6 +42,7 @@ struct ba_Controller {
 	// Parser
 	u64 usedRegisters;
 	u64 imStackSize;
+	u64 staticSize;
 	u64 labelCnt;
 	// Counts expression parentheses etc. to make sure they are balanced
 	i64 paren;
@@ -75,6 +76,7 @@ struct ba_Controller* ba_NewController() {
 	ctr->inclInodes = ba_NewDynArr64(0x400);
 	ctr->usedRegisters = 0;
 	ctr->imStackSize = 0;
+	ctr->staticSize = 0;
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->currFunc = 0;
 	ctr->paren = 0;
