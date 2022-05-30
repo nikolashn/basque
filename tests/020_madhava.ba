@@ -1,3 +1,17 @@
+#{
+	Expected output:
+	4/1
+	8/3
+	52/15
+	304/105
+	3156/945
+	30936/10395
+	443748/135135
+	6115680/2027025
+	112074660/34459425
+	1991580840/654729075
+}#
+
 # Generates the Madhava-Leibniz approximations for pi
 void Madhava(u64 x) {
 	u64 num = 1;

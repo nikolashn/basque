@@ -1,9 +1,9 @@
-# Expected output:
 #{
-500
-5
-2,1,0
-25
+	Expected output:
+	500
+	5
+	2,1,0
+	25
 }#
 
 u64 a = 500;

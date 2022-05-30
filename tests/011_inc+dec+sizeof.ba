@@ -1,30 +1,35 @@
+#{
+	Expected output:
+	9,10,12,11,23,12
+	18446744073709551615,0,2,1
+	8,40,1,1
+}#
+
 #{--- Increment and decrement ---}#
 
 i64 a = 9;
 
-# 9,10,12,11,23,12
-write a; ","; # 9
-write ++a; ","; # 10
+write a; ",";
+write ++a; ",";
 ++a;
 ++a;
-write a; ","; # 12
+write a; ",";
 # write --++a; ","; # Error
-write --a; ","; # 11
+write --a; ",";
 # write --(a + 1); # Error
-write 11 + ++a; ","; # 23
-write a; "\n"; # 12
+write 11 + ++a; ",";
+write a; "\n";
 
 a = -1;
-write a; "\n"; # 18446744073709551615
-write ++a; "\n"; # 0
+write a; ",";
+write ++a; ",";
 ++a;
-write ++a; "\n"; # 2
+write ++a; ",";
 a = --a;
-write a; "\n"; # 1
+write a; "\n";
 
 #{--- $ (sizeof) operator ---}#
 
-# 8,40,1,1
 write $123; ",";
 write 5 * $a; ",";
 # write $"test"; # Error

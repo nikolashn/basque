@@ -1,3 +1,18 @@
+#{
+	Expected output:
+	1
+	2
+	4
+	8
+	16
+	32
+	64
+	128
+	256
+	512
+	1024
+}#
+
 u64 Pow(u64 x, u64 y) {
 	if y == 0u, return 1;
 	if y == 1u, return x;

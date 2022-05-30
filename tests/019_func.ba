@@ -1,9 +1,21 @@
+#{
+	Expected output:
+	Hello world!
+	Hello world!
+	0
+	5
+	-21
+	-120
+	9 * 10 = 90
+	-120 * -120 * -120 = -1728000
+}#
+
 void Hello() {
 	write "Hello world!\n";
 }
 
-Hello(); # Hello world!
-Hello(); # Hello world!
+Hello();
+Hello();
 
 void WriteI64(i64 x = 0) {
 	if x < 0 {
@@ -13,12 +25,12 @@ void WriteI64(i64 x = 0) {
 	write x;
 }
 
-WriteI64(); "\n"; # 0
-WriteI64(5); "\n"; # 5
-WriteI64(-21); "\n"; # -21
+WriteI64(); "\n";
+WriteI64(5); "\n";
+WriteI64(-21); "\n";
 
 i64 n = -1 * 2 * -3 * 4 * -5;
-WriteI64(n); "\n"; # -120
+WriteI64(n); "\n";
 
 i64 Mul(i64 x, i64 y) {
 	i64 a = x * y;

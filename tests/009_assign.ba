@@ -1,41 +1,51 @@
+#{
+	Expected output:
+	1337->21->242->9->9
+	9
+	53261
+	53266->416->16->256->9->18->16->18446744073709551612->0
+	5931 5931
+	18446744073709
+}#
+
 u64 nuane = 1337;
-write nuane; "->"; # 1337
+write nuane; "->";
 nuane = 21;
-write nuane; "->"; # 21
+write nuane; "->";
 (nuane) = (nuane + 5 * 20) << (nuane - 20);
-write nuane; "->"; # 242
-write nuane = -6 + (nuane = 15); "->"; # 9
-write nuane; "\n"; # 9
+write nuane; "->";
+write nuane = -6 + (nuane = 15); "->";
+write nuane; "\n";
 # nuane = "yo"; # Gives an error
 # "nuane" = 5; # Gives an error
 
 u64 x = 0;
 x && (nuane = 9_000); # My favourite way of writing if statements
-write nuane; "\n"; # 9
+write nuane; "\n";
 !x && (nuane = 0xd00d);
-write nuane; "\n"; # 53261
+write nuane; "\n";
 
 nuane += 5;
-write nuane; "->"; # 53266
+write nuane; "->";
 nuane >>= -7 + nuane // 33;
-write nuane; "->"; # 416
+write nuane; "->";
 nuane -= 400;
-write nuane; "->"; # 16
+write nuane; "->";
 nuane *= nuane;
-write nuane; "->"; # 256
+write nuane; "->";
 x = 10;
 nuane //= (x + nuane>>4);
-write nuane; "->"; # 9
+write nuane; "->";
 nuane <<= x // x;
-write nuane; "->"; # 18
+write nuane; "->";
 nuane &= ~x;
-write nuane; "->"; # 16
+write nuane; "->";
 nuane |= x - x - x - x;
-write nuane; "->"; # 18446744073709551612
+write nuane; "->";
 nuane ^= nuane;
-write nuane; "\n"; # 0
+write nuane; "\n";
 
 x = nuane = 5931;
 write x; " "; write nuane; "\n";
-write (-1)~u64 // 1_000_000u; "\n"; # 18446744073709
+write (-1)~u64 // 1_000_000u; "\n";
 

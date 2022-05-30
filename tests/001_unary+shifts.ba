@@ -1,32 +1,47 @@
-write 2 + 5 * 3; "\n"; # 17
-write (2 + 5) * 3; "\n"; # 21
-write 2 + (5 * 3); "\n"; # 17
+#{
+	Expected output:
+	17 21 17
+	12345678902357111317
+	18446744073709551595 12
+	18446744073709551604 12 12
+	1 0 0
+	18446744073709551615 0 11
+	18446744073709551615 13
+	12 12 64 2
+	2 64 2 2
+}#
+
+write 2 + 5 * 3; " ";
+write (2 + 5) * 3; " ";
+write 2 + (5 * 3); "\n";
 
 i64 x = 12345678902357111317;
 i64 y = -21;
-write x; "\n"; # 12345678902357111317
-write y; "\n"; # 18446744073709551595
+write x; "\n";
+write y; " ";
 u64 z = 5 + 10 * 15 // 20;
 u64 a = -z;
-write z; "\n"; # 12
-write a; "\n"; # 18446744073709551604
-write -a; "\n"; # 12
-write - -z; "\n"; # 12
+write z; "\n";
+write a; " ";
+write -a; " ";
+write - -z; "\n";
+
 i64 zero = 0;
 i64 one = !zero;
-write !zero; "\n"; # 1
-write !!zero; "\n"; # 0
-write !one; "\n"; # 0
-write -!zero; "\n"; # 18446744073709551615
-write !!zero; "\n"; # 0
-write ~a; "\n"; # 11
-write ~zero; "\n"; # 18446744073709551615
-write +-~z; "\n"; # 13
-write 6 << one; "\n"; # 12
-write 6 << - -one; "\n"; # 12
-write one << 6; "\n"; # 64
-write one << one; "\n"; # 2
-write one << - -one; "\n"; # 2
-write - -one << 6; "\n"; # 64
-write - -one << one; "\n"; # 2
-write - -one << - -one; "\n"; # 2
+write !zero; " ";
+write !!zero; " ";
+write !one; "\n";
+write -!zero; " ";
+write !!zero; " ";
+write ~a; "\n";
+write ~zero; " ";
+write +-~z; "\n";
+
+write 6 << one; " ";
+write 6 << - -one; " ";
+write one << 6; " ";
+write one << one; "\n";
+write one << - -one; " ";
+write - -one << 6; " ";
+write - -one << one; " ";
+write - -one << - -one; "\n";

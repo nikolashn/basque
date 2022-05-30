@@ -1,3 +1,16 @@
+#{
+	Expected output:
+	140726508183296 = 140726508183296
+	2 = 2
+	3 = 3
+	29 = 29 = 29
+	140726508183328 = 140726508183328
+	140726508183296 = 140726508183296
+	37 != 101 != 202 != 67 != 68
+	11,13,17,19
+	11,13,17,19
+}#
+
 #{ These variables should be allocated on the stack 
    contiguously based on how the C Basque compiler 
    currently works, however this is not a specification of 
