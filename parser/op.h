@@ -1203,13 +1203,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				arg->typeInfo.type = BA_TYPE_BOOL;
+				u64 imOp = op->lexemeType == BA_TK_LOGAND ? BA_IM_AND : BA_IM_OR;
 
-				u64 imOp = op->lexemeType == BA_TK_LOGAND
-					? BA_IM_AND : BA_IM_OR;
-
-				// Although it is called "NonLit", it does work with literals 
-				// as well. The reason for the name is that it isn't generally 
-				// used for that.
+				/* Although it is called "NonLit", it does work with literals 
+				 * as well. */
 				ba_POpNonLitBinary(imOp, arg, lhs, rhs, isLhsLiteral, 
 					isRhsLiteral, /* isShortCirc = */ 1, ctr);
 				
@@ -1496,11 +1493,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						"with non numeric operand(s) on", op->line, op->col,
 						ctr->currPath);
 				}
-				else if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
+
+				if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
 					ba_IsTypeUnsigned(rhs->typeInfo.type))
 				{
-					ba_ExitMsg(BA_EXIT_WARN, "comparison of integers of different " 
-						"signedness on", op->line, op->col, ctr->currPath);
+					ba_WarnImplicitSignedConversion(op->line, op->col, 
+						ctr->currPath, "comparison");
 				}
 
 				struct ba_PTkStkItem* rhsCopy = malloc(sizeof(*rhsCopy));
@@ -1593,7 +1591,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				else {
 					arg->lexemeType = BA_TK_IMRBPSUB;
 					arg->val = (void*)ctr->imStackSize;
-
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
 						lhsStackPos, BA_IM_RAX);
 				}
@@ -1611,14 +1608,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					ba_StkPush(ctr->pTkStk, rhsCopy);
-
-					ba_AddIM(ctr, 2, imOpJcc, 
-						(u64)ba_StkTop(ctr->cmpLblStk));
+					ba_AddIM(ctr, 2, imOpJcc, (u64)ba_StkTop(ctr->cmpLblStk));
 				}
 				else {
 					if (!ba_StkTop(ctr->cmpRegStk)) {
 						ba_StkPush(ctr->pTkStk, arg);
 					}
+
 					if (regR) {
 						ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
 					}
