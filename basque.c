@@ -14,7 +14,6 @@ char usageStr[] =
 	"  -o <FILE>               Output compiled code into <FILE>. Use - for stdout.\n"
 	"  -r,--run                Run the compiled code after compilation.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
-	"  -w,--extra-warnings     Show extra warnings.\n"
 	"  -W,--warnings-as-errors Treat warnings as errors.\n"
 ;
 
@@ -62,13 +61,10 @@ int main(int argc, char* argv[]) {
 							isRunCode = 1;
 							break;
 						case 's':
-							ba_IsSilenceWarnings = 1;
-							break;
-						case 'w':
-							ba_IsExtraWarnings = 1;
+							ba_IsSilenceWarns = 1;
 							break;
 						case 'W':
-							ba_IsWarningsAsErrors = 1;
+							ba_IsWarnsAsErrors = 1;
 							break;
 						default:
 							fprintf(stderr, "Error: Command line option %s "
@@ -94,13 +90,10 @@ int main(int argc, char* argv[]) {
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (!strcmp(argv[i], "--silence-warnings")) {
-			ba_IsSilenceWarnings = 1;
-		}
-		else if (!strcmp(argv[i], "--extra-warnings")) {
-			ba_IsExtraWarnings = 1;
+			ba_IsSilenceWarns = 1;
 		}
 		else if (!strcmp(argv[i], "--warnings-as-errors")) {
-			ba_IsWarningsAsErrors = 1;
+			ba_IsWarnsAsErrors = 1;
 		}
 		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
 			fprintf(stderr, "Error: Command line option %s not found\n", argv[i]);
@@ -138,7 +131,7 @@ int main(int argc, char* argv[]) {
 		}
 		BA_LBL_MAIN_ARGSLOOPEND:;
 	}
-	if (ba_IsWarningsAsErrors && ba_IsSilenceWarnings) {
+	if (ba_IsWarnsAsErrors && ba_IsSilenceWarns) {
 		fprintf(stderr, "Error: cannot both silence warnings and have warnings "
 			"as errors\n");
 		return -1;

@@ -11,14 +11,12 @@ char* ba_GetTypeStr(struct ba_Type type);
 
 // Options
 
-bool ba_IsSilenceWarnings = 0;
-bool ba_IsExtraWarnings = 0;
-bool ba_IsWarningsAsErrors = 0;
+bool ba_IsSilenceWarns = 0;
+bool ba_IsWarnsAsErrors = 0;
 
 enum {
 	BA_EXIT_ERR = 0,
 	BA_EXIT_WARN = 1,
-	BA_EXIT_EXTRAWARN = 2,
 };
 
 // "2" because it requires 2 message strings
@@ -26,8 +24,7 @@ enum {
 u8 ba_ExitMsg2(u8 type, char* preMsg, u64 line, u64 col, char* path, 
 	char* postMsg) 
 {
-	if ((type != BA_EXIT_ERR && ba_IsSilenceWarnings) || 
-			(type == BA_EXIT_EXTRAWARN && !ba_IsExtraWarnings)) {
+	if (type != BA_EXIT_ERR && ba_IsSilenceWarns) {
 		return 0;
 	}
 	switch (type) {
@@ -35,16 +32,12 @@ u8 ba_ExitMsg2(u8 type, char* preMsg, u64 line, u64 col, char* path,
 			fprintf(stderr, "Error");
 			break;
 		case BA_EXIT_WARN:
-		case BA_EXIT_EXTRAWARN:
 			fprintf(stderr, "Warning");
 			break;
 	}
 	fprintf(stderr, ": %s line %llu:%llu in %s%s\n", 
 		preMsg, line, col, path, postMsg);
-	if (type == BA_EXIT_ERR || (ba_IsWarningsAsErrors && 
-		(type == BA_EXIT_WARN || (type == BA_EXIT_EXTRAWARN && 
-		ba_IsExtraWarnings)))) 
-	{
+	if (type == BA_EXIT_ERR || (ba_IsWarnsAsErrors && type == BA_EXIT_WARN)) {
 		exit(-1);
 	}
 	return 0;
@@ -135,8 +128,8 @@ u8 ba_WarnImplicitSignedConversion(u64 line, u64 col, char* path, char* opName) 
 	strcat(msg, opName);
 	strcat(msg, " of integers of different signedness on");
 	char* msgAfter =
-		ba_IsWarningsAsErrors ? "" : ", implicitly converted operands to i64";
-	ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, line, col, path, msgAfter);
+		ba_IsWarnsAsErrors ? "" : ", implicitly converted operands to i64";
+	ba_ExitMsg2(BA_EXIT_WARN, msg, line, col, path, msgAfter);
 	return 0;
 }
 

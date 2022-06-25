@@ -315,11 +315,11 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 
 	struct ba_SymTable* foundIn = 0;
 	if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
-		if (!ba_IsSilenceWarnings) {
+		if (!ba_IsSilenceWarns) {
 			fprintf(stderr, "Warning: shadowing variable '%s' on "
 				"line %llu:%llu in %s\n", idName, line, col, ctr->currPath);
 		}
-		if (ba_IsWarningsAsErrors) {
+		if (ba_IsWarnsAsErrors) {
 			exit(-1);
 		}
 	}
