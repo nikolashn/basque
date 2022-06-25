@@ -854,14 +854,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
 						ba_IsTypeUnsigned(rhs->typeInfo.type)) 
 					{
-						// Different signedness
-						char msg[128];
-						strcat(msg, opName);
-						strcat(msg, " of integers of different signedness on");
-						char* msgAfter = ba_IsWarningsAsErrors ? ""
-							: ", implicitly converted lhs to i64";
-						ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, op->line, 
-							op->col, ctr->currPath, msgAfter);
+						ba_WarnImplicitSignedConversion(op->line, op->col, 
+							ctr->currPath, opName);
 					}
 					else if (ba_IsTypeUnsigned(lhs->typeInfo.type)) {
 						argType = BA_TYPE_U64;

@@ -130,4 +130,14 @@ u8 ba_ErrorAssignTypes(u64 line, u64 col, char* path, struct ba_Type lhsType,
 	return 0;
 }
 
+u8 ba_WarnImplicitSignedConversion(u64 line, u64 col, char* path, char* opName) {
+	char msg[128] = {0};
+	strcat(msg, opName);
+	strcat(msg, " of integers of different signedness on");
+	char* msgAfter =
+		ba_IsWarningsAsErrors ? "" : ", implicitly converted arguments to i64";
+	ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, line, col, path, msgAfter);
+	return 0;
+}
+
 #endif
