@@ -135,7 +135,7 @@ u8 ba_WarnImplicitSignedConversion(u64 line, u64 col, char* path, char* opName) 
 	strcat(msg, opName);
 	strcat(msg, " of integers of different signedness on");
 	char* msgAfter =
-		ba_IsWarningsAsErrors ? "" : ", implicitly converted arguments to i64";
+		ba_IsWarningsAsErrors ? "" : ", implicitly converted operands to i64";
 	ba_ExitMsg2(BA_EXIT_EXTRAWARN, msg, line, col, path, msgAfter);
 	return 0;
 }
