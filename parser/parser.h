@@ -233,7 +233,8 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 			}
 		}
 		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "", lexVal, lexLine, ctr->currPath);
+			return ba_ExitMsg(BA_EXIT_ERR, "", lexLine, lexColStart, 
+				ctr->currPath);
 		}
 		// TODO
 		ba_PExpect('}', ctr);
