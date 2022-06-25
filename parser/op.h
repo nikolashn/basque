@@ -868,15 +868,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				return 1;
 			}
 
-			// TODO: clean up / merge with modulo
-			// Division
-
-			else if (op->lexemeType == BA_TK_IDIV) {
+			// Integer division and modulo
+			else if (op->lexemeType == BA_TK_IDIV || op->lexemeType == '%') {
 				if (!ba_IsTypeNumeric(lhs->typeInfo.type) || 
 					!ba_IsTypeNumeric(rhs->typeInfo.type)) 
 				{
-					return ba_ExitMsg(BA_EXIT_ERR, "integer division with non "
-						"numeric operand(s) on", op->line, op->col, ctr->currPath);
+					return ba_ExitMsg(BA_EXIT_ERR, "integer division or modulo "
+						"with non numeric operand(s) on", op->line, op->col, 
+						ctr->currPath);
 				}
 
 				u64 argType = BA_TYPE_I64; // Default, most likely type
@@ -886,77 +885,109 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				if (areBothUnsigned) {
 					argType = BA_TYPE_U64;
 				}
+				// Different signedness
 				else if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
 					ba_IsTypeUnsigned(rhs->typeInfo.type)) 
 				{
-					// Different signedness
-					char* msgAfter = ba_IsWarningsAsErrors ? ""
-						: ", implicitly converted lhs to i64";
-					ba_ExitMsg2(BA_EXIT_EXTRAWARN, "integer division of numbers "
-						"of different signedness on", op->line, op->col, 
-						ctr->currPath, msgAfter);
+					ba_WarnImplicitSignedConversion(op->line, op->col, 
+						ctr->currPath, 
+						op->lexemeType == '%' ? "modulo" : "integer division");
 				}
-
+				
 				u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
-				(isRhsLiteral && rhsSize < 8) && 
-					(rhs->val = (void*)((u64)rhs->val & ((1llu<<(rhsSize*8))-1)));
-
-				arg->typeInfo.type = argType;
+				isRhsLiteral && rhsSize < 8 && 
+					(rhs->val = 
+					 	(void*)((u64)rhs->val & ((1llu<<(rhsSize*8))-1)));
 
 				if (isLhsLiteral && isRhsLiteral) {
 					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
-					(lhsSize < 8) && (lhs->val = 
-						(void*)((u64)lhs->val & ((1llu<<(lhsSize*8))-1)));
-					arg->val = areBothUnsigned 
-						? (void*)(((u64)lhs->val) / ((u64)rhs->val))
-						: (void*)(((i64)lhs->val) / ((i64)rhs->val));
+					lhsSize < 8 && 
+						(lhs->val = 
+						 	(void*)((u64)lhs->val & ((1llu<<(lhsSize*8))-1)));
+					
+					if (op->lexemeType == '%') {
+						u64 modVal;
+						if (areBothUnsigned) {
+							modVal = (u64)lhs->val % (u64)rhs->val;
+						}
+						else {
+							modVal = ((i64)lhs->val % (i64)rhs->val) + 
+								(((i64)lhs->val < 0) ^ ((i64)rhs->val < 0)) * 
+								(i64)rhs->val;
+						}
+						arg->val = (void*)modVal;
+					}
+					else {
+						arg->val = areBothUnsigned 
+							? (void*)(((u64)lhs->val) / ((u64)rhs->val))
+							: (void*)(((i64)lhs->val) / ((i64)rhs->val));
+					}
 				}
 				else if (isRhsLiteral) {
 					if (!rhs->val) {
-						return ba_ExitMsg(BA_EXIT_ERR, "division by zero on", 
-							op->line, op->col, ctr->currPath);
+						return ba_ExitMsg(BA_EXIT_ERR, "modulo or division by "
+							"zero on", op->line, op->col, ctr->currPath);
 					}
 
+					// Test for sign
 					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
-						((u64)rhs->val & (1llu << (rhsSize*8-1))); // test for sign
+						((u64)rhs->val & (1llu << (rhsSize*8-1)));
 
-					if (isRhsNeg) {
-						ba_POpNonLitUnary('-', lhs, ctr);
-						rhs->val = rhsSize == 8 ? (void*)-(i64)rhs->val :
-							(void*)((-(i64)rhs->val) & ((1llu<<(rhsSize*8))-1));
-					}
-
-					if ((u64)rhs->val == 1) {
-						arg->val = lhs->val;
-						arg->lexemeType = lhs->lexemeType;
-					}
-					/* TODO: complete this optimization:
-					 * if lhs is negative, then the following optimization is only 
-					 * correct if (lhs & ((1 << shift) - 1)) == 0
-					// If literal arg is a power of 2, generate a bit shift instead
-					else if (!((u64)rhs->val & ((u64)rhs->val - 1))) {
-						// NOTE: builtin may break outside of gcc
-						// TODO: Replace with use of inline assembly TZCNT
-						u64 shift = __builtin_ctzll((u64)rhs->val);
-
-						struct ba_PTkStkItem* newRhs = malloc(sizeof(*newRhs));
-						if (!newRhs) {
-							return ba_ErrorMallocNoMem();
+					if (op->lexemeType == '%') { // Modulo
+						u64 rhsAbs = isRhsNeg ? -(u64)rhs->val : (u64)rhs->val;
+						if (rhsAbs == 1) {
+							arg->val = 0;
+							arg->lexemeType = BA_TK_LITINT;
 						}
-						newRhs->val = (void*)shift;
-						newRhs->typeInfo.type = BA_TYPE_U64;
-						newRhs->lexemeType = BA_TK_LITINT;
+						else if (!(rhsAbs & (rhsAbs - 1))) {
+							// rhs is a power of 2
+							/* a % (1<<b) == a & ((1<<b)-1) 
+							 * a % -(1<<b) == (a & ((1<<b)-1)) - (1<<b) */
 
-						ba_POpNonLitBitShift(BA_IM_SAR, arg, lhs, newRhs, 
-							/ * isRhsLiteral = * / 1, ctr);
+							struct ba_PTkStkItem* newRhs = malloc(sizeof(*newRhs));
+							if (!newRhs) {
+								return ba_ErrorMallocNoMem();
+							}
+							newRhs->val = (void*)(rhsAbs-1);
+							newRhs->typeInfo.type = BA_TYPE_U64;
+							newRhs->lexemeType = BA_TK_LITINT;
+
+							ba_POpNonLitBitShift(BA_IM_AND, arg, lhs, newRhs, 
+								/* isRhsLiteral = */ 1, ctr);
+
+							if (isRhsNeg) {
+								newRhs->val = (void*)rhsAbs;
+								newRhs->typeInfo.type = BA_TYPE_I64;
+								newRhs->lexemeType = BA_TK_LITINT;
+								ba_POpNonLitBinary(BA_IM_SUB, arg, arg, newRhs,
+									/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 1,
+									/* isShortCirc = */ 0, ctr);
+							}
+						}
+						else {
+							goto BA_LBL_POPHANDLE_INTDIVMOD_NONLIT;
+						}
 					}
-					*/
-					else {
-						goto BA_LBL_POPHANDLE_INTDIV_NONLIT;
+					else { // Integer division
+						if (isRhsNeg) {
+							ba_POpNonLitUnary('-', lhs, ctr);
+							rhs->val = rhsSize == 8 
+								? (void*)(-(i64)rhs->val) 
+								: (void*)((-(i64)rhs->val) & 
+									((1llu<<(rhsSize*8))-1));
+						}
+
+						if ((u64)rhs->val == 1) {
+							arg->val = lhs->val;
+							arg->lexemeType = lhs->lexemeType;
+						}
+						else {
+							goto BA_LBL_POPHANDLE_INTDIVMOD_NONLIT;
+						}
 					}
 				}
 				else {
-					BA_LBL_POPHANDLE_INTDIV_NONLIT:
+					BA_LBL_POPHANDLE_INTDIVMOD_NONLIT:
 					
 					u64 lhsStackPos = 0;
 					u64 regL = (u64)lhs->val; // Kept only if lhs is a register
@@ -972,11 +1003,14 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 						}
 						lhsStackPos = ctr->imStackSize + 8;
-						// Result location
+						/* Only result location pushed, since rax will be 
+						 * praeserved later */
 						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 						ctr->imStackSize += 8;
 					}
 
+					/* Make sure rax and rdx are not trampled on by the div
+					 * instruction */
 					u64 originalUsedRaxRdx = ctr->usedRegisters & 
 						(BA_CTRREG_RAX | BA_CTRREG_RDX);
 					ctr->usedRegisters |= BA_CTRREG_RAX | BA_CTRREG_RDX;
@@ -987,14 +1021,15 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						regR = ba_NextIMRegister(ctr);
 					}
 
-					ctr->usedRegisters &= 
-						(ctr->usedRegisters & ~BA_CTRREG_RAX & ~BA_CTRREG_RDX) | 
-						originalUsedRaxRdx;
+					ctr->usedRegisters &= originalUsedRaxRdx |
+						(ctr->usedRegisters & ~BA_CTRREG_RAX & ~BA_CTRREG_RDX);
 
 					bool isRaxPushed = 0;
 					bool isRdxPushed = 0;
 
-					if ((ctr->usedRegisters & BA_CTRREG_RAX) && (regL != BA_IM_RAX)) {
+					if ((ctr->usedRegisters & BA_CTRREG_RAX) && 
+						(regL != BA_IM_RAX)) 
+					{
 						if (rhs->lexemeType == BA_TK_IMREGISTER && 
 							(u64)rhs->val == BA_IM_RAX) 
 						{
@@ -1007,7 +1042,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						}
 					}
 
-					if ((ctr->usedRegisters & BA_CTRREG_RDX) && (regL != BA_IM_RDX)) {
+					if ((ctr->usedRegisters & BA_CTRREG_RDX) && 
+						(regL != BA_IM_RDX)) 
+					{
 						if (rhs->lexemeType == BA_TK_IMREGISTER && 
 							(u64)rhs->val == BA_IM_RDX) 
 						{
@@ -1029,7 +1066,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					ba_POpMovArgToReg(ctr, lhs, BA_IM_RAX, isLhsLiteral);
-					if (lhs->lexemeType == BA_TK_IMREGISTER && 
+
+					if (op->lexemeType == BA_TK_IDIV && 
+						lhs->lexemeType == BA_TK_IMREGISTER && 
 						(u64)lhs->val != BA_IM_RAX) 
 					{
 						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)lhs->val);
@@ -1043,10 +1082,44 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					u64 imOp = areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV;
 					ba_AddIM(ctr, 2, imOp, regR ? regR : BA_IM_RCX);
 
-					if (regL && regL != BA_IM_RAX) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RAX);
+					if (op->lexemeType == '%') {
+						if (!areBothUnsigned) {
+							/* Test result for sign: if negative, then operands 
+							 * had opposite signs and so the rhs needs to be 
+							 * added */
+							
+							// Sign stored in rax
+							u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, rhsSize);
+							ba_AddIM(ctr, 3, BA_IM_TEST, raxAdj, raxAdj);
+							ba_AddIM(ctr, 2, BA_IM_SETS, BA_IM_AL);
+							ba_AddIM(ctr, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
+							ba_AddIM(ctr, 3, BA_IM_IMUL, BA_IM_RAX, 
+								regR ? regR : BA_IM_RCX);
+							ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RDX, BA_IM_RAX);
+						}
+
+						if (regL) {
+							if (regL != BA_IM_RDX) {
+								ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RDX);
+							}
+							arg->lexemeType = BA_TK_IMREGISTER;
+							arg->val = (void*)regL;
+						}
+						else {
+							ba_AddIM(ctr, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+								lhsStackPos, BA_IM_RDX);
+							arg->lexemeType = BA_TK_IMRBPSUB;
+							arg->val = (void*)ctr->imStackSize;
+						}
 					}
-					ba_POpSetArg(ctr, arg, regL, lhsStackPos);
+					else {
+						if (regL && regL != BA_IM_RAX) {
+							ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RAX);
+						}
+						ba_POpSetArg(ctr, arg, regL, lhsStackPos);
+					}
+
+					// Restore registers
 
 					if (isRdxPushed) {
 						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
@@ -1067,237 +1140,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize -= 8;
 					}
 				}
-
-				arg->isLValue = 0;
-				ba_StkPush(ctr->pTkStk, arg);
-				return 1;
-			}
-
-			// TODO: clean up / merge with division
-			// Modulo
-
-			else if (op->lexemeType == '%') {
-				/* Modulo in Basque is from floored divison (like in Python) */
-
-				if (!ba_IsTypeNumeric(lhs->typeInfo.type) || 
-					!ba_IsTypeNumeric(rhs->typeInfo.type)) 
-				{
-					return ba_ExitMsg(BA_EXIT_ERR, "modulo with non numeric "
-						"operand(s) on", op->line, op->col, ctr->currPath);
-				}
-
-				u64 argType = BA_TYPE_I64; // Default, most likely type
-				bool areBothUnsigned = ba_IsTypeUnsigned(lhs->typeInfo.type) && 
-					ba_IsTypeUnsigned(rhs->typeInfo.type);
-
-				if (areBothUnsigned) {
-					argType = BA_TYPE_U64;
-				}
-				else if (ba_IsTypeUnsigned(lhs->typeInfo.type) ^ 
-					ba_IsTypeUnsigned(rhs->typeInfo.type)) 
-				{
-					// Different signedness
-					char* msgAfter = ba_IsWarningsAsErrors ? ""
-						: ", implicitly converted lhs to i64";
-					ba_ExitMsg2(BA_EXIT_EXTRAWARN, "modulo of numbers of different "
-						"signedness on", op->line, op->col, ctr->currPath, msgAfter);
-				}
-
-				u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
-				(isRhsLiteral && rhsSize < 8) && 
-					(rhs->val = (void*)((u64)rhs->val & ((1llu<<(rhsSize*8))-1)));
-
+				
 				arg->typeInfo.type = argType;
-
-				if (isLhsLiteral && isRhsLiteral) {
-					u64 lhsSize = ba_GetSizeOfType(lhs->typeInfo);
-					(lhsSize < 8) && (lhs->val = 
-						(void*)((u64)lhs->val & ((1llu<<(lhsSize*8))-1)));
-
-					u64 modVal = areBothUnsigned 
-						? (u64)lhs->val % (u64)rhs->val
-						: (i64)lhs->val % (i64)rhs->val;
-					
-					modVal += (i64)rhs->val * 
-						(!areBothUnsigned && 
-							(((i64)lhs->val < 0) ^ ((i64)rhs->val < 0)));
-
-					arg->val = (void*)modVal;
-				}
-				else if (isRhsLiteral) {
-					if (!rhs->val) {
-						return ba_ExitMsg(BA_EXIT_ERR, "modulo by zero on", 
-							op->line, op->col, ctr->currPath);
-					}
-
-					bool isRhsNeg = ba_IsTypeSigned(rhs->typeInfo.type) && 
-						((u64)rhs->val & (1llu << (rhsSize*8-1))); // test for sign
-
-					u64 rhsAbs = isRhsNeg ? -(u64)rhs->val : (u64)rhs->val;
-
-					if (rhsAbs == 1) {
-						arg->val = 0;
-						arg->lexemeType = BA_TK_LITINT;
-					}
-					else if (!(rhsAbs & (rhsAbs - 1))) {
-						/* a % (1<<b) == a & ((1<<b)-1)
-						 * a % -(1<<b) == (a & ((1<<b)-1)) - (1<<b) */
-
-						struct ba_PTkStkItem* newRhs = malloc(sizeof(*newRhs));
-						if (!newRhs) {
-							return ba_ErrorMallocNoMem();
-						}
-						newRhs->val = (void*)(rhsAbs-1);
-						newRhs->typeInfo.type = BA_TYPE_U64;
-						newRhs->lexemeType = BA_TK_LITINT;
-
-						ba_POpNonLitBitShift(BA_IM_AND, arg, lhs, newRhs, 
-							/* isRhsLiteral = */ 1, ctr);
-
-						if (isRhsNeg) {
-							newRhs->val = (void*)rhsAbs;
-							newRhs->typeInfo.type = BA_TYPE_I64;
-							newRhs->lexemeType = BA_TK_LITINT;
-							ba_POpNonLitBinary(BA_IM_SUB, arg, arg, newRhs,
-								/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 1,
-								/* isShortCirc = */ 0, ctr);
-						}
-					}
-					else {
-						goto BA_LBL_POPHANDLE_MODULO_NONLIT;
-					}
-				}
-				else {
-					BA_LBL_POPHANDLE_MODULO_NONLIT:
-					
-					u64 lhsStackPos = 0;
-					u64 regL = (u64)lhs->val; // Kept only if lhs is a register
-					u64 regR = (u64)rhs->val; // Kept only if rhs is a register
-
-					// Return 0 means on the stack
-					if (lhs->lexemeType != BA_TK_IMREGISTER) {
-						regL = ba_NextIMRegister(ctr);
-					}
-
-					if (!regL) {
-						if (!ctr->imStackSize) {
-							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-						}
-						lhsStackPos = ctr->imStackSize + 8;
-						// Result location
-						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-						ctr->imStackSize += 8;
-					}
-
-					u64 originalUsedRaxRdx = ctr->usedRegisters & 
-						(BA_CTRREG_RAX | BA_CTRREG_RDX);
-					ctr->usedRegisters |= BA_CTRREG_RAX | BA_CTRREG_RDX;
-
-					if (rhs->lexemeType != BA_TK_IMREGISTER || 
-						(u64)rhs->val == BA_IM_RAX || (u64)rhs->val == BA_IM_RDX)
-					{
-						regR = ba_NextIMRegister(ctr);
-					}
-
-					ctr->usedRegisters &= 
-						(ctr->usedRegisters & ~BA_CTRREG_RAX & ~BA_CTRREG_RDX) | 
-						originalUsedRaxRdx;
-
-					bool isRaxPushed = 0;
-					bool isRdxPushed = 0;
-
-					if ((ctr->usedRegisters & BA_CTRREG_RAX) && (regL != BA_IM_RAX)) {
-						if (rhs->lexemeType == BA_TK_IMREGISTER && 
-							(u64)rhs->val == BA_IM_RAX) 
-						{
-							ba_AddIM(ctr, 3, BA_IM_MOV, regR, BA_IM_RAX);
-						}
-						else {
-							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ctr->imStackSize += 8;
-							isRaxPushed = 1;
-						}
-					}
-
-					if ((ctr->usedRegisters & BA_CTRREG_RDX) && (regL != BA_IM_RDX)) {
-						if (rhs->lexemeType == BA_TK_IMREGISTER && 
-							(u64)rhs->val == BA_IM_RDX) 
-						{
-							ba_AddIM(ctr, 3, BA_IM_MOV, regR, BA_IM_RDX);
-						}
-						else {
-							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RDX);
-							ctr->imStackSize += 8;
-							isRdxPushed = 1;
-						}
-					}
-
-					if (regR) {
-						ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
-					}
-					else {
-						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RCX);
-						ctr->imStackSize += 8;
-					}
-
-					ba_POpMovArgToReg(ctr, lhs, BA_IM_RAX, isLhsLiteral);
-					ba_POpMovArgToReg(ctr, rhs, regR ? regR : BA_IM_RCX, 
-						isRhsLiteral);
-
-					ba_AddIM(ctr, 1, BA_IM_CQO);
-
-					u64 imOp = areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV;
-					ba_AddIM(ctr, 2, imOp, regR ? regR : BA_IM_RCX);
-
-					if (!areBothUnsigned) {
-						// Test result for sign: if negative, then they had opposite
-						// signs and so the rhs needs to be added
-						
-						// Sign stored in rax
-						u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, rhsSize);
-						ba_AddIM(ctr, 3, BA_IM_TEST, raxAdj, raxAdj);
-						ba_AddIM(ctr, 2, BA_IM_SETS, BA_IM_AL);
-						ba_AddIM(ctr, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
-
-						ba_AddIM(ctr, 3, BA_IM_IMUL, BA_IM_RAX, 
-							regR ? regR : BA_IM_RCX);
-						ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RDX, BA_IM_RAX);
-					}
-
-					if (regL) {
-						if (regL != BA_IM_RDX) {
-							ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RDX);
-						}
-						arg->lexemeType = BA_TK_IMREGISTER;
-						arg->val = (void*)regL;
-					}
-					else {
-						ba_AddIM(ctr, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-							lhsStackPos, BA_IM_RDX);
-						arg->lexemeType = BA_TK_IMRBPSUB;
-						arg->val = (void*)ctr->imStackSize;
-					}
-
-					if (isRdxPushed) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
-						ctr->imStackSize -= 8;
-					}
-
-					if (lhs->lexemeType == BA_TK_IMREGISTER) {
-						ctr->usedRegisters &= ~BA_CTRREG_RDX;
-					}
-
-					if (!regR) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
-						ctr->imStackSize -= 8;
-					}
-
-					if (isRaxPushed) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-						ctr->imStackSize -= 8;
-					}
-				}
-
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
@@ -1316,10 +1160,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath);
 				}
 
-				u64 argType = BA_TYPE_I64; // Default, most likely type
-				ba_IsTypeUnsigned(lhs->typeInfo.type) && 
-					ba_IsTypeUnsigned(rhs->typeInfo.type) && 
-					(argType = BA_TYPE_U64);
+				u64 argType = (ba_IsTypeUnsigned(lhs->typeInfo.type) && 
+					ba_IsTypeUnsigned(rhs->typeInfo.type))
+						? BA_TYPE_U64
+						: BA_TYPE_I64;
 				arg->typeInfo.type = argType;
 
 				if (isLhsLiteral && isRhsLiteral) {
