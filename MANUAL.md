@@ -127,7 +127,7 @@ i8 _1234567 = 8;
 i64 FactorialMinusOne = 1 * 2 * 3 * 4 * 5 - 1;
 ```
 
-A variable must be initialized to a value. If no specific value should be set, then the keyword `garbage` can be used:
+A variable must be initialized using an expression. If no specific value should be set, then the keyword `garbage` can be used:
 ```
 u64 mysteriousNumber = garbage;
 ```
@@ -192,7 +192,7 @@ Syntax:
 
 [ `else` ( `"," <statement>` | `{` { `<statement>` } `}` ) ]
 
-The classic if/elif/else conditional statement. Multiple statements can be executed upon a condition using a block (wrapping statements in braces), or a single statement can be executed using a comma. Such statements are in both cases in their own local scope.
+The classic if/else-if/else conditional statement. Multiple statements can be executed upon a condition using a block (wrapping statements in braces), or a single statement can be executed using a comma. Such statements are in both cases in their own local scope.
 
 Conditions are cast to bool meaning that zero is false and any other value is true.
 
