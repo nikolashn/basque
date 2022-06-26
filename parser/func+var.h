@@ -409,7 +409,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		ctr->currScope->dataSize += dataSize;
 		if (!isGarbage) {
-			ba_PAssignArr(ctr, expItem, dataSize);
+			ba_PAssignArr(ctr, /* destItem = */ 0, expItem, dataSize);
 		}
 	}
 	

@@ -438,30 +438,58 @@ void ba_POpFuncCallPushArgReg(struct ba_Controller* ctr, u64 reg, u64 size) {
 	}
 }
 
-void ba_PAssignArr(struct ba_Controller* ctr, 
-	struct ba_PTkStkItem* expItem, u64 size)
+void ba_PAssignArr(struct ba_Controller* ctr, struct ba_PTkStkItem* destItem, 
+	struct ba_PTkStkItem* srcItem, u64 size)
 {
-	u64 reg = 0;
-	if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-		ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RSP, 
-			ba_CalcSTValOffset(ctr->currScope, expItem->val));
-		reg = BA_IM_RAX;
-	}
-	else if (expItem->lexemeType == BA_TK_IMREGISTER) {
-		reg = (u64)expItem->val;
-	}
-	else if (ba_IsLexemeLiteral(expItem->lexemeType)) {
-		// TODO
-	}
-	// Expression can't be BA_TK_IMRBPSUB
-	
 	if (!ba_BltinFlagsTest(BA_BLTIN_MemCopy)) {
 		ba_BltinMemCopy(ctr);
 	}
-	ba_AddIM(ctr, 3, BA_IM_PUSH, BA_IM_RSP); // dest ptr
+
+	// Setting the default register so that it does not trample on used ones
+	u64 defaultReg = BA_IM_RAX;
+	u64 d = 0;
+	destItem && destItem->lexemeType == BA_TK_IMREGISTER && 
+		(d = (u64)destItem->val);
+	u64 s = srcItem->lexemeType == BA_TK_IMREGISTER ? (u64)srcItem->val : 0;
+	if (d == BA_IM_RAX || s == BA_IM_RAX) {
+		defaultReg = (d == BA_IM_RCX || s == BA_IM_RCX) ? BA_IM_RDX : BA_IM_RCX;
+	}
+	u64 reg = defaultReg;
+
+	// Destination pointer
+	if (!destItem) {
+		reg = BA_IM_RSP;
+	}
+	else if (destItem->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, destItem->val));
+	}
+	// (DPTR)
+	else if (destItem->lexemeType == BA_TK_IMREGISTER) {
+		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_ADR, (u64)destItem->val);
+	}
+	else if (destItem->lexemeType == BA_TK_IMRBPSUB) {
+		ba_AddIM(ctr, 5, BA_IM_MOV, defaultReg, BA_IM_ADRSUB, 
+			BA_IM_RBP, (u64)destItem->val);
+	}
+	ba_AddIM(ctr, 3, BA_IM_PUSH, reg);
+
+	// Source pointer
+	reg = defaultReg;
+	if (srcItem->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, srcItem->val) + 8);
+	}
+	else if (srcItem->lexemeType == BA_TK_IMREGISTER) {
+		reg = (u64)srcItem->val;
+	}
+	else if (ba_IsLexemeLiteral(srcItem->lexemeType)) {
+		// TODO
+	}
 	ba_AddIM(ctr, 2, BA_IM_PUSH, reg); // src ptr
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, size); // mem size
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+	
+	ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_IMM, size); // mem size
+	ba_AddIM(ctr, 2, BA_IM_PUSH, defaultReg);
 	ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLabels[BA_BLTIN_MemCopy]);
 	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
 }
@@ -1241,10 +1269,13 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (lhsType.type == BA_TYPE_ARR) {
-					ba_PAssignArr(ctr, rhs, ba_GetSizeOfType(lhs->typeInfo));
-					return ba_ExitMsg(BA_EXIT_ERR, "assignment to array "
-						"currently not implemented,", op->line, op->col,
-						ctr->currPath);
+					ba_PAssignArr(ctr, lhs, rhs, ba_GetSizeOfType(lhs->typeInfo));
+					arg->lexemeType = lhs->lexemeType;
+					arg->val = lhs->val;
+					arg->typeInfo = lhs->typeInfo;
+					arg->isLValue = 0;
+					ba_StkPush(ctr->pTkStk, arg);
+					return 1;
 				}
 
 				if ((opLex == BA_TK_BITANDEQ || opLex == BA_TK_BITXOREQ || 
