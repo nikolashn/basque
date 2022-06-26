@@ -8,7 +8,7 @@
 	18446744073709
 }#
 
-u64 nuane = 1337;
+i64 nuane = 1337;
 write nuane; "->";
 nuane = 21;
 write nuane; "->";
@@ -19,7 +19,7 @@ write nuane; "\n";
 # nuane = "yo"; # Gives an error
 # "nuane" = 5; # Gives an error
 
-u64 x = 0;
+i64 x = 0;
 x && (nuane = 9_000); # My favourite way of writing if statements
 write nuane; "\n";
 !x && (nuane = 0xd00d);
