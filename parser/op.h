@@ -8,12 +8,6 @@
 #include "../common/reg.h"
 #include "../common/parserstacks.h"
 
-struct ba_PLRA { // lhs, rhs, arg
-	struct ba_PTkStkItem* lhs;
-	struct ba_PTkStkItem* rhs;
-	struct ba_PTkStkItem* arg;
-};
-
 // Some operators cannot handle other operators
 bool ba_POpIsHandler(struct ba_POpStkItem* op) {
 	return !(op->syntax == BA_OP_POSTFIX && op->lexemeType == '(');
@@ -225,13 +219,10 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 
 // Handle binary operators with a non literal operand
 void ba_POpNonLitBinary(struct ba_Controller* ctr, u64 imOp, 
-	struct ba_PLRA lra, bool isLhsLiteral, bool isRhsLiteral, 
+	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
+	struct ba_PTkStkItem* arg, bool isLhsLiteral, bool isRhsLiteral, 
 	bool isShortCirc)
 {
-	struct ba_PTkStkItem* lhs = lra.lhs;
-	struct ba_PTkStkItem* rhs = lra.rhs;
-	struct ba_PTkStkItem* arg = lra.arg;
-
 	u64 lhsStackPos = 0;
 	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
 	ba_POpAsgnRegOrStack(ctr, lhs->lexemeType, &regL, &lhsStackPos);
@@ -273,12 +264,9 @@ void ba_POpNonLitBinary(struct ba_Controller* ctr, u64 imOp,
 
 // Handle bit shifts with at least one non literal operand
 void ba_POpNonLitBitShift(struct ba_Controller* ctr, u64 imOp, 
-	struct ba_PLRA lra, bool isRhsLiteral) 
+	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
+	struct ba_PTkStkItem* arg, bool isRhsLiteral) 
 {
-	struct ba_PTkStkItem* lhs = lra.lhs;
-	struct ba_PTkStkItem* rhs = lra.rhs;
-	struct ba_PTkStkItem* arg = lra.arg;
-
 	u64 lhsStackPos = 0;
 	u64 argRegL = (u64)lhs->val; // Kept only if lhs is a register
 
@@ -792,8 +780,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				else {
 					u64 imOp = op->lexemeType == BA_TK_LSHIFT 
 						? BA_IM_SHL : BA_IM_SHR;
-					ba_POpNonLitBitShift(ctr, imOp, 
-						(struct ba_PLRA){ lhs, rhs, arg }, isRhsLiteral);
+					ba_POpNonLitBitShift(ctr, imOp, lhs, rhs, arg, isRhsLiteral);
 				}
 
 				arg->isLValue = 0;
@@ -857,9 +844,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						arg->lexemeType = nonLitArg->lexemeType;
 					}
 					else if ((u64)litArg->val == 2) {
-						ba_POpNonLitBinary(ctr, BA_IM_ADD, 
-							(struct ba_PLRA){ nonLitArg, nonLitArg, arg},
-							/* isLhsLiteral = */ 0, /* isRhsLiteral = */ 0, 
+						ba_POpNonLitBinary(ctr, BA_IM_ADD, nonLitArg, nonLitArg,
+							arg, /* isLhsLiteral = */ 0, /* isRhsLiteral = */ 0,
 							/* isShortCirc = */ 0);
 					}
 					// If literal arg is a power of 2, generate a bit shift instead
@@ -876,9 +862,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						newRhs->typeInfo.type = BA_TYPE_U64;
 						newRhs->lexemeType = BA_TK_LITINT;
 
-						ba_POpNonLitBitShift(ctr, BA_IM_SHL, 
-							(struct ba_PLRA){ nonLitArg, newRhs, arg }, 
-							/* isRhsLiteral = */ 1);
+						ba_POpNonLitBitShift(ctr, BA_IM_SHL, nonLitArg, newRhs,
+							arg, /* isRhsLiteral = */ 1);
 					}
 					else {
 						goto BA_LBL_POPHANDLE_MULADDSUB_NONLIT;
@@ -886,8 +871,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				}
 				else {
 					BA_LBL_POPHANDLE_MULADDSUB_NONLIT:
-					ba_POpNonLitBinary(ctr, imOp, (struct ba_PLRA){ lhs, rhs, arg }, 
-						isLhsLiteral, isRhsLiteral, /* isShortCirc = */ 0);
+					ba_POpNonLitBinary(ctr, imOp, lhs, rhs, arg, isLhsLiteral, 
+						isRhsLiteral, /* isShortCirc = */ 0);
 				}
 
 				if (ba_IsTypeIntegral(lhs->typeInfo.type) && 
@@ -995,18 +980,17 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							newRhs->typeInfo.type = BA_TYPE_U64;
 							newRhs->lexemeType = BA_TK_LITINT;
 
-							ba_POpNonLitBitShift(ctr, BA_IM_AND, 
-								(struct ba_PLRA){ lhs, newRhs, arg }, 
-								/* isRhsLiteral = */ 1);
+							ba_POpNonLitBitShift(ctr, BA_IM_AND, lhs, newRhs, 
+								arg, /* isRhsLiteral = */ 1);
 
 							if (isRhsNeg) {
 								newRhs->val = (void*)rhsAbs;
 								newRhs->typeInfo.type = BA_TYPE_I64;
 								newRhs->lexemeType = BA_TK_LITINT;
-								ba_POpNonLitBinary(ctr, BA_IM_SUB, 
-									(struct ba_PLRA){ arg, newRhs, arg }, 
-									/* isLhsLiteral = */ 0, 
-									/* isRhsLiteral = */ 1, /* isShortCirc = */ 0);
+								ba_POpNonLitBinary(ctr, BA_IM_SUB, arg, newRhs, 
+									arg, /* isLhsLiteral = */ 0, 
+									/* isRhsLiteral = */ 1, 
+									/* isShortCirc = */ 0);
 							}
 						}
 						else {
@@ -1214,8 +1198,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					((op->lexemeType == '&') && (imOp = BA_IM_AND)) ||
 					((op->lexemeType == '^') && (imOp = BA_IM_XOR)) ||
 					((op->lexemeType == '|') && (imOp = BA_IM_OR));
-					ba_POpNonLitBinary(ctr, imOp, (struct ba_PLRA){ lhs, rhs, arg }, 
-						isLhsLiteral, isRhsLiteral, /* isShortCirc = */ 0);
+					ba_POpNonLitBinary(ctr, imOp, lhs, rhs, arg, isLhsLiteral, 
+						isRhsLiteral, /* isShortCirc = */ 0);
 				}
 				
 				arg->isLValue = 0;
@@ -1240,8 +1224,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				/* Although it is called "NonLit", it does work with literals 
 				 * as well. */
-				ba_POpNonLitBinary(ctr, imOp, (struct ba_PLRA){ lhs, rhs, arg }, 
-					isLhsLiteral, isRhsLiteral, /* isShortCirc = */ 1);
+				ba_POpNonLitBinary(ctr, imOp, lhs, rhs, arg, isLhsLiteral, 
+					isRhsLiteral, /* isShortCirc = */ 1);
 				
 				arg->isLValue = 0;
 				ba_StkPush(ctr->pTkStk, arg);
