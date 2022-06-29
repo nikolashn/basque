@@ -7,7 +7,7 @@
 
 u8 ba_PessimalInstrSize(struct ba_IM* im);
 
-u8 ba_WriteBinary(char* fileName, struct ba_Controller* ctr) {
+u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	u64 memStart = 0x400000;
 	u64 phCnt = ctr->staticSize ? 3 : 2;
 	u64 pHeaderSz = phCnt * 0x38; // Program header size

@@ -4,15 +4,15 @@
 #define BA__EXP_H
 
 // ----- Forward declarations -----
-void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
+void ba_POpAsgnRegOrStack(struct ba_Ctr* ctr, u64 lexType, u64* reg, 
 	u64* stackPos);
-bool ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
+bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, 
 	u64 reg, bool isLiteral);
-u8 ba_PAtom(struct ba_Controller* ctr);
+u8 ba_PAtom(struct ba_Ctr* ctr);
 // --------------------------------
 
 // Dereferencing list early handling
-u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
+u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 	struct ba_Type type;
 	struct ba_Stk* originalOpStk = ctr->pOpStk;
 
@@ -184,7 +184,7 @@ u8 ba_PDerefListMake(struct ba_Controller* ctr, u64 line, u64 col) {
 }
 
 // Any type of expression
-u8 ba_PExp(struct ba_Controller* ctr) {
+u8 ba_PExp(struct ba_Ctr* ctr) {
 	// Parse as if following an operator or parse as if following an atom?
 	bool isAfterAtom = 0;
 

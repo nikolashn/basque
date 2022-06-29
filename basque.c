@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
 
 	// ----- Begin parsing -----
 	
-	struct ba_Controller* ctr = ba_NewController();
+	struct ba_Ctr* ctr = ba_NewCtr();
 	ctr->currPath = srcFileName;
 	ctr->dir = malloc(strlen(srcFileName)+1);
 	strcpy(ctr->dir, srcFileName);

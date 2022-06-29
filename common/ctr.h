@@ -6,7 +6,7 @@
 #include "stack.h"
 #include "func.h"
 
-struct ba_Controller {
+struct ba_Ctr { // Controller
 	// Lexer
 	struct ba_Lexeme* startLex;
 	struct ba_Lexeme* lex;
@@ -49,8 +49,8 @@ struct ba_Controller {
 	i64 bracket;
 };
 
-struct ba_Controller* ba_NewController() {
-	struct ba_Controller* ctr = malloc(sizeof(struct ba_Controller));
+struct ba_Ctr* ba_NewCtr() {
+	struct ba_Ctr* ctr = malloc(sizeof(struct ba_Ctr));
 	if (!ctr) {
 		ba_ErrorMallocNoMem();
 	}
@@ -83,7 +83,7 @@ struct ba_Controller* ba_NewController() {
 	return ctr;
 }
 
-void ba_DelController(struct ba_Controller* ctr) {
+void ba_DelCtr(struct ba_Ctr* ctr) {
 	ba_DelLexeme(ctr->startLex);
 	ba_DelLexeme(ctr->lex);
 
@@ -110,7 +110,7 @@ void ba_DelController(struct ba_Controller* ctr) {
 	free(ctr);
 }
 
-void ba_AddIM(struct ba_Controller* ctr, u64 count, ...) {
+void ba_AddIM(struct ba_Ctr* ctr, u64 count, ...) {
 	ctr->im->vals = malloc(sizeof(u64) * count);
 	if (!ctr->im->vals) {
 		ba_ErrorMallocNoMem();

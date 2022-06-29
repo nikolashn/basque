@@ -7,15 +7,15 @@
 #include "../common/parser.h"
 
 // ----- Forward declarations -----
-u8 ba_PAccept(u64 type, struct ba_Controller* ctr);
-u8 ba_PExpect(u64 type, struct ba_Controller* ctr);
-u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid, bool isInclIndefArr);
-u8 ba_PExp(struct ba_Controller* ctr);
-u8 ba_PStmt(struct ba_Controller* ctr);
+u8 ba_PAccept(u64 type, struct ba_Ctr* ctr);
+u8 ba_PExpect(u64 type, struct ba_Ctr* ctr);
+u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr);
+u8 ba_PExp(struct ba_Ctr* ctr);
+u8 ba_PStmt(struct ba_Ctr* ctr);
 // --------------------------------
 
-u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
-	u64 line, u64 col, struct ba_Type retType)
+u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col, 
+	struct ba_Type retType)
 {
 	// TODO: once named scopes are added, change this
 	if (ctr->currScope != ctr->globalST) {
@@ -306,8 +306,8 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 	return 1;
 }
 
-u8 ba_PVarDef(struct ba_Controller* ctr, char* idName, 
-	u64 line, u64 col, struct ba_Type type)
+u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col, 
+	struct ba_Type type)
 {
 	if (ba_HTGet(ctr->currScope->ht, idName)) {
 		return ba_ErrorVarRedef(idName, line, col, ctr->currPath);

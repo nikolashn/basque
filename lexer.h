@@ -15,8 +15,8 @@ u64 ba_LexerSafeIncFileIter(u64* fileIterPtr) {
 	return fileIter;
 }
 
-char ba_LexerEscSequence(struct ba_Controller* ctr, FILE* srcFile, 
-	char* fileBuf, u64* colPtr, u64* linePtr, u64* fileIterPtr) 
+char ba_LexerEscSequence(struct ba_Ctr* ctr, FILE* srcFile, char* fileBuf, 
+	u64* colPtr, u64* linePtr, u64* fileIterPtr) 
 {
 	char ret = 0;
 
@@ -106,7 +106,7 @@ char ba_LexerEscSequence(struct ba_Controller* ctr, FILE* srcFile,
 	return ret;
 }
 
-u8 ba_Tokenize(FILE* srcFile, struct ba_Controller* ctr) {
+u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 	enum {
 		ST_NONE = 0,
 		ST_CMNT,

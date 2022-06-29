@@ -8,10 +8,10 @@
 #include "exp.h"
 
 // ----- Forward declarations -----
-u8 ba_PStmt(struct ba_Controller* ctr);
+u8 ba_PStmt(struct ba_Ctr* ctr);
 // --------------------------------
 
-u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
+u8 ba_PAccept(u64 type, struct ba_Ctr* ctr) {
 	if (!ctr->lex || (ctr->lex->type != type)) {
 		(ctr->lex->type == BA_TK_FILECHANGE) && 
 			(ctr->currPath = ctr->lex->val);
@@ -21,7 +21,7 @@ u8 ba_PAccept(u64 type, struct ba_Controller* ctr) {
 	return 1;
 }
 
-u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
+u8 ba_PExpect(u64 type, struct ba_Ctr* ctr) {
 	if (!ba_PAccept(type, ctr)) {
 		if (!ctr->lex->line) {
 			fprintf(stderr, "Error: expected %s at end of file in %s\n", 
@@ -41,9 +41,7 @@ u8 ba_PExpect(u64 type, struct ba_Controller* ctr) {
 /* base_type = ( "u64" | "i64" | "u8" | "i8" | "void" "*" ) 
  *             { "*" | "[" exp "]" } [ "[" "]" ]
  *           | "void" # if isInclVoid */
-u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid, 
-	bool isInclIndefArr) 
-{
+u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 	u64 lexType = ctr->lex->type;
 	if (ba_PAccept(BA_TK_KW_U64, ctr) || ba_PAccept(BA_TK_KW_I64, ctr) ||
 		ba_PAccept(BA_TK_KW_U8, ctr) || ba_PAccept(BA_TK_KW_I8, ctr) || 
@@ -132,7 +130,7 @@ u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid,
 
 /* atom = lit_str { lit_str } | lit_int | lit_char | identifier 
  *      | "{" exp { "," exp } [ "," ] "}" */
-u8 ba_PAtom(struct ba_Controller* ctr) {
+u8 ba_PAtom(struct ba_Ctr* ctr) {
 	u64 lexLine = ctr->lex->line;
 	u64 lexColStart = ctr->lex->colStart;
 	u64 lexValLen = ctr->lex->valLen;
@@ -249,7 +247,7 @@ u8 ba_PAtom(struct ba_Controller* ctr) {
 }
 
 // Auxiliary for ba_PStmt
-void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
+void ba_PStmtWrite(struct ba_Ctr* ctr, u64 len, char* str) {
 	// Round up to nearest 0x10
 	u64 memLen = len & 0xf;
 	if (!len) {
@@ -302,7 +300,7 @@ void ba_PStmtWrite(struct ba_Controller* ctr, u64 len, char* str) {
 }
 
 // commaStmt = "," stmt
-u8 ba_PCommaStmt(struct ba_Controller* ctr) {
+u8 ba_PCommaStmt(struct ba_Ctr* ctr) {
 	if (!ba_PAccept(',', ctr)) {
 		return 0;
 	}
@@ -324,7 +322,7 @@ u8 ba_PCommaStmt(struct ba_Controller* ctr) {
 }
 
 // scope = "{" { stmt } "}"
-u8 ba_PScope(struct ba_Controller* ctr) {
+u8 ba_PScope(struct ba_Ctr* ctr) {
 	if (!ba_PAccept('{', ctr)) {
 		return 0;
 	}
@@ -362,7 +360,7 @@ u8 ba_PScope(struct ba_Controller* ctr) {
  *      | exp ";"
  *      | ";" 
  */
-u8 ba_PStmt(struct ba_Controller* ctr) {
+u8 ba_PStmt(struct ba_Ctr* ctr) {
 	u64 firstLine = ctr->lex->line;
 	u64 firstCol = ctr->lex->colStart;
 
@@ -913,7 +911,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 }
 
 /* program = { stmt } eof */
-u8 ba_Parse(struct ba_Controller* ctr) {
+u8 ba_Parse(struct ba_Ctr* ctr) {
 	while (!ba_PAccept(BA_TK_EOF, ctr)) {
 		if (!ba_PStmt(ctr)) {
 			// doesn't have anything to do with literals, 

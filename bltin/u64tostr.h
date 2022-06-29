@@ -7,7 +7,7 @@
 
 /* Params (stack): int to convert
  * Returns (rax): string length; (stack): string (0x18) */
-void ba_BltinU64ToStr(struct ba_Controller* ctr) {
+void ba_BltinU64ToStr(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_U64ToStr);
 	ba_BltinLabels[BA_BLTIN_U64ToStr] = ctr->labelCnt;
 	ctr->labelCnt += 5;

@@ -96,7 +96,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 
 /* Helper func for assigning intermediate registers or stack memory.
  * stackPos can be 0 for it to not be stored. */
-void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
+void ba_POpAsgnRegOrStack(struct ba_Ctr* ctr, u64 lexType, u64* reg, 
 	u64* stackPos) 
 {
 	// *reg == 0 means on the stack, which is handled outside of this func
@@ -114,8 +114,8 @@ void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg,
 	}
 }
 
-void ba_POpMovIdToReg(struct ba_Controller* ctr, struct ba_STVal* id, 
-	u64 argSize, u64 reg, bool isLea)
+void ba_POpMovIdToReg(struct ba_Ctr* ctr, struct ba_STVal* id, u64 argSize, 
+	u64 reg, bool isLea)
 {
 	ba_AddIM(ctr, 5, isLea ? BA_IM_LEA : BA_IM_MOV, 
 		ba_AdjRegSize(reg, argSize), BA_IM_ADRADD, 
@@ -123,8 +123,8 @@ void ba_POpMovIdToReg(struct ba_Controller* ctr, struct ba_STVal* id,
 		ba_CalcSTValOffset(ctr->currScope, id));
 }
 
-bool ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
-	u64 reg, bool isLiteral) 
+bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg, 
+	bool isLiteral) 
 {
 	u64 argSize = ba_GetSizeOfType(arg->typeInfo);
 
@@ -166,7 +166,7 @@ bool ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 	return 0;
 }
 
-bool ba_POpMovArgToRegDPTR(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
+bool ba_POpMovArgToRegDPTR(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg,
 	u64 size, u64 reg, u64 testReg, u64 tmpRegDef, u64 tmpRegBackup) 
 {
 	u64 rszdReg = ba_AdjRegSize(reg, size);
@@ -192,8 +192,8 @@ bool ba_POpMovArgToRegDPTR(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 	return 0;
 }
 
-void ba_POpSetArg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
-	u64 reg, u64 stackPos) 
+void ba_POpSetArg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg, 
+	u64 stackPos) 
 {
 	if (reg) {
 		arg->lexemeType = BA_TK_IMREGISTER;
@@ -211,7 +211,7 @@ void ba_POpSetArg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 
 // Handle unary operators with a non literal operand
 void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
-	struct ba_Controller* ctr)
+	struct ba_Ctr* ctr)
 {
 	u64 imOp = 0;
 	((opLexType == '-') && (imOp = BA_IM_NEG)) ||
@@ -244,10 +244,9 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 }
 
 // Handle binary operators with a non literal operand
-void ba_POpNonLitBinary(struct ba_Controller* ctr, u64 imOp, 
-	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
-	struct ba_PTkStkItem* arg, bool isLhsLiteral, bool isRhsLiteral, 
-	bool isShortCirc)
+void ba_POpNonLitBinary(struct ba_Ctr* ctr, u64 imOp, struct ba_PTkStkItem* lhs,
+	struct ba_PTkStkItem* rhs, struct ba_PTkStkItem* arg, bool isLhsLiteral, 
+	bool isRhsLiteral, bool isShortCirc)
 {
 	u64 lhsStackPos = 0;
 	u64 regL = (u64)lhs->val; // Kept only if lhs is a register
@@ -289,7 +288,7 @@ void ba_POpNonLitBinary(struct ba_Controller* ctr, u64 imOp,
 }
 
 // Handle bit shifts with at least one non literal operand
-void ba_POpNonLitBitShift(struct ba_Controller* ctr, u64 imOp, 
+void ba_POpNonLitBitShift(struct ba_Ctr* ctr, u64 imOp, 
 	struct ba_PTkStkItem* lhs, struct ba_PTkStkItem* rhs, 
 	struct ba_PTkStkItem* arg, bool isRhsLiteral) 
 {
@@ -377,7 +376,7 @@ u8 ba_POpIsRightAssoc(struct ba_POpStkItem* op) {
 }
 
 // Correct the type of dereferenced pointers/arrays
-u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
+u8 ba_PCorrectDPtr(struct ba_Ctr* ctr, struct ba_PTkStkItem* item) {
 	if (item->typeInfo.type != BA_TYPE_DPTR) {
 		return 1;
 	}
@@ -407,7 +406,7 @@ u8 ba_PCorrectDPtr(struct ba_Controller* ctr, struct ba_PTkStkItem* item) {
 	return 1;
 }
 
-u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType, 
+u8 ba_POpAssignChecks(struct ba_Ctr* ctr, struct ba_Type lhsType, 
 	struct ba_PTkStkItem* rhs, u64 line, u64 col) 
 {
 	if (lhsType.type == BA_TYPE_FUNC) {
@@ -445,7 +444,7 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 	return ba_ErrorAssignTypes(line, col, ctr->currPath, lhsType, rhs->typeInfo);
 }
 
-void ba_POpFuncCallPushArgReg(struct ba_Controller* ctr, u64 reg, u64 size) {
+void ba_POpFuncCallPushArgReg(struct ba_Ctr* ctr, u64 reg, u64 size) {
 	if (size == 8) {
 		ba_AddIM(ctr, 2, BA_IM_PUSH, reg);
 	}
@@ -462,7 +461,7 @@ void ba_POpFuncCallPushArgReg(struct ba_Controller* ctr, u64 reg, u64 size) {
 	}
 }
 
-void ba_PAssignArr(struct ba_Controller* ctr, struct ba_PTkStkItem* destItem, 
+void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem, 
 	struct ba_PTkStkItem* srcItem, u64 size)
 {
 	if (!ba_BltinFlagsTest(BA_BLTIN_MemCopy)) {
@@ -522,7 +521,7 @@ void ba_PAssignArr(struct ba_Controller* ctr, struct ba_PTkStkItem* destItem,
  * operations as well as their assignment counterparts.
  * For assignment: regL == regR (only 1 temporary register is needed),
  * For division: realReg == 0 (this allows it to be automatically calculated) */
-void ba_POpNonLitDivMod(struct ba_Controller* ctr, struct ba_PTkStkItem* lhs, 
+void ba_POpNonLitDivMod(struct ba_Ctr* ctr, struct ba_PTkStkItem* lhs, 
 	struct ba_PTkStkItem* rhs, struct ba_PTkStkItem* arg, u64 regL, u64 regR,
 	u64 realReg, u64 lhsStackPos, struct ba_Type lhsType, 
 	bool isDiv, bool isAssign)
@@ -641,7 +640,7 @@ void ba_POpNonLitDivMod(struct ba_Controller* ctr, struct ba_PTkStkItem* lhs,
 }
 
 // Handle operations (i.e. perform operation now or generate code for it)
-u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
+u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
 	struct ba_PTkStkItem* arg = ba_StkPop(ctr->pTkStk);
 	if (!arg) {
