@@ -6,26 +6,24 @@
 #include "types.h"
 #include "func.h"
 
-// TODO: convert all of these into func(struct ba_Type)->bool
-
-bool ba_IsTypeUnsigned(u64 type) {
-	return (type == BA_TYPE_U64) || (type == BA_TYPE_U8) || 
-		(type == BA_TYPE_BOOL) || (type == BA_TYPE_PTR);
+bool ba_IsTypeUnsigned(struct ba_Type type) {
+	return (type.type == BA_TYPE_U64) || (type.type == BA_TYPE_U8) || 
+		(type.type == BA_TYPE_BOOL) || (type.type == BA_TYPE_PTR);
 }
 
-bool ba_IsTypeSigned(u64 type) {
-	return (type == BA_TYPE_I64) || (type == BA_TYPE_I8);
+bool ba_IsTypeSigned(struct ba_Type type) {
+	return (type.type == BA_TYPE_I64) || (type.type == BA_TYPE_I8);
 }
 
-bool ba_IsTypeIntegral(u64 type) {
+bool ba_IsTypeInt(struct ba_Type type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
-bool ba_IsTypeNumeric(u64 type) {
+bool ba_IsTypeNumeric(struct ba_Type type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
-bool ba_IsTypeConst(u64 type) {
+bool ba_IsTypeConst(struct ba_Type type) {
 	return 0; // TODO
 }
 

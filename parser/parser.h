@@ -78,8 +78,8 @@ u8 ba_PBaseType(struct ba_Controller* ctr, bool isInclVoid,
 				}
 				else if (ba_PExp(ctr)) {
 					struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
-					if (!ba_IsTypeIntegral(expItem->typeInfo.type) || 
-						!(ba_IsTypeConst(expItem->lexemeType) || 
+					if (!ba_IsTypeInt(expItem->typeInfo) || 
+						!(ba_IsTypeConst(expItem->typeInfo) || 
 							ba_IsLexemeLiteral(expItem->lexemeType)))
 					{
 						return ba_ExitMsg2(BA_EXIT_ERR, "invalid array size on", 
@@ -400,7 +400,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		}
 		// Everything is printed as unsigned, this will be removed in the 
 		// future anyway so i don't care about adding signed representation
-		else if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
+		else if (ba_IsTypeInt(stkItem->typeInfo)) {
 			u64 size = ba_GetSizeOfType(stkItem->typeInfo);
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 				if (size < 8) {
@@ -478,7 +478,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			u64 reg = BA_IM_RAX;
 
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				if (!ba_IsTypeNumeric(stkItem->typeInfo.type)) {
+				if (!ba_IsTypeNumeric(stkItem->typeInfo)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric "
 						"literal as condition on", line, col, ctr->currPath);
 				}
@@ -561,7 +561,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 reg = BA_IM_RAX;
 
 		if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-			if (!ba_IsTypeNumeric(stkItem->typeInfo.type)) {
+			if (!ba_IsTypeNumeric(stkItem->typeInfo)) {
 				return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
 					"as while loop condition on", line, col, ctr->currPath);
 			}
@@ -632,8 +632,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
 					ctr->currPath);
 			}
-			if (!ba_IsTypeNumeric(ctr->currFunc->retType.type) &&
-				ba_IsTypeNumeric(stkItem->typeInfo.type)) 
+			if (!ba_IsTypeNumeric(ctr->currFunc->retType) &&
+				ba_IsTypeNumeric(stkItem->typeInfo)) 
 			{
 				return ba_ExitMsg(BA_EXIT_ERR, "returning numeric value "
 					"from a function with non-numeric type", line, col, 
@@ -643,7 +643,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning string literal from "
 					"a func currently not implemented,", line, col, ctr->currPath);
 			}
-			if (ba_IsTypeIntegral(stkItem->typeInfo.type)) {
+			if (ba_IsTypeInt(stkItem->typeInfo)) {
 				// Return value in rax
 				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, 
 					ba_IsLexemeLiteral(stkItem->lexemeType));
@@ -681,7 +681,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			return 0;
 		}
 		struct ba_PTkStkItem* exitCodeTk = ba_StkPop(ctr->pTkStk);
-		if (!ba_IsTypeIntegral(exitCodeTk->typeInfo.type)) {
+		if (!ba_IsTypeInt(exitCodeTk->typeInfo)) {
 			return ba_ExitMsg(BA_EXIT_ERR, "exit code must be integral on",
 				firstLine, firstCol, ctr->currPath);
 		}

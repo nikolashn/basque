@@ -187,9 +187,9 @@ u8 ba_PFuncDef(struct ba_Controller* ctr, char* funcName,
 						ctr->currPath);
 				}
 
-				if ((ba_IsTypeNumeric(param->type.type) && 
-					!ba_IsTypeNumeric(expItem->typeInfo.type)) ||
-					(!ba_IsTypeNumeric(param->type.type) && 
+				if ((ba_IsTypeNumeric(param->type) && 
+					!ba_IsTypeNumeric(expItem->typeInfo)) ||
+					(!ba_IsTypeNumeric(param->type) && 
 					!ba_AreTypesEqual(param->type, expItem->typeInfo)))
 				{
 					return ba_ErrorAssignTypes(line, col, ctr->currPath,
@@ -366,7 +366,7 @@ u8 ba_PVarDef(struct ba_Controller* ctr, char* idName,
 
 	ba_PExpect(';', ctr);
 	
-	if (ba_IsTypeNumeric(idVal->type.type)) {
+	if (ba_IsTypeNumeric(idVal->type)) {
 		u64 reg = BA_IM_RAX;
 		
 		if (!isGarbage) {
