@@ -3,11 +3,9 @@
 #ifndef BA__EXP_H
 #define BA__EXP_H
 
+#include "handle.h"
+
 // ----- Forward declarations -----
-void ba_POpAsgnRegOrStack(struct ba_Ctr* ctr, u64 lexType, u64* reg, 
-	u64* stackPos);
-bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, 
-	u64 reg, bool isLiteral);
 u8 ba_PAtom(struct ba_Ctr* ctr);
 // --------------------------------
 
