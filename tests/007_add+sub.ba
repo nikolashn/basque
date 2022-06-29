@@ -22,6 +22,6 @@ write a-b; ",";
 write b-a; ",";
 write b-b; "\n";
 
-u64 c = (a-b) + (b-a);
+i64 c = (a-b) + (b-a);
 write c + (c + (c + c + 1 + (c + c + (c + c + (c + c + 1))))); "\n";
 

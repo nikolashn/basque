@@ -1,6 +1,6 @@
+# Should give a warning about comparison of integers of different signedness
 #{
 	Expected output:
-	Warning: comparison of integers of different signedness on line 56:16 in tests/010_cmp.ba
 	1,1,0,0,0,1
 	0,0,1,1,0,1
 	1,1,0,0,0,1
