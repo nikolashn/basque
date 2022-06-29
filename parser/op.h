@@ -419,7 +419,7 @@ u8 ba_POpAssignChecks(struct ba_Controller* ctr, struct ba_Type lhsType,
 	{
 		return 1;
 	}
-	else if (ba_IsTypeNumeric(lhsType) && ba_IsTypeNumeric(rhs->typeInfo)) {
+	else if (ba_IsTypeNum(lhsType) && ba_IsTypeNum(rhs->typeInfo)) {
 		if (lhsType.type == BA_TYPE_PTR) {
 			// 0 for null pointer is fine
 			if (ba_IsLexemeLiteral(rhs->lexemeType) && (u64)rhs->val == 0) {
@@ -659,7 +659,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 
 			if (op->lexemeType == '+') {
-				if (!ba_IsTypeNumeric(arg->typeInfo)) {
+				if (!ba_IsTypeNum(arg->typeInfo)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "unary '+' used with non "
 						"numeric operand on", op->line, op->col, ctr->currPath);
 				}
@@ -732,7 +732,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				op->lexemeType == '!')
 			{
 				if ((op->lexemeType == '~' && !ba_IsTypeInt(arg->typeInfo)) ||
-					!ba_IsTypeNumeric(arg->typeInfo))
+					!ba_IsTypeNum(arg->typeInfo))
 				{
 					fprintf(stderr, "Error: unary '%s' used with non %s "
 						"operand on line %llu:%llu in %s", 
@@ -792,7 +792,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				u64 argSize = ba_GetSizeOfType(arg->typeInfo);
 
-				if (!ba_IsTypeNumeric(arg->typeInfo)) {
+				if (!ba_IsTypeNum(arg->typeInfo)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "increment of non-numeric "
 						"lvalue on", op->line, op->col, ctr->currPath);
 				}
@@ -938,8 +938,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					imOp = BA_IM_SUB;
 				}
 
-				if (!ba_IsTypeNumeric(lhs->typeInfo) || 
-					!ba_IsTypeNumeric(rhs->typeInfo)) 
+				if (!ba_IsTypeNum(lhs->typeInfo) || 
+					!ba_IsTypeNum(rhs->typeInfo)) 
 				{
 					char msg[128] = {0};
 					strcat(msg, opName);
@@ -1026,8 +1026,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 			// Integer division and modulo
 			else if (op->lexemeType == BA_TK_IDIV || op->lexemeType == '%') {
-				if (!ba_IsTypeNumeric(lhs->typeInfo) || 
-					!ba_IsTypeNumeric(rhs->typeInfo)) 
+				if (!ba_IsTypeNum(lhs->typeInfo) || 
+					!ba_IsTypeNum(rhs->typeInfo)) 
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "integer division or modulo "
 						"with non numeric operand(s) on", op->line, op->col, 
@@ -1239,8 +1239,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == BA_TK_LOGAND || 
 				op->lexemeType == BA_TK_LOGOR) 
 			{
-				if (!ba_IsTypeNumeric(lhs->typeInfo) ||
-					!ba_IsTypeNumeric(rhs->typeInfo))
+				if (!ba_IsTypeNum(lhs->typeInfo) ||
+					!ba_IsTypeNum(rhs->typeInfo))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "logical short-circuiting "
 						"operation with non numeric operand(s) on", 
@@ -1276,8 +1276,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 				ba_POpAssignChecks(ctr, lhsType, rhs, op->line, op->col);
 
-				if (opLex != '=' && (!ba_IsTypeNumeric(lhsType) ||
-					!ba_IsTypeNumeric(rhs->typeInfo)))
+				if (opLex != '=' && (!ba_IsTypeNum(lhsType) ||
+					!ba_IsTypeNum(rhs->typeInfo)))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "numeric operation "
 						"used with non numeric operand(s) on", op->line,
@@ -1459,8 +1459,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 
 			// Comparison
 			else if (ba_IsLexemeCompare(op->lexemeType)) {
-				if (!ba_IsTypeNumeric(lhs->typeInfo) ||
-					!ba_IsTypeNumeric(rhs->typeInfo))
+				if (!ba_IsTypeNum(lhs->typeInfo) ||
+					!ba_IsTypeNum(rhs->typeInfo))
 				{
 					return ba_ExitMsg(BA_EXIT_ERR, "comparison operation "
 						"with non numeric operand(s) on", op->line, op->col,
@@ -1693,8 +1693,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
 					u64 paramSize = ba_GetSizeOfType(param->type);
 					if (funcArg) {
-						bool isArgNum = ba_IsTypeNumeric(funcArg->typeInfo);
-						bool isParamNum = ba_IsTypeNumeric(param->type);
+						bool isArgNum = ba_IsTypeNum(funcArg->typeInfo);
+						bool isParamNum = ba_IsTypeNum(param->type);
 						if ((isArgNum ^ isParamNum) || 
 							(!isArgNum && !isParamNum && 
 							!ba_AreTypesEqual(funcArg->typeInfo, param->type)))
@@ -1846,8 +1846,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				struct ba_Type newType = 
 					*(struct ba_Type*)typeArg->typeInfo.extraInfo;
 
-				bool isNewTypeNumeric = ba_IsTypeNumeric(newType);
-				bool isOldTypeNumeric = ba_IsTypeNumeric(castedExp->typeInfo);
+				bool isNewTypeNum = ba_IsTypeNum(newType);
+				bool isOldTypeNum = ba_IsTypeNum(castedExp->typeInfo);
 
 				if (!newType.type || newType.type == BA_TYPE_VOID) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cast to expression that "
@@ -1864,8 +1864,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 							ctr->currPath, castedExp->typeInfo, newType);
 					}
 				}
-				else if ((isNewTypeNumeric != isOldTypeNumeric) || 
-					(!isNewTypeNumeric && !isOldTypeNumeric)) 
+				else if ((isNewTypeNum != isOldTypeNum) || 
+					(!isNewTypeNum && !isOldTypeNum)) 
 				{
 					return ba_ErrorCastTypes(op->line, op->col, 
 						ctr->currPath, castedExp->typeInfo, newType);

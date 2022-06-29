@@ -478,7 +478,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 			u64 reg = BA_IM_RAX;
 
 			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				if (!ba_IsTypeNumeric(stkItem->typeInfo)) {
+				if (!ba_IsTypeNum(stkItem->typeInfo)) {
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric "
 						"literal as condition on", line, col, ctr->currPath);
 				}
@@ -561,7 +561,7 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 		u64 reg = BA_IM_RAX;
 
 		if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-			if (!ba_IsTypeNumeric(stkItem->typeInfo)) {
+			if (!ba_IsTypeNum(stkItem->typeInfo)) {
 				return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric literal "
 					"as while loop condition on", line, col, ctr->currPath);
 			}
@@ -632,8 +632,8 @@ u8 ba_PStmt(struct ba_Controller* ctr) {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
 					ctr->currPath);
 			}
-			if (!ba_IsTypeNumeric(ctr->currFunc->retType) &&
-				ba_IsTypeNumeric(stkItem->typeInfo)) 
+			if (!ba_IsTypeNum(ctr->currFunc->retType) &&
+				ba_IsTypeNum(stkItem->typeInfo)) 
 			{
 				return ba_ExitMsg(BA_EXIT_ERR, "returning numeric value "
 					"from a function with non-numeric type", line, col, 

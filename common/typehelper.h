@@ -19,7 +19,7 @@ bool ba_IsTypeInt(struct ba_Type type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
-bool ba_IsTypeNumeric(struct ba_Type type) {
+bool ba_IsTypeNum(struct ba_Type type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
