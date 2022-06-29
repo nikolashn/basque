@@ -494,6 +494,145 @@ void ba_PAssignArr(struct ba_Controller* ctr, struct ba_PTkStkItem* destItem,
 	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
 }
 
+/* A helper used to stand in for duplicated code in division and modulo
+ * operations as well as their assignment counterparts.
+ * For assignment: regL == regR (only 1 temporary register is needed),
+ * For division: realReg == 0 (this allows it to be automatically calculated) */
+void ba_POpNonLitDivMod(struct ba_Controller* ctr, struct ba_PTkStkItem* lhs, 
+	struct ba_PTkStkItem* rhs, struct ba_PTkStkItem* arg, u64 regL, u64 regR,
+	u64 realReg, u64 lhsStackPos, struct ba_Type lhsType, 
+	bool isDiv, bool isAssign)
+{
+	bool areBothUnsigned = ba_IsTypeUnsigned(lhsType.type) &&
+		ba_IsTypeUnsigned(rhs->typeInfo.type);
+	u64 lhsSize = ba_GetSizeOfType(lhsType);
+	u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
+
+	// [0] = rax, [1] = rdx
+	bool isPushedFlags[2] = { 0, 0 };
+	u64 tmpCtrRegs[2] = { BA_CTRREG_RAX, BA_CTRREG_RDX };
+	u64 tmpRegs[2] = { BA_IM_RAX, BA_IM_RDX };
+
+	for (u64 i = 0; i < 2; ++i) {
+		if ((ctr->usedRegisters & tmpCtrRegs[i]) && regL != tmpRegs[i]) {
+			if (rhs->lexemeType == BA_TK_IMREGISTER && 
+				(u64)rhs->val == tmpRegs[i]) 
+			{
+				ba_AddIM(ctr, 3, BA_IM_MOV, regR, tmpRegs[i]);
+				continue;
+			}
+			ba_AddIM(ctr, 2, BA_IM_PUSH, tmpRegs[i]);
+			ctr->imStackSize += 8;
+			isPushedFlags[i] = 1;
+		}
+	}
+
+	if (isAssign) { // Division/modulo assign needs to account for DPTRs
+		u64 lhsRax = ba_AdjRegSize(BA_IM_RAX, lhsSize);
+		if (lhs->lexemeType == BA_TK_IDENTIFIER) {
+			ba_AddIM(ctr, 5, BA_IM_MOV, lhsRax, BA_IM_ADRADD, 
+				ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+				ba_CalcSTValOffset(ctr->currScope, lhs->val));
+		}
+		// IMREGISTER, IMRBPSUB: lhs is DPTR
+		else if (lhs->lexemeType == BA_TK_IMREGISTER) {
+			ba_AddIM(ctr, 4, BA_IM_MOV, lhsRax, BA_IM_ADR, (u64)lhs->val);
+		}
+		else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+			u64 adrLocReg = realReg == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX;
+			ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
+			ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, BA_IM_ADRSUB, BA_IM_RBP, 
+				(u64)lhs->val);
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_ADR, adrLocReg);
+			ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
+		}
+	}
+	else { // Normal divison/modulo operation
+		if (regR) {
+			ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
+			realReg = regR;
+		}
+		else {
+			ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RCX);
+			ctr->imStackSize += 8;
+			realReg = BA_IM_RCX;
+		}
+		
+		ba_POpMovArgToReg(ctr, lhs, BA_IM_RAX, 
+			ba_IsLexemeLiteral(lhs->lexemeType));
+
+		if (isDiv && lhs->lexemeType == BA_TK_IMREGISTER && 
+			(u64)lhs->val != BA_IM_RAX) 
+		{
+			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)lhs->val);
+		}
+
+		ba_POpMovArgToReg(ctr, rhs, realReg, 
+			ba_IsLexemeLiteral(rhs->lexemeType));
+	}
+
+	ba_AddIM(ctr, 1, BA_IM_CQO);
+	ba_AddIM(ctr, 2, areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV, realReg);
+
+	if (isDiv) {
+		ba_AddIM(ctr, 3, BA_IM_MOV, isAssign ? realReg : regL, BA_IM_RAX);
+		if (!isAssign) {
+			ba_POpSetArg(ctr, arg, regL, lhsStackPos);
+		}
+	}
+	else {
+		if (!areBothUnsigned) {
+			/* Test result for sign: if negative, then operands 
+			 * had opposite signs and so the rhs needs to be 
+			 * added */
+			u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, rhsSize);
+			ba_AddIM(ctr, 3, BA_IM_TEST, raxAdj, raxAdj);
+			ba_AddIM(ctr, 2, BA_IM_SETS, BA_IM_AL);
+			ba_AddIM(ctr, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
+			ba_AddIM(ctr, 3, BA_IM_IMUL, BA_IM_RAX, realReg);
+			ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RDX, BA_IM_RAX);
+		}
+
+		if (isAssign) {
+			ba_AddIM(ctr, 3, BA_IM_MOV, realReg, BA_IM_RDX);
+		}
+		else {
+			if (regL) {
+				if (regL != BA_IM_RDX) {
+					ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RDX);
+				}
+				arg->lexemeType = BA_TK_IMREGISTER;
+				arg->val = (void*)regL;
+			}
+			else {
+				ba_AddIM(ctr, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
+					lhsStackPos, BA_IM_RDX);
+				arg->lexemeType = BA_TK_IMRBPSUB;
+				arg->val = (void*)ctr->imStackSize;
+			}
+		}
+	}
+	
+	// Restore registers
+	if (isPushedFlags[1]) {
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
+		ctr->imStackSize -= 8;
+	}
+	if (!isAssign) {
+		if (lhs->lexemeType == BA_TK_IMREGISTER) {
+			ctr->usedRegisters &= ~BA_CTRREG_RDX;
+		}
+		if (!regR) {
+			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
+			ctr->imStackSize -= 8;
+		}
+	}
+	if (isPushedFlags[0]) {
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+		ctr->imStackSize -= 8;
+	}
+}
+
 // Handle operations (i.e. perform operation now or generate code for it)
 u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 	struct ba_POpStkItem* op = ba_StkPop(ctr->pOpStk);
@@ -1053,109 +1192,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 					ctr->usedRegisters &= originalUsedRaxRdx |
 						(ctr->usedRegisters & ~BA_CTRREG_RAX & ~BA_CTRREG_RDX);
 
-					// [0] = rax, [1] = rdx
-					bool isPushedFlags[2] = { 0, 0 };
-					u64 tmpCtrRegs[2] = { BA_CTRREG_RAX, BA_CTRREG_RDX };
-					u64 tmpRegs[2] = { BA_IM_RAX, BA_IM_RDX };
-
-					for (u64 i = 0; i < 2; ++i) {
-						if ((ctr->usedRegisters & tmpCtrRegs[i]) && 
-							regL != tmpRegs[i]) 
-						{
-							if (rhs->lexemeType == BA_TK_IMREGISTER && 
-								(u64)rhs->val == tmpRegs[i]) 
-							{
-								ba_AddIM(ctr, 3, BA_IM_MOV, regR, tmpRegs[i]);
-								continue;
-							}
-							ba_AddIM(ctr, 2, BA_IM_PUSH, tmpRegs[i]);
-							ctr->imStackSize += 8;
-							isPushedFlags[i] = 1;
-						}
-					}
-
-					if (regR) {
-						ctr->usedRegisters &= ~ba_IMToCtrReg(regR);
-					}
-					else {
-						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RCX);
-						ctr->imStackSize += 8;
-					}
-
-					ba_POpMovArgToReg(ctr, lhs, BA_IM_RAX, isLhsLiteral);
-
-					if (op->lexemeType == BA_TK_IDIV && 
-						lhs->lexemeType == BA_TK_IMREGISTER && 
-						(u64)lhs->val != BA_IM_RAX) 
-					{
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)lhs->val);
-					}
-
-					ba_POpMovArgToReg(ctr, rhs, regR ? regR : BA_IM_RCX, 
-						isRhsLiteral);
-
-					ba_AddIM(ctr, 1, BA_IM_CQO);
-
-					u64 imOp = areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV;
-					ba_AddIM(ctr, 2, imOp, regR ? regR : BA_IM_RCX);
-
-					if (op->lexemeType == '%') {
-						if (!areBothUnsigned) {
-							/* Test result for sign: if negative, then operands 
-							 * had opposite signs and so the rhs needs to be 
-							 * added */
-							
-							// Sign stored in rax
-							u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, rhsSize);
-							ba_AddIM(ctr, 3, BA_IM_TEST, raxAdj, raxAdj);
-							ba_AddIM(ctr, 2, BA_IM_SETS, BA_IM_AL);
-							ba_AddIM(ctr, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
-							ba_AddIM(ctr, 3, BA_IM_IMUL, BA_IM_RAX, 
-								regR ? regR : BA_IM_RCX);
-							ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RDX, BA_IM_RAX);
-						}
-
-						if (regL) {
-							if (regL != BA_IM_RDX) {
-								ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RDX);
-							}
-							arg->lexemeType = BA_TK_IMREGISTER;
-							arg->val = (void*)regL;
-						}
-						else {
-							ba_AddIM(ctr, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-								lhsStackPos, BA_IM_RDX);
-							arg->lexemeType = BA_TK_IMRBPSUB;
-							arg->val = (void*)ctr->imStackSize;
-						}
-					}
-					else {
-						if (regL && regL != BA_IM_RAX) {
-							ba_AddIM(ctr, 3, BA_IM_MOV, regL, BA_IM_RAX);
-						}
-						ba_POpSetArg(ctr, arg, regL, lhsStackPos);
-					}
-
-					// Restore registers
-
-					if (isPushedFlags[1]) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
-						ctr->imStackSize -= 8;
-					}
-
-					if (lhs->lexemeType == BA_TK_IMREGISTER) {
-						ctr->usedRegisters &= ~BA_CTRREG_RDX;
-					}
-
-					if (!regR) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
-						ctr->imStackSize -= 8;
-					}
-
-					if (isPushedFlags[0]) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-						ctr->imStackSize -= 8;
-					}
+					ba_POpNonLitDivMod(ctr, lhs, rhs, arg, regL, regR, 
+						/* realReg = */ 0, lhsStackPos, lhs->typeInfo, 
+						/* isDiv = */ (op->lexemeType == BA_TK_IDIV), 
+						/* isAssign = */ 0);
 				}
 				
 				arg->typeInfo.type = argType;
@@ -1342,71 +1382,10 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						return ba_ExitMsg(BA_EXIT_ERR, "division or modulo by " 
 							"zero on", op->line, op->col, ctr->currPath);
 					}
-
-					bool areBothUnsigned = ba_IsTypeUnsigned(lhsType.type) &&
-						ba_IsTypeUnsigned(rhs->typeInfo.type);
-
-					// [0] = rax, [1] = rdx
-					bool isPushedFlags[2] = { 0, 0 };
-					u64 tmpCtrRegs[2] = { BA_CTRREG_RAX, BA_CTRREG_RDX };
-					u64 tmpRegs[2] = { BA_IM_RAX, BA_IM_RDX };
-
-					for (u64 i = 0; i < 2; ++i) {
-						if ((ctr->usedRegisters & tmpCtrRegs[i]) && 
-							reg != tmpRegs[i]) 
-						{
-							if (rhs->lexemeType == BA_TK_IMREGISTER && 
-								(u64)rhs->val == tmpRegs[i]) 
-							{
-								ba_AddIM(ctr, 3, BA_IM_MOV, reg, tmpRegs[i]);
-								continue;
-							}
-							ba_AddIM(ctr, 2, BA_IM_PUSH, tmpRegs[i]);
-							ctr->imStackSize += 8;
-							isPushedFlags[i] = 1;
-						}
-					}
-
-					u64 lhsRax = ba_AdjRegSize(BA_IM_RAX, lhsSize);
-					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, lhsRax, BA_IM_ADRADD, 
-							ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-							ba_CalcSTValOffset(ctr->currScope, lhs->val));
-					}
-					// (DPTR)
-					else if (lhs->lexemeType == BA_TK_IMREGISTER) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, lhsRax, 
-							BA_IM_ADR, (u64)lhs->val);
-					}
-					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-						u64 adrLocReg = 
-							realReg == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX;
-						ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
-						ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, BA_IM_ADRSUB, 
-							BA_IM_RBP, (u64)lhs->val);
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, 
-							BA_IM_ADR, adrLocReg);
-						ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
-					}
-
-					ba_AddIM(ctr, 1, BA_IM_CQO);
-					ba_AddIM(ctr, 2, areBothUnsigned ? BA_IM_DIV : BA_IM_IDIV, 
-						realReg);
-					
-					u64 divResultReg = BA_TK_IDIVEQ ? BA_IM_RAX : BA_IM_RDX;
-					if (reg != divResultReg) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, realReg, divResultReg);
-					}
-
-					// Restore registers
-					if (isPushedFlags[1]) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
-						ctr->imStackSize -= 8;
-					}
-					if (isPushedFlags[0]) {
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-						ctr->imStackSize -= 8;
-					}
+					ba_POpNonLitDivMod(ctr, lhs, rhs, arg, reg, reg, realReg,
+						stackPos, lhsType, 
+						/* isDiv = */ (op->lexemeType == BA_TK_IDIVEQ), 
+						/* isAssign = */ 1);
 				}
 				else if (imOp) {
 					u64 opResultReg = 
