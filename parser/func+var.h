@@ -224,7 +224,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 		param->next = ba_NewFuncParam();
 		param = param->next;
 
-		BA_LBL_FUNCDEF_LOOPEND:
+		BA_LBL_FUNCDEF_LOOPEND:;
 	}
 
 	func->lblStart = ctr->labelCnt++;

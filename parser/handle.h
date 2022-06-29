@@ -343,23 +343,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							arg, /* isLhsLiteral = */ 0, /* isRhsLiteral = */ 0,
 							/* isShortCirc = */ 0);
 					}
-					// If literal arg is a power of 2, generate a bit shift instead
-					else if (!((u64)litArg->val & ((u64)litArg->val - 1))) {
-						// NOTE: builtin may break outside of gcc
-						// TODO: Replace with use of inline assembly TZCNT
-						u64 shift = __builtin_ctzll((u64)litArg->val);
-
-						struct ba_PTkStkItem* newRhs = malloc(sizeof(*newRhs));
-						if (!newRhs) {
-							return ba_ErrorMallocNoMem();
-						}
-						newRhs->val = (void*)shift;
-						newRhs->typeInfo.type = BA_TYPE_U64;
-						newRhs->lexemeType = BA_TK_LITINT;
-
-						ba_POpNonLitBitShift(ctr, BA_IM_SHL, nonLitArg, newRhs,
-							arg, /* isRhsLiteral = */ 1);
-					}
 					else {
 						goto BA_LBL_POPHANDLE_MULADDSUB_NONLIT;
 					}
@@ -509,7 +492,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					}
 				}
 				else {
-					BA_LBL_POPHANDLE_INTDIVMOD_NONLIT:
+					BA_LBL_POPHANDLE_INTDIVMOD_NONLIT:;
 					
 					u64 lhsStackPos = 0;
 					u64 regL = (u64)lhs->val; // Kept only if lhs is a register

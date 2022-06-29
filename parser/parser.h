@@ -13,8 +13,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr);
 
 u8 ba_PAccept(u64 type, struct ba_Ctr* ctr) {
 	if (!ctr->lex || (ctr->lex->type != type)) {
-		(ctr->lex->type == BA_TK_FILECHANGE) && 
-			(ctr->currPath = ctr->lex->val);
+		(ctr->lex->type == BA_TK_FILECHANGE) && (ctr->currPath = ctr->lex->val);
 		return 0;
 	}
 	ctr->lex = ba_DelLexeme(ctr->lex);
