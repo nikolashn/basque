@@ -123,7 +123,7 @@ void ba_POpMovIdToReg(struct ba_Controller* ctr, struct ba_STVal* id,
 		ba_CalcSTValOffset(ctr->currScope, id));
 }
 
-u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
+bool ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
 	u64 reg, bool isLiteral) 
 {
 	u64 argSize = ba_GetSizeOfType(arg->typeInfo);
@@ -161,6 +161,32 @@ u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
 		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
 			argSize < 8 ? (u64)arg->val & ((1llu << (argSize*8))-1)
 				: (u64)arg->val);
+		return 1;
+	}
+	return 0;
+}
+
+bool ba_POpMovArgToRegDPTR(struct ba_Controller* ctr, struct ba_PTkStkItem* arg,
+	u64 size, u64 reg, u64 testReg, u64 tmpRegDef, u64 tmpRegBackup) 
+{
+	u64 rszdReg = ba_AdjRegSize(reg, size);
+	if (arg->lexemeType == BA_TK_IDENTIFIER) {
+		ba_AddIM(ctr, 5, BA_IM_MOV, rszdReg, BA_IM_ADRADD, 
+			ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, arg->val));
+		return 1;
+	}
+	if (arg->lexemeType == BA_TK_IMREGISTER) { // DPTR
+		ba_AddIM(ctr, 4, BA_IM_MOV, rszdReg, BA_IM_ADR, (u64)arg->val);
+		return 1;
+	}
+	if (arg->lexemeType == BA_TK_IMRBPSUB) { // DPTR
+		u64 tmpReg = testReg == tmpRegDef ? tmpRegBackup : tmpRegDef;
+		ba_AddIM(ctr, 2, BA_IM_PUSH, tmpReg);
+		ba_AddIM(ctr, 5, BA_IM_MOV, tmpReg, BA_IM_ADRSUB, BA_IM_RBP, 
+			(u64)arg->val);
+		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_ADR, tmpReg);
+		ba_AddIM(ctr, 2, BA_IM_POP, tmpReg);
 		return 1;
 	}
 	return 0;
@@ -505,8 +531,6 @@ void ba_POpNonLitDivMod(struct ba_Controller* ctr, struct ba_PTkStkItem* lhs,
 {
 	bool areBothUnsigned = ba_IsTypeUnsigned(lhsType.type) &&
 		ba_IsTypeUnsigned(rhs->typeInfo.type);
-	u64 lhsSize = ba_GetSizeOfType(lhsType);
-	u64 rhsSize = ba_GetSizeOfType(rhs->typeInfo);
 
 	// [0] = rax, [1] = rdx
 	bool isPushedFlags[2] = { 0, 0 };
@@ -528,24 +552,8 @@ void ba_POpNonLitDivMod(struct ba_Controller* ctr, struct ba_PTkStkItem* lhs,
 	}
 
 	if (isAssign) { // Division/modulo assign needs to account for DPTRs
-		u64 lhsRax = ba_AdjRegSize(BA_IM_RAX, lhsSize);
-		if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-			ba_AddIM(ctr, 5, BA_IM_MOV, lhsRax, BA_IM_ADRADD, 
-				ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-				ba_CalcSTValOffset(ctr->currScope, lhs->val));
-		}
-		// IMREGISTER, IMRBPSUB: lhs is DPTR
-		else if (lhs->lexemeType == BA_TK_IMREGISTER) {
-			ba_AddIM(ctr, 4, BA_IM_MOV, lhsRax, BA_IM_ADR, (u64)lhs->val);
-		}
-		else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-			u64 adrLocReg = realReg == BA_IM_RDX ? BA_IM_RCX : BA_IM_RDX;
-			ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
-			ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, BA_IM_ADRSUB, BA_IM_RBP, 
-				(u64)lhs->val);
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_ADR, adrLocReg);
-			ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
-		}
+		ba_POpMovArgToRegDPTR(ctr, lhs, ba_GetSizeOfType(lhs->typeInfo), 
+			BA_IM_RAX, realReg, BA_IM_RDX, BA_IM_RCX);
 	}
 	else { // Normal divison/modulo operation
 		if (regR) {
@@ -585,7 +593,8 @@ void ba_POpNonLitDivMod(struct ba_Controller* ctr, struct ba_PTkStkItem* lhs,
 			/* Test result for sign: if negative, then operands 
 			 * had opposite signs and so the rhs needs to be 
 			 * added */
-			u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, rhsSize);
+			u64 raxAdj = ba_AdjRegSize(BA_IM_RAX, 
+				ba_GetSizeOfType(rhs->typeInfo));
 			ba_AddIM(ctr, 3, BA_IM_TEST, raxAdj, raxAdj);
 			ba_AddIM(ctr, 2, BA_IM_SETS, BA_IM_AL);
 			ba_AddIM(ctr, 3, BA_IM_MOVZX, BA_IM_RAX, BA_IM_AL);
@@ -1388,9 +1397,7 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						/* isAssign = */ 1);
 				}
 				else if (imOp) {
-					u64 opResultReg = 
-						reg == BA_IM_RAX ? BA_IM_RDX : BA_IM_RAX;
-
+					u64 opResultReg = reg == BA_IM_RAX ? BA_IM_RDX : BA_IM_RAX;
 					bool isPushOpResReg = 
 						((opResultReg == BA_IM_RAX && 
 							(ctr->usedRegisters & BA_CTRREG_RAX)) ||
@@ -1402,28 +1409,9 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						ctr->imStackSize += 8;
 					}
 
-					u64 oprRegAdj = ba_AdjRegSize(opResultReg, lhsSize);
-					if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-						ba_AddIM(ctr, 5, BA_IM_MOV, oprRegAdj, BA_IM_ADRADD, 
-							ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-							ba_CalcSTValOffset(ctr->currScope, lhs->val));
-					}
-					// (DPTR)
-					else if (lhs->lexemeType == BA_TK_IMREGISTER) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, oprRegAdj, 
-							BA_IM_ADR, (u64)lhs->val);
-					}
-					else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-						u64 adrLocReg = 
-							realReg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
-						ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
-						ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, BA_IM_ADRSUB, 
-							BA_IM_RBP, (u64)lhs->val);
-						ba_AddIM(ctr, 4, BA_IM_MOV, opResultReg, 
-							BA_IM_ADR, adrLocReg);
-						ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
-					}
-
+					ba_POpMovArgToRegDPTR(ctr, lhs, ba_GetSizeOfType(lhsType), 
+						opResultReg, realReg, BA_IM_RAX, BA_IM_RCX);
+					
 					if (opLex == BA_TK_LSHIFTEQ || opLex == BA_TK_RSHIFTEQ) {
 						if (realReg != BA_IM_RCX) {
 							if (ctr->usedRegisters & BA_CTRREG_RCX) {

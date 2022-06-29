@@ -6,7 +6,7 @@
 // ----- Forward declarations -----
 void ba_POpAsgnRegOrStack(struct ba_Controller* ctr, u64 lexType, u64* reg, 
 	u64* stackPos);
-u8 ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
+bool ba_POpMovArgToReg(struct ba_Controller* ctr, struct ba_PTkStkItem* arg, 
 	u64 reg, bool isLiteral);
 u8 ba_PAtom(struct ba_Controller* ctr);
 // --------------------------------
