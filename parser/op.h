@@ -814,23 +814,8 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 				ba_POpAsgnRegOrStack(ctr, lexType, &argReg, &stackPos);
 				u64 reg = argReg ? argReg : BA_IM_RAX;
 
-				if (arg->lexemeType == BA_TK_IDENTIFIER) {
-					ba_POpMovIdToReg(ctr, arg->val, argSize, reg, 
-						/* isLea = */ 0);
-				}
-				// IMREGISTER or IMRBPSUB must be a DPTR
-				else if (arg->lexemeType == BA_TK_IMREGISTER) {
-					ba_AddIM(ctr, 4, BA_IM_MOV, ba_AdjRegSize(reg, argSize), 
-						BA_IM_ADR, (u64)arg->val);
-				}
-				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
-					u64 adrLocReg = reg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
-					ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
-					ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, 
-						BA_IM_ADRSUB, BA_IM_RBP, (u64)arg->val);
-					ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_ADR, adrLocReg);
-					ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
-				}
+				ba_POpMovArgToRegDPTR(ctr, arg, argSize, reg, reg, BA_IM_RAX, 
+					BA_IM_RCX);
 
 				if (arg->typeInfo.type == BA_TYPE_PTR && argSize != 1) {
 					ba_AddIM(ctr, 4, ptrImOp, reg, BA_IM_IMM, argSize);
@@ -1282,7 +1267,6 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 			}
 			
 			// Assignment
-			// TODO: rewrite to clean up division and modulo
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType)) 
 			{
@@ -1413,21 +1397,18 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						opResultReg, realReg, BA_IM_RAX, BA_IM_RCX);
 					
 					if (opLex == BA_TK_LSHIFTEQ || opLex == BA_TK_RSHIFTEQ) {
-						if (realReg != BA_IM_RCX) {
+						if (realReg == BA_IM_RCX) {
+							ba_AddIM(ctr, 3, imOp, opResultReg, BA_IM_CL);
+						}
+						else {
 							if (ctr->usedRegisters & BA_CTRREG_RCX) {
 								ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RCX);
-								ctr->imStackSize += 8;
 							}
 							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RCX, realReg);
-						}
-
-						ba_AddIM(ctr, 3, imOp, opResultReg, BA_IM_CL);
-
-						if (realReg != BA_IM_RCX && 
-							(ctr->usedRegisters & BA_CTRREG_RCX)) 
-						{
-							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
-							ctr->imStackSize -= 8;
+							ba_AddIM(ctr, 3, imOp, opResultReg, BA_IM_CL);
+							if (ctr->usedRegisters & BA_CTRREG_RCX) {
+								ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
+							}
 						}
 					}
 					else {
@@ -1454,14 +1435,12 @@ u8 ba_POpHandle(struct ba_Controller* ctr, struct ba_POpStkItem* handler) {
 						(u64)lhs->val, ba_AdjRegSize(realReg, lhsSize));
 				}
 				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
-					u64 adrLocReg = 
-						realReg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
-					ba_AddIM(ctr, 2, BA_IM_PUSH, adrLocReg);
-					ba_AddIM(ctr, 5, BA_IM_MOV, adrLocReg, BA_IM_ADRSUB, 
+					u64 tmpReg = realReg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
+					ba_AddIM(ctr, 2, BA_IM_PUSH, tmpReg);
+					ba_AddIM(ctr, 5, BA_IM_MOV, tmpReg, BA_IM_ADRSUB, 
 						BA_IM_RBP, (u64)lhs->val);
-					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, adrLocReg,
-						realReg);
-					ba_AddIM(ctr, 2, BA_IM_POP, adrLocReg);
+					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, tmpReg, realReg);
+					ba_AddIM(ctr, 2, BA_IM_POP, tmpReg);
 				}
 
 				if (reg) {
