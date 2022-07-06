@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__EXITMSG_IM_H
-#define BA__EXITMSG_IM_H
+#ifndef BA__COMMON_EXITMSGIM_H
+#define BA__COMMON_EXITMSGIM_H
 
 #include "exitmsg.h"
 #include "im.h"

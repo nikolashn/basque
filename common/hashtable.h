@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__HASHTABLE_H
-#define BA__HASHTABLE_H
+#ifndef BA__COMMON_HASHTABLE_H
+#define BA__COMMON_HASHTABLE_H
 
 u64 ba_Hash(char* str) {
 	u64 hash = 0;

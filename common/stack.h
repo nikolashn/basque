@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__STACK_H
-#define BA__STACK_H
+#ifndef BA__COMMON_STACK_H
+#define BA__COMMON_STACK_H
 
 // General stack structure
 // The type of items should be known based on which stack is used

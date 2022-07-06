@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__IM_H
-#define BA__IM_H
+#ifndef BA__COMMON_IM_H
+#define BA__COMMON_IM_H
 
 enum {
 	BA_IM_NOP          = 0x0,

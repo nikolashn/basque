@@ -2,8 +2,8 @@
 
 #include "types.h"
 
-#ifndef BA__LEXEME_H
-#define BA__LEXEME_H
+#ifndef BA__COMMON_LEXEME_H
+#define BA__COMMON_LEXEME_H
 
 // Single-character lexemes not listed here use their ASCII values
 enum {

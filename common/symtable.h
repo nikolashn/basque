@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__SYMTABLE_H
-#define BA__SYMTABLE_H
+#ifndef BA__COMMON_SYMTABLE_H
+#define BA__COMMON_SYMTABLE_H
 
 #include "types.h"
 #include "hashtable.h"

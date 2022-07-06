@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__FUNC_H
-#define BA__FUNC_H
+#ifndef BA__COMMON_FUNC_H
+#define BA__COMMON_FUNC_H
 
 #include "types.h"
 #include "im.h"

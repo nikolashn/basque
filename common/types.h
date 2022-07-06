@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__TYPES_H
-#define BA__TYPES_H
+#ifndef BA__COMMON_TYPES_H
+#define BA__COMMON_TYPES_H
 
 struct ba_Type {
 	u8 type;

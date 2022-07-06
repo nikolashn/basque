@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__DYNARR_H
-#define BA__DYNARR_H
+#ifndef BA__COMMON_DYNARR_H
+#define BA__COMMON_DYNARR_H
 
 // 8 bit
 

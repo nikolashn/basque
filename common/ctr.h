@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__CTR_H
-#define BA__CTR_H
+#ifndef BA__COMMON_CTR_H
+#define BA__COMMON_CTR_H
 
 #include "stack.h"
 #include "func.h"

@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__EXITMSG_H
-#define BA__EXITMSG_H
+#ifndef BA__COMMON_EXITMSG_H
+#define BA__COMMON_EXITMSG_H
 
 #include "types.h"
 

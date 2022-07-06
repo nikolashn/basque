@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__TYPEHELPER_H
-#define BA__TYPEHELPER_H
+#ifndef BA__COMMON_TYPEHELPER_H
+#define BA__COMMON_TYPEHELPER_H
 
 #include "types.h"
 #include "func.h"

@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__REG_H
-#define BA__REG_H
+#ifndef BA__COMMON_REG_H
+#define BA__COMMON_REG_H
 
 // TODO: assign some registers to variables rather than intermediate values
 
