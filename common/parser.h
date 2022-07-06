@@ -1,7 +1,7 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__COMMONPARSER_H
-#define BA__COMMONPARSER_H
+#ifndef BA__COMMON_PARSER_H
+#define BA__COMMON_PARSER_H
 
 // The parser pushes data from read lexemes onto the stack for optimized 
 // calculation and intermediate code generation. Data is stored in ctr->pTkStk 
