@@ -17,7 +17,7 @@
 
 #define BA_VERSION "1.0.0"
 // Must be at least 4 kiB
-#define BA_FILE_BUF_SIZE 128 * 1024
+#define BA_FILE_BUF_SIZE 64 * 1024
 
 #define BA_HASHTABLE_CAPACITY 1024
 #define BA_STACK_SIZE 2 * 1024 * 1024
