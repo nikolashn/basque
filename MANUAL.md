@@ -46,6 +46,14 @@ An atom is one of the following:
 - An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). They may contain underscores after the first digit or prefix, which has no effect but can be used to make numbers more readable (Compare `3817193423` and `3_817_193_423`). The suffix `u` can be added to a literal to make it unsigned. Integer literals with no suffix are of type `i64` unless they represent a value larger than 2^63, in which case they are `u64`.
 - A character literal beginning and ending with a `'` character. The character literal consists of either a single character or an escape sequence.
 - An identifier (variable). `write <identifier>;` converts the identifier's data to a string and outputs it.
+- An array literal (see below).
+
+#### Array literal
+Syntax: `{ <expression>` { `, <expression>` } [ `,` ] `}`
+
+For example, `{ 1 + 2 + 3, 4 + 5, 6 }`, `{ stop, drop, roll, }`, `{ INIT_NUM }` are all syntactically valid array literals.
+
+Array literals represent series of values combined into a block of data, to which arrays (and in future, structs) can be assigned to. They can only be used as the right hand side of an assignment or definition of a variable or default func parameter, or as an argument of a func call. They have no other operations (notably they cannot be casted). If the literal is smaller than the array it is being set to, then the remainder of the array will be filled with garbage.
 
 ### Expressions
 An expression consists of atoms and operators (or just an atom on its own).
