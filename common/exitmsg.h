@@ -103,22 +103,12 @@ u8 ba_ErrorDerefInvalid(u64 line, u64 col, char* path) {
 		line, col, path);
 }
 
-u8 ba_ErrorCastTypes(u64 line, u64 col, char* path, 
+u8 ba_ErrorConvertTypes(u64 line, u64 col, char* path, 
 	struct ba_Type expType, struct ba_Type newType) 
 {
-	fprintf(stderr, "Error: invalid type cast on line %lld:%lld in %s: "
-		"cannot cast expression of type %s to type %s\n", line, col, path, 
+	fprintf(stderr, "Error: invalid type conversion on line %lld:%lld in %s: "
+		"cannot convert expression of type %s to type %s\n", line, col, path, 
 		ba_GetTypeStr(expType), ba_GetTypeStr(newType));
-	exit(-1);
-	return 0;
-}
-
-u8 ba_ErrorAssignTypes(u64 line, u64 col, char* path, struct ba_Type lhsType,
-	struct ba_Type rhsType)
-{
-	fprintf(stderr, "Error: assignment of incompatible types, assigning %s to "
-		"%s, on line %llu:%llu in %s\n", ba_GetTypeStr(rhsType), 
-		ba_GetTypeStr(lhsType), line, col, path);
 	exit(-1);
 	return 0;
 }
@@ -127,9 +117,8 @@ u8 ba_WarnImplicitSignedConversion(u64 line, u64 col, char* path, char* opName) 
 	char msg[128] = {0};
 	strcat(msg, opName);
 	strcat(msg, " of integers of different signedness on");
-	char* msgAfter =
-		ba_IsWarnsAsErrors ? "" : ", implicitly converted operands to i64";
-	ba_ExitMsg2(BA_EXIT_WARN, msg, line, col, path, msgAfter);
+	ba_ExitMsg2(BA_EXIT_WARN, msg, line, col, path, 
+		ba_IsWarnsAsErrors ? "" : ", implicitly converted operands to i64");
 	return 0;
 }
 

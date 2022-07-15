@@ -8,13 +8,15 @@
 u8 ba_PessimalInstrSize(struct ba_IM* im);
 
 u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
+	u64 pageSize = sysconf(_SC_PAGE_SIZE);
+
 	u64 memStart = 0x400000;
-	u64 phCnt = ctr->staticSize ? 3 : 2;
+	u64 phCnt = ctr->staticSeg->cnt ? 3 : 2;
 	u64 pHeaderSz = phCnt * 0x38; // Program header size
 	u64 fHeaderSz = 0x40 + pHeaderSz; // File header size
 	/* Not the final entry point, the actual entry point will 
 	 * use this as an offset */
-	u64 entryPoint = memStart + fHeaderSz;
+	u64 entryPoint = memStart + pageSize;
 	
 	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
 		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
@@ -44,6 +46,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	if (!labels) {
 		return ba_ErrorMallocNoMem();
 	}
+	struct ba_Stk* movStaticStk = ba_NewStk();
 
 	// Generate binary code
 	struct ba_DynArr8* code = ba_NewDynArr8(0x1000);
@@ -251,11 +254,23 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						hasExtraByte && (code->arr[code->cnt-1] = 0);
 					}
 
-					// GPR, IMM
-					else if (im->vals[2] == BA_IM_IMM) {
+					// GPR, IMM/STATIC
+					else if (im->vals[2] == BA_IM_IMM || 
+						im->vals[2] == BA_IM_STATIC) 
+					{
 						if (im->count < 4) {
 							return ba_ErrorIMArgCount(2, im);
 						}
+
+						if (im->vals[2] == BA_IM_STATIC) {
+							/* Add a bit so that the address is interpreted as 
+							 * 64-bit. This caps static segment addresses to 63 
+							 * bits, which shouldn't be an issue */
+							im->vals[3] |= (1llu<<63);
+							// Push to a stack used to make the address absolute
+							ba_StkPush(movStaticStk, (void*)code->cnt);
+						}
+
 						u64 imm = im->vals[3];
 						u8 byte1 = 0xb8 | (reg0 & 7);
 
@@ -1500,7 +1515,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		0x40, 0,    0,    0,    0,    0,    0,    0,
 		0,    0,    0,    0,    0,    0,    0,    0,  // No section headers
 		0,    0,    0,    0,    0x40, 0,    0x38, 0,
-		phCnt,0,    0,    0,    0,    0,    0,    0,  // 2/3 p header entries
+		phCnt,0,    0,    0,    0,    0,    0,    0,  // 2 or 3 p header entries
 	};
 
 	// Set entry point in header
@@ -1513,70 +1528,72 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	}
 
 	// Generate program headers
-	enum { phArrSz = 3 * 0x38 }; // Program headers array size
-	u8 programHeader[phArrSz] = {
+	u8 programHeader[] = {
 		1,    0,    0,    0,    4,    0,    0,    0,  // LOAD, Read
 		0,    0,    0,    0,    0,    0,    0,    0,  // 0x0000 in file
 		0,    0,    0,    0,    0,    0,    0,    0,  // {memStart}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
 		fHeaderSz,0,0,    0,    0,    0,    0,    0,  // fHeaderSz
 		fHeaderSz,0,0,    0,    0,    0,    0,    0,  // "
-		1,    0,    0,    0,    0,    0,    0,    0,  // 0x1 offset
+		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
 
 		1,    0,    0,    0,    5,    0,    0,    0,  // LOAD, Read+Execute
-		0,    0,    0,    0,    0,    0,    0,    0,  // {entryPoint-memStart}
-		0,    0,    0,    0,    0,    0,    0,    0,  // {entryPoint}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {memStart+pageSize}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
 		0,    0,    0,    0,    0,    0,    0,    0,  // {code->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
-		1,    0,    0,    0,    0,    0,    0,    0,  // 0x1 offset
+		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
 
 		1,    0,    0,    0,    6,    0,    0,    0,  // LOAD, Read+Write
-		0,    0,    0,    0,    0,    0,    0,    0,  // {(below 1)}
-		0,    0,    0,    0,    0,    0,    0,    0,  // {(below 2)}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {(static start)}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {(static start mem)}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
-		0,    0,    0,    0,    0,    0,    0,    0,  // {ctr->staticSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {ctr->staticSeg->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
-		1,    0,    0,    0,    0,    0,    0,    0,  // 0x1 offset
+		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
 	};
 
+	u64 staticPadding;
+	u64 staticStartM;
 	{
-		// {memStart} in first header (file header)
+		u64 tmpPageSz = pageSize;
 		u64 tmpStartM = memStart;
-
-		// {entryPoint-memStart} in second header (code)
-		u64 tmpEP = entryPoint - memStart;
-		// {entryPoint} in second header (code)
-		u64 tmpEPM = entryPoint;
-		// {code->cnt} in second header (code)
+		u64 tmpExe = memStart + pageSize;
 		u64 tmpCodeSz = code->cnt;
 
-		// {(below 1)} in third header (static)
-		u64 tmpStatic = tmpEP + code->cnt;
-		// {(below 2)} in third header (static)
-		u64 tmpStaticM = tmpEPM + code->cnt;
-		// {ctr->staticSize} in third header (static)
-		u64 tmpStaticSz = ctr->staticSize;
+		// Align static header properly
+		u64 tmpStatic = pageSize + code->cnt;
+		staticPadding = (bool)(tmpStatic & (pageSize-1)) * 
+			(pageSize - (tmpStatic & (pageSize-1)));
+		tmpStatic += staticPadding;
+
+		u64 tmpStaticM = memStart + tmpStatic;
+		staticStartM = tmpStaticM;
+		u64 tmpStaticSz = ctr->staticSeg->cnt;
 
 		for (u64 i = 0; i < 8; i++) {
 			programHeader[0x10+i] = tmpStartM & 0xff;
 			programHeader[0x18+i] = tmpStartM & 0xff;
+			programHeader[0x30+i] = tmpPageSz & 0xff;
 
-			programHeader[0x40+i] = tmpEP & 0xff;
-			programHeader[0x48+i] = tmpEPM & 0xff;
-			programHeader[0x50+i] = tmpEPM & 0xff;
+			programHeader[0x40+i] = tmpPageSz & 0xff;
+			programHeader[0x48+i] = tmpExe & 0xff;
+			programHeader[0x50+i] = tmpExe & 0xff;
 			programHeader[0x58+i] = tmpCodeSz & 0xff;
 			programHeader[0x60+i] = tmpCodeSz & 0xff;
+			programHeader[0x68+i] = tmpPageSz & 0xff;
 
 			programHeader[0x78+i] = tmpStatic & 0xff;
 			programHeader[0x80+i] = tmpStaticM & 0xff;
 			programHeader[0x88+i] = tmpStaticM & 0xff;
 			programHeader[0x90+i] = tmpStaticSz & 0xff;
 			programHeader[0x98+i] = tmpStaticSz & 0xff;
+			programHeader[0xa0+i] = tmpPageSz & 0xff;
 
 			tmpStartM >>= 8;
-			tmpEP >>= 8;
-			tmpEPM >>= 8;
+			tmpPageSz >>= 8;
+			tmpExe >>= 8;
 			tmpCodeSz >>= 8;
 			tmpStatic >>= 8;
 			tmpStaticM >>= 8;
@@ -1584,7 +1601,25 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		}
 	}
 
-	// String this together into a file
+	// Correct addresses of MOVSTATIC instructions
+	while (movStaticStk->count) {
+		u64 addr = (u64)ba_StkPop(movStaticStk);
+		u64 addend = staticStartM;
+		u64 sum = 0;
+		bool carry = 0;
+		for (u64 i = 2; i < 9; ++i) {
+			sum = (u64)code->arr[addr+i] + (u64)(addend & 0xff) + (u64)carry;
+			carry = sum & 0x100;
+			code->arr[addr+i] = sum & 0xff;
+			addend >>= 8;
+		}
+		code->arr[addr+9] &= ~(1<<7); // Remove technical bit added
+	}
+	ba_DelStk(movStaticStk);
+
+	// ----------------------------------------
+	// --- String this together into a file ---
+	// ----------------------------------------
 	
 	// Create the initial file
 	FILE* file = stdout;
@@ -1593,33 +1628,53 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	if (!isFileStdout) {
 		file = fopen(fileName, "wb");
 		if (!file) {
-			return 0;
+			fprintf(stderr, "Error: Could not open file '%s' for writing\n", 
+				fileName);
+			exit(-1);
 		}
 		fclose(file);
 
 		// Create the file for appending
 		file = fopen(fileName, "ab");
 		if (!file) {
-			return 0;
+			fprintf(stderr, "Error: Could not open file '%s' for writing\n", 
+				fileName);
+			exit(-1);
 		}
 	}
 	
 	// Write headers and code
 	u8 buf[BA_FILE_BUF_SIZE];
-	memcpy(buf, fileHeader, 64);
-	memcpy(64+buf, programHeader, pHeaderSz);
-	//memset(64+pHeaderSz+buf, 0, fHeaderSz-pHeaderSz-64);
-	u64 bufCodeSize = ( fHeaderSz + code->cnt ) >= BA_FILE_BUF_SIZE ? 
-		(BA_FILE_BUF_SIZE - fHeaderSz) : code->cnt;
-	memcpy(fHeaderSz + buf, code->arr, bufCodeSize);
-	fwrite(buf, 1, fHeaderSz + bufCodeSize, file);
-	
+
+	// File header
+	memcpy(buf, fileHeader, 0x40);
+	memcpy(buf+0x40, programHeader, pHeaderSz);
+	memset(buf+fHeaderSz, 0, pageSize-fHeaderSz);
+
+	// Code
+	u64 bufSize = (code->cnt+pageSize) > BA_FILE_BUF_SIZE 
+		? BA_FILE_BUF_SIZE : code->cnt;
+	memcpy(buf+pageSize, code->arr, bufSize);
+	fwrite(buf, 1, pageSize + bufSize, file);
+
 	// Write more code, if not everything can fit in the buffer
-	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - fHeaderSz;
+	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - pageSize;
 	while (codePtr - code->arr < code->cnt) {
-		fwrite(codePtr, 1, code->cnt >= BA_FILE_BUF_SIZE ? 
-			BA_FILE_BUF_SIZE : code->cnt, file);
+		fwrite(codePtr, 1, code->cnt > BA_FILE_BUF_SIZE 
+			? BA_FILE_BUF_SIZE : code->cnt, file);
 		codePtr += BA_FILE_BUF_SIZE;
+	}
+	memset(buf, 0, staticPadding);
+	fwrite(buf, 1, staticPadding, file);
+
+	// Write static segment, if it exists
+	if (ctr->staticSeg->cnt) {
+		u8* staticPtr = ctr->staticSeg->arr;
+		while (staticPtr - ctr->staticSeg->arr < ctr->staticSeg->cnt) {
+			fwrite(staticPtr, 1, ctr->staticSeg->cnt >= BA_FILE_BUF_SIZE
+				? BA_FILE_BUF_SIZE : ctr->staticSeg->cnt, file);
+			staticPtr += BA_FILE_BUF_SIZE;
+		}
 	}
 
 	if (!isFileStdout) {
@@ -1633,8 +1688,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 }
 
 /* Pessimistically estimates instruction size, for working out size of jmp
- * instructions.
- */
+ * instructions. */
 u8 ba_PessimalInstrSize(struct ba_IM* im) {
 	switch (im->vals[0]) {
 		case BA_IM_NOP:
@@ -1679,6 +1733,9 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 						u8 reg0 = im->vals[1] - BA_IM_RAX;
 						return 5 + (reg0 >= 8);
 					}
+					return 10;
+				}
+				else if (im->vals[2] == BA_IM_STATIC) {
 					return 10;
 				}
 			}

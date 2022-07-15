@@ -441,7 +441,7 @@ u8 ba_POpAssignChecks(struct ba_Ctr* ctr, struct ba_Type lhsType,
 	else if (ba_AreTypesEqual(lhsType, rhs->typeInfo)) {
 		return 1;
 	}
-	return ba_ErrorAssignTypes(line, col, ctr->currPath, lhsType, rhs->typeInfo);
+	return ba_ErrorConvertTypes(line, col, ctr->currPath, lhsType, rhs->typeInfo);
 }
 
 void ba_POpFuncCallPushArgReg(struct ba_Ctr* ctr, u64 reg, u64 size) {
@@ -473,7 +473,9 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	u64 d = 0;
 	destItem && destItem->lexemeType == BA_TK_IMREGISTER && 
 		(d = (u64)destItem->val);
-	u64 s = srcItem->lexemeType == BA_TK_IMREGISTER ? (u64)srcItem->val : 0;
+	u64 s = 0;
+	srcItem && srcItem->lexemeType == BA_TK_IMREGISTER && 
+		(s = (u64)srcItem->val);
 	if (d == BA_IM_RAX || s == BA_IM_RAX) {
 		defaultReg = (d == BA_IM_RCX || s == BA_IM_RCX) ? BA_IM_RDX : BA_IM_RCX;
 	}
@@ -487,15 +489,16 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, BA_IM_RSP, 
 			ba_CalcSTValOffset(ctr->currScope, destItem->val));
 	}
-	// (DPTR)
 	else if (destItem->lexemeType == BA_TK_IMREGISTER) {
+		// (DPTR)
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_ADR, (u64)destItem->val);
 	}
 	else if (destItem->lexemeType == BA_TK_IMRBPSUB) {
+		// (DPTR)
 		ba_AddIM(ctr, 5, BA_IM_MOV, defaultReg, BA_IM_ADRSUB, 
 			BA_IM_RBP, (u64)destItem->val);
 	}
-	ba_AddIM(ctr, 3, BA_IM_PUSH, reg);
+	ba_AddIM(ctr, 3, BA_IM_PUSH, reg); // dest ptr
 
 	// Source pointer
 	reg = defaultReg;
@@ -506,8 +509,9 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	else if (srcItem->lexemeType == BA_TK_IMREGISTER) {
 		reg = (u64)srcItem->val;
 	}
-	else if (ba_IsLexemeLiteral(srcItem->lexemeType)) {
-		// TODO
+	else if (srcItem->lexemeType == BA_TK_IMSTATIC) {
+		// Non-constant array literals
+		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, (u64)srcItem->val);
 	}
 	ba_AddIM(ctr, 2, BA_IM_PUSH, reg); // src ptr
 	

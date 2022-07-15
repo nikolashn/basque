@@ -16,6 +16,7 @@ enum {
 	BA_IM_64ADRADD     = 0x7,
 	BA_IM_64ADRSUB     = 0x8,
 	BA_IM_LABEL        = 0x9,
+	BA_IM_STATIC       = 0xa,
 	
 	// Normal assembly instructions
 	BA_IM_MOV          = 0x10,

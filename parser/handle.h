@@ -612,6 +612,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 			else if (op->lexemeType == '=' || 
 				ba_IsLexemeCompoundAssign(op->lexemeType)) 
 			{
+				ba_StkPop(ctr->expCoercedTypeStk);
 				if (!lhs->isLValue) {
 					return ba_ExitMsg(BA_EXIT_ERR, "assignment to non-lvalue on", 
 						op->line, op->col, ctr->currPath);
@@ -966,7 +967,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 		{
 			// This should never occur
 			if (op->lexemeType == ')' || op->lexemeType == ']') {
-				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", op->line, 
+				return ba_ExitMsg(BA_EXIT_ERR, "congratulations, you have "
+					"reached an error that should never occur, on", op->line, 
 					op->col, ctr->currPath);
 			}
 			// Func call
@@ -975,11 +977,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 
 				struct ba_PTkStkItem* funcTk = 
 					ctr->pTkStk->items[ctr->pTkStk->count-(u64)arg];
-				if (!funcTk || funcTk->typeInfo.type != BA_TYPE_FUNC) {
-					return ba_ExitMsg(BA_EXIT_ERR, "attempt to call "
-						"non-func on", op->line, op->col, ctr->currPath);
-				}
-
 				struct ba_Func* func = 
 					((struct ba_STVal*)funcTk->val)->type.extraInfo;
 				func->isCalled = 1;
@@ -1017,15 +1014,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						op->line, op->col, ctr->currPath);
 				}
 
-				if (funcArgsCnt != func->paramCnt) {
-					fprintf(stderr, "Error: func on line %llu:%llu in %s "
-						"takes %llu parameter%s, but %llu argument%s passed\n", 
-						op->line, op->col, ctr->currPath, func->paramCnt, 
-						func->paramCnt == 1 ? "" : "s", 
-						funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
-					exit(-1);
-				}
-				
 				if (!ctr->imStackSize) {
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 				}
@@ -1203,19 +1191,14 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath);
 				}
 
-				if (castedExp->typeInfo.type == BA_TYPE_ARR) {
-					if (newType.type != BA_TYPE_ARR || 
-						(ba_GetSizeOfType(castedExp->typeInfo) != 
-							ba_GetSizeOfType(newType)))
-					{
-						return ba_ErrorCastTypes(op->line, op->col, 
-							ctr->currPath, castedExp->typeInfo, newType);
-					}
-				}
-				else if ((isNewTypeNum != isOldTypeNum) || 
-					(!isNewTypeNum && !isOldTypeNum)) 
+				if ((castedExp->typeInfo.type == BA_TYPE_ARR &&
+						(newType.type != BA_TYPE_ARR || 
+							ba_GetSizeOfType(castedExp->typeInfo) != 
+							ba_GetSizeOfType(newType))) || 
+					isNewTypeNum != isOldTypeNum || 
+					(!isNewTypeNum && !isOldTypeNum))
 				{
-					return ba_ErrorCastTypes(op->line, op->col, 
+					return ba_ErrorConvertTypes(op->line, op->col, 
 						ctr->currPath, castedExp->typeInfo, newType);
 				}
 

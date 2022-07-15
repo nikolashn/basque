@@ -169,11 +169,16 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 				// ... "=" exp ...
 				line = ctr->lex->line;
 				col = ctr->lex->colStart;
+
+				ba_StkPush(ctr->expCoercedTypeStk, &param->type);
+
 				if (stmtType == TP_FWDDEC || !ba_PExpect('=', ctr) ||
 					!ba_PExp(ctr))
 				{
 					return 0;
 				}
+
+				ba_StkPop(ctr->expCoercedTypeStk);
 				
 				struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 				if (!expItem) {
@@ -192,7 +197,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 					(!ba_IsTypeNum(param->type) && 
 					!ba_AreTypesEqual(param->type, expItem->typeInfo)))
 				{
-					return ba_ErrorAssignTypes(line, col, ctr->currPath,
+					return ba_ErrorConvertTypes(line, col, ctr->currPath,
 						param->type, expItem->typeInfo);
 				}
 
@@ -336,13 +341,6 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		return ba_ErrorVarVoid(line, col, ctr->currPath);
 	}
 	
-	u64 dataSize = ba_GetSizeOfType(idVal->type);
-	if (dataSize >= (1llu << 31)) {
-		ba_ExitMsg(BA_EXIT_ERR, "data with size greater than 2147483647 on",
-			line, col, ctr->currPath);
-	}
-	idVal->address = ctr->currScope->dataSize + dataSize;
-
 	ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
 	line = ctr->lex->line;
@@ -352,6 +350,11 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 
 	bool isGarbage = 0;
 	struct ba_PTkStkItem* expItem = 0;
+
+	ba_StkPush(ctr->expCoercedTypeStk, &idVal->type);
+
+	u64 dataSize = ba_GetSizeOfType(idVal->type);
+	dataSize && (idVal->address = ctr->currScope->dataSize + dataSize);
 
 	if (ba_PAccept(BA_TK_KW_GARBAGE, ctr)) {
 		isGarbage = 1;
@@ -363,6 +366,18 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	else {
 		return 0;
 	}
+
+	if (!dataSize) {
+		dataSize = ba_GetSizeOfType(idVal->type);
+		idVal->address = ctr->currScope->dataSize + dataSize;
+	}
+	
+	if (dataSize >= (1llu << 31)) {
+		ba_ExitMsg(BA_EXIT_ERR, "data with size greater than 2147483647 on",
+			line, col, ctr->currPath);
+	}
+
+	ba_StkPop(ctr->expCoercedTypeStk);
 
 	ba_PExpect(';', ctr);
 	
@@ -401,11 +416,10 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		}
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {
-		if (!((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt) {
-			return ba_ExitMsg(BA_EXIT_ERR, "attempting to initialize array " 
-				"with indefinite size to garbage on", line, col, ctr->currPath);
+		if (!dataSize) {
+			ba_ExitMsg(BA_EXIT_ERR, "attempting to initialize array with " 
+				"indefinite size to garbage on", line, col, ctr->currPath);
 		}
-		
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		ctr->currScope->dataSize += dataSize;
 		if (!isGarbage) {

@@ -30,6 +30,8 @@ struct ba_Ctr { // Controller
 	struct ba_Stk* breakLblStk; // Takes u64 (label IDs) as items
 	// Func stack frame
 	struct ba_Stk* funcFrameStk; // Takes u64 (usedRegisters) as items
+	// For type coercion in array literals
+	struct ba_Stk* expCoercedTypeStk; // Takes struct ba_Type* as items
 
 	// Used with return statements
 	struct ba_Func* currFunc;
@@ -42,7 +44,7 @@ struct ba_Ctr { // Controller
 	// Parser
 	u64 usedRegisters;
 	u64 imStackSize;
-	u64 staticSize;
+	struct ba_DynArr8* staticSeg;
 	u64 labelCnt;
 	// Counts expression parentheses etc. to make sure they are balanced
 	i64 paren;
@@ -67,6 +69,7 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->cmpRegStk->items[0] = (void*)0;
 	ctr->breakLblStk = ba_NewStk();
 	ctr->funcFrameStk = ba_NewStk();
+	ctr->expCoercedTypeStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
@@ -76,7 +79,7 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->inclInodes = ba_NewDynArr64(0x400);
 	ctr->usedRegisters = 0;
 	ctr->imStackSize = 0;
-	ctr->staticSize = 0;
+	ctr->staticSeg = ba_NewDynArr8(0x1000);
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->currFunc = 0;
 	ctr->paren = 0;
@@ -106,6 +109,7 @@ void ba_DelCtr(struct ba_Ctr* ctr) {
 	ba_DelSymTable(ctr->globalST);
 	ba_DelHashTable(ctr->labelTable);
 	ba_DelDynArr64(ctr->inclInodes);
+	ba_DelDynArr8(ctr->staticSeg);
 
 	free(ctr);
 }

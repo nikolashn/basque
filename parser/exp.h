@@ -97,22 +97,84 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	}
 	// "{" exp { "," exp } [ "," ] "}"
 	else if (ba_PAccept('{', ctr)) {
+		struct ba_Type* coercedType = ba_StkTop(ctr->expCoercedTypeStk);
+		
+		if (coercedType->type != BA_TYPE_ARR) {
+			fprintf(stderr, "Error: cannot coerce array literal to type '%s' "
+				"on line %llu:%llu in %s\n", ba_GetTypeStr(*coercedType), 
+				lexLine, lexColStart, ctr->currPath);
+			exit(-1);
+		}
+	
+		struct ba_ArrExtraInfo* extraInfo = coercedType->extraInfo;
+		u64 fundamentalSz = ba_GetSizeOfType(extraInfo->type);
+		bool isArrNum = ba_IsTypeNum(extraInfo->type);
+
+		u64 cnt = 0;
+		
+		u64 staticStart = ctr->staticSeg->cnt;
+		u64 staticPos = staticStart;
+
+		bool hasTruncationWarning = 0;
+
 		struct ba_PTkStkItem* stkItem = 0;
 		while (ba_PExp(ctr)) {
 			stkItem = ba_StkPop(ctr->pTkStk);
-			// TODO: push to the (actual) stack then move them into the 
-			// static section. im instructions will have to be made for 
-			// the static section, like those that exist for labels
+			u64 itemSz = ba_GetSizeOfType(stkItem->typeInfo);
+
+			bool isStkItemLit = ba_IsLexemeLiteral(stkItem->lexemeType);
+			if ((extraInfo->type.type == BA_TYPE_ARR &&
+					(stkItem->typeInfo.type != BA_TYPE_ARR || 
+						fundamentalSz != itemSz)) || 
+				(isArrNum && !ba_IsTypeNum(stkItem->typeInfo)) ||
+				 !ba_AreTypesEqual(extraInfo->type, stkItem->typeInfo))
+			{
+				ba_ErrorConvertTypes(lexLine, lexColStart, ctr->currPath, 
+					stkItem->typeInfo, extraInfo->type);
+			}
+
+			if (hasTruncationWarning) {
+				goto BA_LBL_PATOM_ARRLIT_LOOPEND;
+			}
+
+			if (extraInfo->cnt && cnt > extraInfo->cnt) {
+				ba_ExitMsg2(BA_EXIT_WARN, "number of elements in array literal "
+					"is greater than of expected type on", lexLine, lexColStart,
+					ctr->currPath, 
+					ba_IsWarnsAsErrors ? "" : ", array literal truncated");
+				hasTruncationWarning = 1;
+			}
+
+			ctr->staticSeg->cnt += itemSz;
+			(ctr->staticSeg->cnt > ctr->staticSeg->cap) && 
+				ba_ResizeDynArr8(ctr->staticSeg);
+			u8* memStart = ctr->staticSeg->arr + staticPos;
+			if (isStkItemLit) {
+				memcpy(memStart, &stkItem->val, itemSz);
+			}
+			else {
+				memset(memStart, 0, itemSz);
+				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_STATIC, staticPos);
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RCX, BA_IM_RAX);
+			}
+			
+			BA_LBL_PATOM_ARRLIT_LOOPEND:
+			++cnt;
+			staticPos += itemSz;
 			if (!ba_PAccept(',', ctr)) {
 				break;
 			}
 		}
+		!extraInfo->cnt && (extraInfo->cnt = cnt); // Indefinite arrays
 		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "", lexLine, lexColStart, 
-				ctr->currPath);
+			return ba_ExitMsg(BA_EXIT_ERR, "expected expression on", lexLine, 
+				lexColStart, ctr->currPath);
 		}
-		// TODO
 		ba_PExpect('}', ctr);
+
+		ba_PTkStkPush(ctr->pTkStk, (void*)staticStart, *coercedType, 
+			BA_TK_IMSTATIC, /* isLValue = */ 0);
 	}
 	// Other
 	else {
@@ -385,11 +447,27 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				++ctr->paren;
 				ba_StkPush(ctr->cmpRegStk, (void*)0);
 				struct ba_Stk* originalOpStk = ctr->pOpStk;
-
+				
+				struct ba_PTkStkItem* funcTk = ba_StkTop(ctr->pTkStk);
+				if (!funcTk || funcTk->typeInfo.type != BA_TYPE_FUNC) {
+					return ba_ExitMsg(BA_EXIT_ERR, "attempt to call "
+						"non-func on", op->line, op->col, ctr->currPath);
+				}
+				struct ba_Func* func = 
+					((struct ba_STVal*)funcTk->val)->type.extraInfo;
+				
 				u64 funcArgsCnt = 0;
+				struct ba_FuncParam* param = func->firstParam;
 				while (1) {
 					ctr->pOpStk = ba_NewStk();
+					if (funcArgsCnt >= func->paramCnt) {
+						break;
+					}
+					ba_StkPush(ctr->expCoercedTypeStk, &param->type);
 					bool isExpFound = ba_PExp(ctr);
+					ba_StkPop(ctr->expCoercedTypeStk);
+					param = param->next;
+					
 					ba_DelStk(ctr->pOpStk);
 					bool isComma = ba_PAccept(',', ctr);
 
@@ -406,6 +484,16 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 						break;
 					}
 				}
+
+				if (funcArgsCnt != func->paramCnt) {
+					fprintf(stderr, "Error: func on line %llu:%llu in %s "
+						"takes %llu parameter%s, but %llu argument%s passed\n", 
+						op->line, op->col, ctr->currPath, func->paramCnt, 
+						func->paramCnt == 1 ? "" : "s", 
+						funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
+					exit(-1);
+				}
+				
 				// 1 is added since arg cant be 0
 				ba_StkPush(ctr->pTkStk, (void*)(1 + funcArgsCnt));
 				
@@ -426,13 +514,19 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ba_PAccept('&', ctr) || ba_PAccept('^', ctr) || 
 				ba_PAccept('|', ctr) || ba_PAccept('+', ctr) || 
 				ba_PAccept('-', ctr) || ba_PAccept(BA_TK_LOGAND, ctr) || 
-				ba_PAccept(BA_TK_LOGOR, ctr) || ba_PAccept('=', ctr) || 
-				(ba_IsLexemeCompoundAssign(nextLexType) && 
-					ba_PAccept(nextLexType, ctr)) || 
+				ba_PAccept(BA_TK_LOGOR, ctr) || 
 				(ba_IsLexemeCompare(nextLexType) && 
 					ba_PAccept(nextLexType, ctr)))
 			{
 				op->syntax = BA_OP_INFIX;
+			}
+			else if (ba_PAccept('=', ctr) || 
+				(ba_IsLexemeCompoundAssign(nextLexType) && 
+					ba_PAccept(nextLexType, ctr))) 
+			{
+				op->syntax = BA_OP_INFIX;
+				ba_StkPush(ctr->expCoercedTypeStk, 
+					&((struct ba_PTkStkItem*)ba_StkTop(ctr->pTkStk))->typeInfo);
 			}
 			else {
 				goto BA_LBL_PEXP_END;
