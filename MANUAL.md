@@ -23,7 +23,7 @@ Arrays in Basque are composed of a dimension on another type. This can be writte
 - Arrays can be casted to other array types of the same size, e.g. `u64[3]` can be casted to `i8[24]`.
 
 ### Functions
-Funcs (functions) are a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++.
+Func (function) is a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++.
 
 ### Other future types
 In the future there will be support for many other types: floating point numbers, structures, enumerations, and more.
@@ -182,14 +182,14 @@ Syntax: `exit` `<expression>` `;`
 Exits from a program with an exit code.
 
 #### Include statement
-Syntax: `include <string literal>` { `<string literal>` }
+Syntax: `include <string literal>;` { `<string literal>` }
 
 Includes a Basque source file at a given path. As there is no preprocessor in the C Basque compiler, include statements are resolved by the parser.
 
 #### Semicolon
 Syntax: `;`
 
-Does nothing (compiles to NOP).
+Does nothing.
 
 #### Conditional statements
 Syntax:
@@ -283,7 +283,7 @@ while 1 {
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
 ### ELF program layout
-Only 2 ELF segments (both LOAD) are generated: a header segment and a code segment. There are no sections. Thus there is no data, bss, etc., and so (also since there is currently no heap) all data is stored on the stack.
+Either 2 or 3 ELF segments (all LOAD) are generated: a header segment and a code segment, and a static segment for storing array literals (and in the future also string literals and static variables). All variables are currently stored on the stack.
 
 ### Calling convention
 All func arguments are passed on the stack. RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
