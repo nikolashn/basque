@@ -441,7 +441,7 @@ u8 ba_POpAssignChecks(struct ba_Ctr* ctr, struct ba_Type lhsType,
 	else if (ba_AreTypesEqual(lhsType, rhs->typeInfo)) {
 		return 1;
 	}
-	return ba_ErrorConvertTypes(line, col, ctr->currPath, lhsType, rhs->typeInfo);
+	return ba_ErrorConvertTypes(line, col, ctr->currPath, rhs->typeInfo, lhsType);
 }
 
 void ba_POpFuncCallPushArgReg(struct ba_Ctr* ctr, u64 reg, u64 size) {

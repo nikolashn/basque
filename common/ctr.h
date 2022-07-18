@@ -46,6 +46,7 @@ struct ba_Ctr { // Controller
 	u64 imStackSize;
 	struct ba_DynArr8* staticSeg;
 	u64 labelCnt;
+	bool isPermitArrLit;
 	// Counts expression parentheses etc. to make sure they are balanced
 	i64 paren;
 	i64 bracket;
@@ -81,6 +82,7 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->imStackSize = 0;
 	ctr->staticSeg = ba_NewDynArr8(0x1000);
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
+	ctr->isPermitArrLit = 0;
 	ctr->currFunc = 0;
 	ctr->paren = 0;
 	return ctr;

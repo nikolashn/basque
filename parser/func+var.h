@@ -172,11 +172,13 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 				ba_StkPush(ctr->expCoercedTypeStk, &param->type);
 
+				ctr->isPermitArrLit = 1;
 				if (stmtType == TP_FWDDEC || !ba_PExpect('=', ctr) ||
 					!ba_PExp(ctr))
 				{
 					return 0;
 				}
+				ctr->isPermitArrLit = 0;
 
 				ba_StkPop(ctr->expCoercedTypeStk);
 				
@@ -356,6 +358,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	u64 dataSize = ba_GetSizeOfType(idVal->type);
 	dataSize && (idVal->address = ctr->currScope->dataSize + dataSize);
 
+	ctr->isPermitArrLit = 1;
 	if (ba_PAccept(BA_TK_KW_GARBAGE, ctr)) {
 		isGarbage = 1;
 	}
@@ -366,6 +369,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	else {
 		return 0;
 	}
+	ctr->isPermitArrLit = 0;
 
 	if (!dataSize) {
 		dataSize = ba_GetSizeOfType(idVal->type);

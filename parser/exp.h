@@ -97,6 +97,10 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	}
 	// "{" exp { "," exp } [ "," ] "}"
 	else if (ba_PAccept('{', ctr)) {
+		!ctr->isPermitArrLit &&
+			ba_ExitMsg(BA_EXIT_ERR, "used array literal in context where it is "
+				"not permitted", lexLine, lexColStart, ctr->currPath);
+		
 		struct ba_Type* coercedType = ba_StkTop(ctr->expCoercedTypeStk);
 		
 		if (coercedType->type != BA_TYPE_ARR) {
@@ -116,6 +120,14 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		u64 staticPos = staticStart;
 
 		bool hasTruncationWarning = 0;
+
+		// Enter a new stack so that operators are not handled improperly
+		struct ba_Stk* oldPOpStk = ctr->pOpStk;
+		ctr->pOpStk = ba_NewStk();
+		i64 oldParen = ctr->paren;
+		ctr->paren = 0;
+		i64 oldBracket = ctr->bracket;
+		ctr->bracket = 0;
 
 		struct ba_PTkStkItem* stkItem = 0;
 		while (ba_PExp(ctr)) {
@@ -162,10 +174,18 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			BA_LBL_PATOM_ARRLIT_LOOPEND:
 			++cnt;
 			staticPos += itemSz;
+			ctr->isPermitArrLit = 1; // Array literals can nest
 			if (!ba_PAccept(',', ctr)) {
 				break;
 			}
 		}
+		
+		// Restore original state
+		ba_DelStk(ctr->pOpStk);
+		ctr->pOpStk = oldPOpStk;
+		ctr->paren = oldParen;
+		ctr->bracket = oldBracket;
+
 		!extraInfo->cnt && (extraInfo->cnt = cnt); // Indefinite arrays
 		if (!stkItem) {
 			return ba_ExitMsg(BA_EXIT_ERR, "expected expression on", lexLine, 
@@ -389,13 +409,16 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 					++ctr->paren;
 					ba_StkPush(ctr->cmpRegStk, (void*)0);
 				}
-				else if (lexType == '[') {
-					++ctr->bracket;
-					ba_StkPush(ctr->cmpRegStk, (void*)0);
-					if (!ba_PDerefListMake(ctr, line, col)) {
-						return 0;
+				else {
+					ctr->isPermitArrLit = 0;
+					if (lexType == '[') {
+						++ctr->bracket;
+						ba_StkPush(ctr->cmpRegStk, (void*)0);
+						if (!ba_PDerefListMake(ctr, line, col)) {
+							return 0;
+						}
+						isAfterAtom = 1;
 					}
-					isAfterAtom = 1;
 				}
 				ba_POpStkPush(ctr->pOpStk, line, col, lexType, BA_OP_PREFIX);
 			}
@@ -427,6 +450,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 
 			// Set syntax type
 			if (ctr->lex->type == ')') {
+				ctr->isPermitArrLit = 0;
 				if (ctr->paren <= initParen) {
 					endDueTo = 1;
 					goto BA_LBL_PEXP_END;
@@ -435,6 +459,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ba_PAccept(')', ctr);
 			}
 			else if (ctr->lex->type == ']') {
+				ctr->isPermitArrLit = 0;
 				if (ctr->bracket <= initBracket) {
 					endDueTo = 2;
 					goto BA_LBL_PEXP_END;
@@ -464,7 +489,9 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 						break;
 					}
 					ba_StkPush(ctr->expCoercedTypeStk, &param->type);
+					ctr->isPermitArrLit = 1;
 					bool isExpFound = ba_PExp(ctr);
+					ctr->isPermitArrLit = 0;
 					ba_StkPop(ctr->expCoercedTypeStk);
 					param = param->next;
 					
@@ -500,6 +527,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ctr->pOpStk = originalOpStk;
 			}
 			else if (ba_PAccept('~', ctr)) {
+				ctr->isPermitArrLit = 0;
 				op->syntax = BA_OP_POSTFIX;
 				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0, 
 					/* isInclIndefArr = */ 0)) 
@@ -518,12 +546,14 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				(ba_IsLexemeCompare(nextLexType) && 
 					ba_PAccept(nextLexType, ctr)))
 			{
+				ctr->isPermitArrLit = 0;
 				op->syntax = BA_OP_INFIX;
 			}
 			else if (ba_PAccept('=', ctr) || 
 				(ba_IsLexemeCompoundAssign(nextLexType) && 
 					ba_PAccept(nextLexType, ctr))) 
 			{
+				ctr->isPermitArrLit = 1;
 				op->syntax = BA_OP_INFIX;
 				ba_StkPush(ctr->expCoercedTypeStk, 
 					&((struct ba_PTkStkItem*)ba_StkTop(ctr->pTkStk))->typeInfo);
