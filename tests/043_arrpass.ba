@@ -10,5 +10,5 @@ void PrintArr4(u64[4] arr = { 4, 3, 2, 1 }) {
 
 u64[4] x = { 500, 71, 0, 2 };
 PrintArr4(x);
-PrintArr4(,);
+PrintArr4();
 
