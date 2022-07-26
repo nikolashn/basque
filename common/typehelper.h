@@ -89,7 +89,7 @@ bool ba_IsPermitConvertPtr(struct ba_Type a, struct ba_Type b) {
 	struct ba_Type aExtra = *(struct ba_Type*)a.extraInfo;
 	struct ba_Type bExtra = *(struct ba_Type*)b.extraInfo;
 
-	return BA_TYPE_VOID == aExtra.type || BA_TYPE_VOID == bExtra.type | 
+	return BA_TYPE_VOID == aExtra.type || BA_TYPE_VOID == bExtra.type || 
 		ba_AreTypesEqual(aExtra, bExtra) ||
 		(aExtra.type == BA_TYPE_ARR && 
 		 	ba_AreTypesEqual(bExtra,
