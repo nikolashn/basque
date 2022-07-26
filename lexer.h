@@ -487,6 +487,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 				else if (c == '#') {
 					state = 0;
 				}
+				else if (c == '}') {
+					state = ST_CMNT_MLBRAC;
+				}
 				else {
 					state = ST_CMNT_ML;
 				}
