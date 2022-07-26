@@ -506,7 +506,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 						++funcArgsCnt;
 					}
 
-					if (funcArgsCnt && !isExpFound) {
+					if (!isExpFound) {
 						// Represents no argument (default argument used)
 						ba_StkPush(ctr->pTkStk, (void*)0);
 					}
@@ -516,7 +516,12 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 					}
 				}
 
-				if (funcArgsCnt != func->paramCnt) {
+				if (!funcArgsCnt && func->paramCnt && 
+					func->firstParam->hasDefaultVal) 
+				{
+					++funcArgsCnt;
+				}
+				else if (funcArgsCnt != func->paramCnt) {
 					fprintf(stderr, "Error: func on line %llu:%llu in %s "
 						"takes %llu parameter%s, but %llu argument%s passed\n", 
 						op->line, op->col, ctr->currPath, func->paramCnt, 
