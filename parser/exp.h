@@ -59,7 +59,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		stkStr->str = str;
 		stkStr->len = len;
 		ba_PTkStkPush(ctr->pTkStk, (void*)stkStr, (struct ba_Type){0},
-			BA_TK_LITSTR, /* isLValue = */ 0);
+			BA_TK_LITSTR, /* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// lit_int
 	else if (ba_PAccept(BA_TK_LITINT, ctr)) {
@@ -77,13 +77,13 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			}
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)num, type, BA_TK_LITINT, 
-			/* isLValue = */ 0);
+			/* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// lit_char
 	else if (ba_PAccept(BA_TK_LITCHAR, ctr)) {
 		struct ba_Type type = { BA_TYPE_U8, 0 };
 		ba_PTkStkPush(ctr->pTkStk, (void*)(u64)lexVal[0], type, BA_TK_LITCHAR,
-			/* isLValue = */ 0);
+			/* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// identifier
 	else if (ba_PAccept(BA_TK_IDENTIFIER, ctr)) {
@@ -93,10 +93,11 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart, ctr->currPath);
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
-			/* isLValue = */ 1);
+			/* isLValue = */ 1, /* isConst = */ 0);
 	}
 	// "{" exp { "," exp } [ "," ] "}"
 	else if (ba_PAccept('{', ctr)) {
+		// TODO: add nesting arrays
 		!ctr->isPermitArrLit &&
 			ba_ExitMsg(BA_EXIT_ERR, "used array literal in context where it is "
 				"not permitted", lexLine, lexColStart, ctr->currPath);
@@ -115,6 +116,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		bool isArrNum = ba_IsTypeNum(extraInfo->type);
 
 		u64 cnt = 0;
+		bool isConst = 1;
 		
 		u64 staticStart = ctr->staticSeg->cnt;
 		u64 staticPos = staticStart;
@@ -134,12 +136,12 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			stkItem = ba_StkPop(ctr->pTkStk);
 			u64 itemSz = ba_GetSizeOfType(stkItem->typeInfo);
 
-			bool isStkItemLit = ba_IsLexemeLiteral(stkItem->lexemeType);
 			if ((extraInfo->type.type == BA_TYPE_ARR &&
 					(stkItem->typeInfo.type != BA_TYPE_ARR || 
 						fundamentalSz != itemSz)) || 
 				(isArrNum && !ba_IsTypeNum(stkItem->typeInfo)) ||
-				 !ba_AreTypesEqual(extraInfo->type, stkItem->typeInfo))
+				 (!isArrNum && 
+				  !ba_AreTypesEqual(extraInfo->type, stkItem->typeInfo)))
 			{
 				ba_ErrorConvertTypes(lexLine, lexColStart, ctr->currPath, 
 					stkItem->typeInfo, extraInfo->type);
@@ -161,10 +163,12 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			(ctr->staticSeg->cnt > ctr->staticSeg->cap) && 
 				ba_ResizeDynArr8(ctr->staticSeg);
 			u8* memStart = ctr->staticSeg->arr + staticPos;
-			if (isStkItemLit) {
+			if (stkItem->isConst) {
+				// Note: assumes int literal
 				memcpy(memStart, &stkItem->val, itemSz);
 			}
 			else {
+				isConst = 0;
 				memset(memStart, 0, itemSz);
 				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
 				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_STATIC, staticPos);
@@ -194,7 +198,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		ba_PExpect('}', ctr);
 
 		ba_PTkStkPush(ctr->pTkStk, (void*)staticStart, *coercedType, 
-			BA_TK_IMSTATIC, /* isLValue = */ 0);
+			BA_TK_IMSTATIC, /* isLValue = */ 0, isConst);
 	}
 	// Other
 	else {

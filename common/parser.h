@@ -12,6 +12,7 @@ struct ba_PTkStkItem {
 	void* val;
 	u64 lexemeType;
 	bool isLValue;
+	bool isConst;
 };
 
 struct ba_POpStkItem {
@@ -28,7 +29,7 @@ enum {
 };
 
 void ba_PTkStkPush(struct ba_Stk* stk, void* val, struct ba_Type type, 
-	u64 lexemeType, bool isLValue)
+	u64 lexemeType, bool isLValue, bool isConst)
 {
 	struct ba_PTkStkItem* stkItem = malloc(sizeof(*stkItem));
 	if (!stkItem) {
@@ -38,6 +39,7 @@ void ba_PTkStkPush(struct ba_Stk* stk, void* val, struct ba_Type type,
 	stkItem->typeInfo = type;
 	stkItem->lexemeType = lexemeType;
 	stkItem->isLValue = isLValue;
+	stkItem->isConst = isConst;
 	ba_StkPush(stk, (void*)stkItem);
 }
 

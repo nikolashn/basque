@@ -188,7 +188,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 						ctr->currPath);
 				}
 				
-				if (!ba_IsLexemeLiteral(expItem->lexemeType)) {
+				if (!expItem->isConst) {
 					return ba_ExitMsg(BA_EXIT_ERR, "default func parameter "
 						"cannot be resolved at compile time on", line, col,
 						ctr->currPath);

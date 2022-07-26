@@ -84,10 +84,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 			}
 			else if (ba_PExp(ctr)) {
 				struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
-				if (!ba_IsTypeInt(expItem->typeInfo) || 
-					(!ba_IsTypeConst(expItem->typeInfo) && 
-						!ba_IsLexemeLiteral(expItem->lexemeType)))
-				{
+				if (!ba_IsTypeInt(expItem->typeInfo) || !expItem->isConst) {
 					return ba_ExitMsg2(BA_EXIT_ERR, "invalid array size on", 
 						ctr->lex->line, ctr->lex->colStart, ctr->currPath, 
 						", must be a constant integer");
@@ -117,7 +114,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 	}
 
 	ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, type, /* lexType = */ 0, 
-		/* isLValue = */ 0);
+		/* isLValue = */ 0, /* isConst = */ 1);
 	return 1;
 }
 

@@ -486,7 +486,8 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 		reg = BA_IM_RSP;
 	}
 	else if (destItem->lexemeType == BA_TK_IDENTIFIER) {
-		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, BA_IM_RSP, 
+		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, 
+			ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 			ba_CalcSTValOffset(ctr->currScope, destItem->val));
 	}
 	else if (destItem->lexemeType == BA_TK_IMREGISTER) {
@@ -503,8 +504,9 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	// Source pointer
 	reg = defaultReg;
 	if (srcItem->lexemeType == BA_TK_IDENTIFIER) {
-		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, BA_IM_RSP, 
-			ba_CalcSTValOffset(ctr->currScope, srcItem->val) + 8);
+		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, 
+			ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
+			ba_CalcSTValOffset(ctr->currScope, srcItem->val));
 	}
 	else if (srcItem->lexemeType == BA_TK_IMREGISTER) {
 		reg = (u64)srcItem->val;

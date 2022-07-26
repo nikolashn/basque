@@ -23,10 +23,6 @@ bool ba_IsTypeNum(struct ba_Type type) {
 	return ba_IsTypeUnsigned(type) || ba_IsTypeSigned(type);
 }
 
-bool ba_IsTypeConst(struct ba_Type type) {
-	return 0; // TODO
-}
-
 u64 ba_GetSizeOfType(struct ba_Type type) {
 	switch (type.type) {
 		case BA_TYPE_U64:

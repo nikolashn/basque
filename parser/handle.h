@@ -1028,9 +1028,9 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				while (argsStk->count) {
 					struct ba_PTkStkItem* funcArg = ba_StkPop(argsStk);
 					u64 paramSize = ba_GetSizeOfType(param->type);
+					bool isParamNum = ba_IsTypeNum(param->type);
 					if (funcArg) {
 						bool isArgNum = ba_IsTypeNum(funcArg->typeInfo);
-						bool isParamNum = ba_IsTypeNum(param->type);
 						if ((isArgNum ^ isParamNum) || 
 							(!isArgNum && !isParamNum && 
 							!ba_AreTypesEqual(funcArg->typeInfo, param->type)))
@@ -1044,33 +1044,48 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							exit(-1);
 						}
 						
-						u64 reg = (u64)funcArg->val;
-						if (funcArg->lexemeType != BA_TK_IMREGISTER) {
-							reg = ba_NextIMRegister(ctr);
-						}
-
-						if (!reg) {
-							ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, paramSize);
-							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ctr->imStackSize += paramSize + 8;
-						}
-						
-						ba_POpMovArgToReg(ctr, funcArg, reg, 
-							ba_IsLexemeLiteral(funcArg->lexemeType));
-
-						if (reg) {
-							ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
-							if (paramSize < 8) {
-								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
-									BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
+						if (isParamNum) {
+							u64 reg = (u64)funcArg->val;
+							if (funcArg->lexemeType != BA_TK_IMREGISTER) {
+								reg = ba_NextIMRegister(ctr);
 							}
+
+							if (!reg) {
+								ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, 
+									paramSize);
+								ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+								ctr->imStackSize += paramSize + 8;
+							}
+							
+							ba_POpMovArgToReg(ctr, funcArg, reg, 
+								ba_IsLexemeLiteral(funcArg->lexemeType));
+
+							if (reg) {
+								ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
+								if (paramSize < 8) {
+									ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
+										BA_IM_RSP, 
+										ba_AdjRegSize(reg, paramSize));
+								}
+								ctr->imStackSize += paramSize;
+							}
+							else {
+								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
+									BA_IM_RSP, 0x8, 
+									ba_AdjRegSize(BA_IM_RAX, paramSize));
+								ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+								ctr->imStackSize -= 8;
+							}
+						}
+						else if (param->type.type == BA_TYPE_ARR) {
+							ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 
+								paramSize);
 							ctr->imStackSize += paramSize;
+							ba_PAssignArr(ctr, /* destItem = */ 0, funcArg, 
+								paramSize);
 						}
 						else {
-							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
-								0x8, ba_AdjRegSize(BA_IM_RAX, paramSize));
-							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-							ctr->imStackSize -= 8;
+							return 0;
 						}
 					}
 					// Default param
@@ -1080,29 +1095,47 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 								op->line, op->col, ctr->currPath, "with implicit "
 								"argument for parameter that has no default");
 						}
-						u64 reg = ba_NextIMRegister(ctr);
-						if (reg) {
-							ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
-								(u64)param->defaultVal);
-							ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
-							if (paramSize < 8) {
-								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
-									BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
+						if (isParamNum) {
+							u64 reg = ba_NextIMRegister(ctr);
+							if (reg) {
+								ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
+									(u64)param->defaultVal);
+								ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
+								if (paramSize < 8) {
+									ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
+										BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
+								}
 							}
+							else {
+								ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, paramSize);
+								ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+								ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 
+									paramSize < 8 
+										? (u64)param->defaultVal & 
+											((1llu << (paramSize*8))-1)
+										: (u64)param->defaultVal);
+								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+									0x8, ba_AdjRegSize(BA_IM_RAX, paramSize));
+								ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+							}
+							ctr->imStackSize += paramSize;
+						}
+						else if (param->type.type == BA_TYPE_ARR) {
+							funcArg = malloc(sizeof(*funcArg));
+							funcArg->typeInfo = param->type;
+							funcArg->val = param->defaultVal;
+							funcArg->lexemeType = BA_TK_IMSTATIC;
+							funcArg->isLValue = 0;
+							funcArg->isConst = 1;
+							ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 
+								paramSize);
+							ctr->imStackSize += paramSize;
+							ba_PAssignArr(ctr, /* destItem = */ 0, funcArg, 
+								paramSize);
 						}
 						else {
-							ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, paramSize);
-							ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-							ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 
-								paramSize < 8 
-									? (u64)param->defaultVal & 
-										((1llu << (paramSize*8))-1)
-									: (u64)arg->val);
-							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
-								0x8, ba_AdjRegSize(BA_IM_RAX, paramSize));
-							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+							return 0;
 						}
-						ctr->imStackSize += paramSize;
 					}
 
 					param = param->next;
