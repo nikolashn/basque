@@ -82,6 +82,23 @@ bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
 	return a.type == b.type;
 }
 
+/* void* can be converted to any type and vice versa
+ * array pointer can be converted to pointer of the array's fundamental type
+ * and vice versa */
+bool ba_IsPermitConvertPtr(struct ba_Type a, struct ba_Type b) {
+	struct ba_Type aExtra = *(struct ba_Type*)a.extraInfo;
+	struct ba_Type bExtra = *(struct ba_Type*)b.extraInfo;
+
+	return BA_TYPE_VOID == aExtra.type || BA_TYPE_VOID == bExtra.type | 
+		ba_AreTypesEqual(aExtra, bExtra) ||
+		(aExtra.type == BA_TYPE_ARR && 
+		 	ba_AreTypesEqual(bExtra,
+				((struct ba_ArrExtraInfo*)(aExtra.extraInfo))->type)) ||
+		(bExtra.type == BA_TYPE_ARR && 
+		 	ba_AreTypesEqual(aExtra,
+				((struct ba_ArrExtraInfo*)(bExtra.extraInfo))->type));
+}
+
 char* ba_GetTypeStr(struct ba_Type type) {
 	switch (type.type) {
 		case BA_TYPE_VOID:
