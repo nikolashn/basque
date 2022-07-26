@@ -4,11 +4,12 @@
 #define BA__BINARY_H
 
 #include "common/common.h"
+#include "common/elf.h"
 
 u8 ba_PessimalInstrSize(struct ba_IM* im);
 
 u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
-	u64 pageSize = sysconf(_SC_PAGE_SIZE);
+	!ba_PageSize && (ba_PageSize = sysconf(_SC_PAGE_SIZE));
 
 	u64 memStart = 0x400000;
 	u64 phCnt = ctr->staticSeg->cnt ? 3 : 2;
@@ -16,7 +17,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	u64 fHeaderSz = 0x40 + pHeaderSz; // File header size
 	/* Not the final entry point, the actual entry point will 
 	 * use this as an offset */
-	u64 entryPoint = memStart + pageSize;
+	u64 entryPoint = memStart + ba_PageSize;
 	
 	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
 		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
@@ -1535,15 +1536,15 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
 		fHeaderSz,0,0,    0,    0,    0,    0,    0,  // fHeaderSz
 		fHeaderSz,0,0,    0,    0,    0,    0,    0,  // "
-		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {ba_PageSize}
 
 		1,    0,    0,    0,    5,    0,    0,    0,  // LOAD, Read+Execute
-		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
-		0,    0,    0,    0,    0,    0,    0,    0,  // {memStart+pageSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {ba_PageSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {memStart+ba_PageSize}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
 		0,    0,    0,    0,    0,    0,    0,    0,  // {code->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
-		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {ba_PageSize}
 
 		1,    0,    0,    0,    6,    0,    0,    0,  // LOAD, Read+Write
 		0,    0,    0,    0,    0,    0,    0,    0,  // {(static start)}
@@ -1551,21 +1552,21 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
 		0,    0,    0,    0,    0,    0,    0,    0,  // {ctr->staticSeg->cnt}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
-		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSize}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {ba_PageSize}
 	};
 
 	u64 staticPadding;
 	u64 staticStartM;
 	{
-		u64 tmpPageSz = pageSize;
+		u64 tmpPageSz = ba_PageSize;
 		u64 tmpStartM = memStart;
-		u64 tmpExe = memStart + pageSize;
+		u64 tmpExe = memStart + ba_PageSize;
 		u64 tmpCodeSz = code->cnt;
 
 		// Align static header properly
-		u64 tmpStatic = pageSize + code->cnt;
-		staticPadding = (bool)(tmpStatic & (pageSize-1)) * 
-			(pageSize - (tmpStatic & (pageSize-1)));
+		u64 tmpStatic = ba_PageSize + code->cnt;
+		staticPadding = (bool)(tmpStatic & (ba_PageSize-1)) * 
+			(ba_PageSize - (tmpStatic & (ba_PageSize-1)));
 		tmpStatic += staticPadding;
 
 		u64 tmpStaticM = memStart + tmpStatic;
@@ -1649,16 +1650,16 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	// File header
 	memcpy(buf, fileHeader, 0x40);
 	memcpy(buf+0x40, programHeader, pHeaderSz);
-	memset(buf+fHeaderSz, 0, pageSize-fHeaderSz);
+	memset(buf+fHeaderSz, 0, ba_PageSize-fHeaderSz);
 
 	// Code
-	u64 bufSize = (code->cnt+pageSize) > BA_FILE_BUF_SIZE 
+	u64 bufSize = (code->cnt+ba_PageSize) > BA_FILE_BUF_SIZE 
 		? BA_FILE_BUF_SIZE : code->cnt;
-	memcpy(buf+pageSize, code->arr, bufSize);
-	fwrite(buf, 1, pageSize + bufSize, file);
+	memcpy(buf+ba_PageSize, code->arr, bufSize);
+	fwrite(buf, 1, ba_PageSize + bufSize, file);
 
 	// Write more code, if not everything can fit in the buffer
-	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - pageSize;
+	u8* codePtr = code->arr + BA_FILE_BUF_SIZE - ba_PageSize;
 	while (codePtr - code->arr < code->cnt) {
 		fwrite(codePtr, 1, code->cnt > BA_FILE_BUF_SIZE 
 			? BA_FILE_BUF_SIZE : code->cnt, file);

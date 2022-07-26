@@ -15,6 +15,7 @@ char usageStr[] =
 	"  -r,--run                Run the compiled code after compilation.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
 	"  -W,--warnings-as-errors Treat warnings as errors.\n"
+	"  --page-size <SIZE>      Size in bytes of memory pages.\n"
 ;
 
 int main(int argc, char* argv[]) {
@@ -94,6 +95,15 @@ int main(int argc, char* argv[]) {
 		}
 		else if (!strcmp(argv[i], "--warnings-as-errors")) {
 			ba_IsWarnsAsErrors = 1;
+		}
+		else if (!strcmp(argv[i], "--page-size")) {
+			if (++i == argc) {
+				fprintf(stderr, "Error: no page size provided after "
+					"--page-size\n");
+				return -1;
+			}
+			ba_PageSize = atoll(argv[i]);
+			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
 			fprintf(stderr, "Error: Command line option %s not found\n", argv[i]);
