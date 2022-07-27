@@ -56,15 +56,21 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		ctr->staticSeg->cnt += len + 1;
 		(ctr->staticSeg->cnt > ctr->staticSeg->cap) && 
 			ba_ResizeDynArr8(ctr->staticSeg);
-		u8* memStart = ctr->staticSeg->arr + len + 1;
-		memcpy(memStart, &str, len + 1);
+		u8* memStart = ctr->staticSeg->arr + staticStart;
+		memcpy(memStart, str, len + 1);
 
-		struct ba_ArrExtraInfo* extraInfo = malloc(sizeof(struct ba_Type));
+		struct ba_Str* pTkVal = malloc(sizeof(*pTkVal));
+		pTkVal->str = str;
+		pTkVal->len = len;
+		pTkVal->staticStart = staticStart;
+
+		struct ba_ArrExtraInfo* extraInfo = malloc(sizeof(*extraInfo));
 		extraInfo->type = (struct ba_Type){ BA_TYPE_U8, 0 };
 		extraInfo->cnt = len + 1;
 		struct ba_Type strType = { BA_TYPE_ARR, extraInfo };
-		ba_PTkStkPush(ctr->pTkStk, (void*)staticStart, strType, 
-			BA_TK_IMSTATIC, /* isLValue = */ 0, /* isConst = */ 1);
+		
+		ba_PTkStkPush(ctr->pTkStk, (void*)pTkVal, strType, 
+			BA_TK_LITSTR, /* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// lit_int
 	else if (ba_PAccept(BA_TK_LITINT, ctr)) {

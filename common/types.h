@@ -12,6 +12,7 @@ struct ba_Type {
 struct ba_Str {
 	char* str;
 	u64 len;
+	u64 staticStart;
 };
 
 struct ba_ArrExtraInfo {

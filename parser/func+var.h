@@ -371,8 +371,14 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	}
 	ctr->isPermitArrLit = 0;
 
-	if (!dataSize) {
-		dataSize = ba_GetSizeOfType(idVal->type);
+	if (!dataSize && idVal->type.type == BA_TYPE_ARR) {
+		dataSize = ba_GetSizeOfType(expItem->typeInfo);
+		if (expItem->lexemeType == BA_TK_LITSTR) {
+			struct ba_ArrExtraInfo extraInfo = 
+				*(struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo;
+			((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt = 
+				extraInfo.cnt / ba_GetSizeOfType(extraInfo.type);
+		}
 		idVal->address = ctr->currScope->dataSize + dataSize;
 	}
 	

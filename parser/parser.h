@@ -509,10 +509,6 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 					"from a function with non-numeric type", line, col, 
 					ctr->currPath);
 			}
-			if (stkItem->lexemeType == BA_TK_LITSTR) {
-				return ba_ExitMsg(BA_EXIT_ERR, "returning string literal from "
-					"a func currently not implemented,", line, col, ctr->currPath);
-			}
 			if (ba_IsTypeInt(stkItem->typeInfo)) {
 				// Return value in rax
 				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, 
@@ -527,6 +523,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
 				// Return value should already be on the stack
 				// TODO
+				return ba_ExitMsg(BA_EXIT_ERR, "returning array from "
+					"a func currently not implemented,", line, col, ctr->currPath);
 			}
 		}
 		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {

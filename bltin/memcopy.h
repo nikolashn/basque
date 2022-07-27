@@ -10,7 +10,7 @@
 void ba_BltinMemCopy(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_MemCopy);
 	ba_BltinLabels[BA_BLTIN_MemCopy] = ctr->labelCnt;
-	ctr->labelCnt += 7;
+	ctr->labelCnt += 5;
 	
 	struct ba_IM* oldIM = ctr->im;
 	struct ba_IM* oldStartIM = ctr->startIM;
@@ -19,7 +19,7 @@ void ba_BltinMemCopy(struct ba_Ctr* ctr) {
 	ctr->im = ctr->startIM;
 
 	// --- MemCopy ---
-	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-7);
+	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-5);
 	// Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX);
 	// Preserve rbp
@@ -32,63 +32,32 @@ void ba_BltinMemCopy(struct ba_Ctr* ctr) {
 	// rdx: mem size
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x08);
 
-	// If mem size < 8, use byte copy
-	ba_AddIM(ctr, 4, BA_IM_CMP, BA_IM_RAX, BA_IM_IMM, 8);
-	ba_AddIM(ctr, 2, BA_IM_LABELJAE, ctr->labelCnt-6);
-	ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RAX, BA_IM_RDX);
-	ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RCX, BA_IM_RDX);
-	ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->labelCnt-2);
+	// If whole words can be copied, copy whole words, otherwise copy bytes
+	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-4);
+	ba_AddIM(ctr, 4, BA_IM_CMP, BA_IM_RDX, BA_IM_IMM, 8);
+	ba_AddIM(ctr, 2, BA_IM_LABELJAE, ctr->labelCnt-2);
 
-	// Align to word
-	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-6);
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDI, BA_IM_RAX);
-	ba_AddIM(ctr, 2, BA_IM_NEG, BA_IM_RDI);
-	ba_AddIM(ctr, 4, BA_IM_AND, BA_IM_RDI, BA_IM_IMM, 7);
-	ba_AddIM(ctr, 2, BA_IM_LABELJZ, ctr->labelCnt-4);
-	ba_AddIM(ctr, 3, BA_IM_SUB, BA_IM_RDX, BA_IM_RDI);
-	ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RAX, BA_IM_RDI);
-	ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RCX, BA_IM_RDI);
-	
-	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-5);
-	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RAX);
-	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RCX);
-	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RDI);
+	// Copy bytes
+	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-3);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_SIL, BA_IM_ADR, BA_IM_RCX);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RAX, BA_IM_SIL);
-	ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RDI, BA_IM_RDI);
-	ba_AddIM(ctr, 2, BA_IM_LABELJNZ, ctr->labelCnt-5);
-
-	// If mem size < TODO, use word copy
-	// TODO: align to page
-	// TODO: page copy
-	
-	// Word copy
-	// TODO: unroll (and benchmark)
-	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-4);
-	ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RAX, BA_IM_RDX);
-	ba_AddIM(ctr, 3, BA_IM_ADD, BA_IM_RCX, BA_IM_RDX);
-
-	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-3);
-	ba_AddIM(ctr, 4, BA_IM_CMP, BA_IM_RDX, BA_IM_IMM, 8);
-	ba_AddIM(ctr, 2, BA_IM_LABELJL, ctr->labelCnt-2);
-	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RAX, BA_IM_IMM, 8);
-	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RCX, BA_IM_IMM, 8);
-	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RDX, BA_IM_IMM, 8);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSI, BA_IM_ADR, BA_IM_RCX);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RAX, BA_IM_RSI);
+	ba_AddIM(ctr, 2, BA_IM_INC, BA_IM_RAX);
+	ba_AddIM(ctr, 2, BA_IM_INC, BA_IM_RCX);
+	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RDX);
 	ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RDX, BA_IM_RDX);
 	ba_AddIM(ctr, 2, BA_IM_LABELJNZ, ctr->labelCnt-3);
 	ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->labelCnt-1);
-	
-	// Byte copy
+
+	// Copy words
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-2);
-	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RAX);
-	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RCX);
-	ba_AddIM(ctr, 2, BA_IM_DEC, BA_IM_RDX);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_SIL, BA_IM_ADR, BA_IM_RCX);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RAX, BA_IM_SIL);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RSI, BA_IM_ADR, BA_IM_RCX);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RAX, BA_IM_RSI);
+	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RAX, BA_IM_IMM, 8);
+	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RCX, BA_IM_IMM, 8);
+	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RDX, BA_IM_IMM, 8);
 	ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RDX, BA_IM_RDX);
-	ba_AddIM(ctr, 2, BA_IM_LABELJNZ, ctr->labelCnt-2);
+	ba_AddIM(ctr, 2, BA_IM_LABELJNZ, ctr->labelCnt-4);
+	ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->labelCnt-1);
 
 	// Epilogue
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);

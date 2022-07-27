@@ -51,9 +51,12 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				return 1;
 			}
 			else if (op->lexemeType == '&') {
-				if (!arg->isLValue) {
+				if (!arg->isLValue && arg->lexemeType != BA_TK_IMSTATIC && 
+					arg->lexemeType != BA_TK_LITSTR) 
+				{
 					return ba_ExitMsg(BA_EXIT_ERR, "cannot get address of "
-						"non-lvalue on", op->line, op->col, ctr->currPath);
+						"non-lvalue and non string/array literal on", op->line, 
+						op->col, ctr->currPath);
 				}
 
 				// TODO: add feature
@@ -70,20 +73,25 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				if (arg->lexemeType == BA_TK_IDENTIFIER) {
 					ba_POpMovIdToReg(ctr, arg->val, /* argSize = */ 8, 
 						reg, /* isLea = */ 1);
-				}
-				// IMRBPSUB must be a DPTR
-				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, reg, BA_IM_ADRSUB, 
-						BA_IM_RBP, (u64)arg->val);
-				}
-				
-				if (arg->lexemeType == BA_TK_IDENTIFIER) {
+					
 					struct ba_Type* origType = malloc(sizeof(*origType));
 					if (!origType) {
 						return ba_ErrorMallocNoMem();
 					}
 					memcpy(origType, &arg->typeInfo, sizeof(*origType));
 					arg->typeInfo.extraInfo = origType;
+				}
+				else if (arg->lexemeType == BA_TK_IMSTATIC) {
+					ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_STATIC, (u64)arg->val);
+				}
+				else if (arg->lexemeType == BA_TK_LITSTR) {
+					ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_STATIC, 
+						((struct ba_Str*)arg->val)->staticStart);
+				}
+				// IMRBPSUB must be a DPTR
+				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+					ba_AddIM(ctr, 5, BA_IM_MOV, reg, BA_IM_ADRSUB, 
+						BA_IM_RBP, (u64)arg->val);
 				}
 				
 				ba_POpSetArg(ctr, arg, argReg, stackPos);

@@ -410,11 +410,13 @@ u8 ba_POpAssignChecks(struct ba_Ctr* ctr, struct ba_Type lhsType,
 	struct ba_PTkStkItem* rhs, u64 line, u64 col) 
 {
 	if (lhsType.type == BA_TYPE_FUNC) {
-		return ba_ExitMsg(BA_EXIT_ERR, "cannot assign func directly to another "
-			"func,", line, col, ctr->currPath);
+		return ba_ExitMsg(BA_EXIT_ERR, "cannot assign func directly to a "
+			"value,", line, col, ctr->currPath);
 	}
-	else if (lhsType.type == BA_TYPE_ARR && rhs->typeInfo.type == BA_TYPE_ARR && 
-		ba_GetSizeOfType(lhsType) == ba_GetSizeOfType(rhs->typeInfo))
+	else if ((lhsType.type == BA_TYPE_ARR && 
+			rhs->typeInfo.type == BA_TYPE_ARR && 
+			ba_GetSizeOfType(lhsType) == ba_GetSizeOfType(rhs->typeInfo)) || 
+		(lhsType.type == BA_TYPE_ARR && !ba_GetSizeOfType(lhsType)))
 	{
 		return 1;
 	}
@@ -511,6 +513,10 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	else if (srcItem->lexemeType == BA_TK_IMSTATIC) {
 		// Non-constant array literals
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, (u64)srcItem->val);
+	}
+	else if (srcItem->lexemeType == BA_TK_LITSTR) {
+		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, 
+			((struct ba_Str*)srcItem->val)->staticStart);
 	}
 	ba_AddIM(ctr, 2, BA_IM_PUSH, reg); // src ptr
 	
