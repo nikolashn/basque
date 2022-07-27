@@ -460,6 +460,17 @@ void ba_POpFuncCallPushArgReg(struct ba_Ctr* ctr, u64 reg, u64 size) {
 	}
 }
 
+u64 ba_AllocStrLitStatic(struct ba_Ctr* ctr, struct ba_Str* str) {
+	u64 staticStart = ctr->staticSeg->cnt;
+	ctr->staticSeg->cnt += str->len + 1;
+	(ctr->staticSeg->cnt > ctr->staticSeg->cap) && 
+		ba_ResizeDynArr8(ctr->staticSeg);
+	u8* memStart = ctr->staticSeg->arr + staticStart;
+	memcpy(memStart, str->str, str->len + 1);
+	str->staticStart = staticStart;
+	return staticStart;
+}
+
 void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem, 
 	struct ba_PTkStkItem* srcItem, u64 size)
 {
@@ -516,7 +527,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	}
 	else if (srcItem->lexemeType == BA_TK_LITSTR) {
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, 
-			((struct ba_Str*)srcItem->val)->staticStart);
+			ba_AllocStrLitStatic(ctr, (struct ba_Str*)srcItem->val));
 	}
 	ba_AddIM(ctr, 2, BA_IM_PUSH, reg); // src ptr
 	

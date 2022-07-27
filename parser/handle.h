@@ -86,7 +86,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 				else if (arg->lexemeType == BA_TK_LITSTR) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_STATIC, 
-						((struct ba_Str*)arg->val)->staticStart);
+						ba_AllocStrLitStatic(ctr, (struct ba_Str*)arg->val));
 				}
 				// IMRBPSUB must be a DPTR
 				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
