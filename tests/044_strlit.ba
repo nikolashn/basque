@@ -1,0 +1,4 @@
+u8[] str = "Hello world!";
+write [str,1] == 'e'; "\n"; # 1
+write [str,8] == 'r'; "\n"; # 1
+
