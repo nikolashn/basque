@@ -1,6 +1,6 @@
 # The Basque Programming Language and C Basque Compiler Manual
 
-Basque is extremely extremely alpha. The current features are very limited and rough around the edges. Nothing is stable; anything is subject to change.
+Basque is extremely extremely alpha. The current features are very limited and rough around the edges. Nothing is stable; anything is subject to change. This manual itself may be incomplete.
 
 ## Program structure
 
