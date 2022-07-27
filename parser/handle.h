@@ -50,6 +50,28 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
+			else if (op->lexemeType == BA_TK_KW_LENGTHOF) {
+				if (arg->typeInfo.type != BA_TYPE_ARR) {
+					return ba_ExitMsg(BA_EXIT_ERR, "type of operand to "
+						"'lengthof' operator is not an array on", op->line, 
+						op->col, ctr->currPath);
+				}
+
+				arg->val = (void*)
+					(((struct ba_ArrExtraInfo*)arg->typeInfo.extraInfo)->cnt);
+
+				if (!arg->val) {
+					return ba_ExitMsg(BA_EXIT_ERR, "type of operand to "
+						"'lengthof' operator has undefined size on", op->line, 
+						op->col, ctr->currPath);
+				}
+
+				arg->typeInfo.type = BA_TYPE_U64;
+				arg->lexemeType = BA_TK_LITINT;
+				arg->isLValue = 0;
+				ba_StkPush(ctr->pTkStk, arg);
+				return 1;
+			}
 			else if (op->lexemeType == '&') {
 				if (!arg->isLValue && arg->lexemeType != BA_TK_IMSTATIC && 
 					arg->lexemeType != BA_TK_LITSTR) 

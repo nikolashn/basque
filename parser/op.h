@@ -23,6 +23,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 			if (op->lexemeType == '+' || op->lexemeType == '-' || 
 				op->lexemeType == '!' || op->lexemeType == '~' || 
 				op->lexemeType == '$' || op->lexemeType == '&' || 
+				op->lexemeType == BA_TK_KW_LENGTHOF || 
 				op->lexemeType == BA_TK_INC || op->lexemeType == BA_TK_DEC)
 			{
 				return 1;

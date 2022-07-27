@@ -408,6 +408,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ba_PAccept('!', ctr) || ba_PAccept('~', ctr) || 
 				ba_PAccept('(', ctr) || ba_PAccept('[', ctr) || 
 				ba_PAccept('$', ctr) || ba_PAccept('&', ctr) || 
+				ba_PAccept(BA_TK_KW_LENGTHOF, ctr) || 
 				ba_PAccept(BA_TK_INC, ctr) || ba_PAccept(BA_TK_DEC, ctr))
 			{
 				// Left grouping parenthesis / dereferencing bracket
