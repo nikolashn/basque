@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Basque
 " Maintainer: nikolashn
-" Latest Revision: 2022 May 29
+" Latest Revision: 2022 Jul 27
 " Usage instructions:
 
 " Put this file in .vim/syntax/basque.vim,
@@ -29,6 +29,7 @@ syn keyword baConditional if elif else
 syn keyword baRepeat while
 syn keyword baStatement write break goto return include exit
 syn keyword baType u64 i64 u8 i8 void
+syn keyword baOperator lengthof
 
 syn match baLabel "\<[a-zA-Z_][a-zA-Z0-9_]*:"
 
@@ -43,6 +44,7 @@ hi def link baStatement Statement
 hi def link baLabel Label
 hi def link baType Type
 hi def link baTodo Todo
+hi def link baOperator Operator
 
 let b:current_syntax = "basque"
 

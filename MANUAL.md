@@ -58,7 +58,7 @@ An expression consists of atoms and operators (or just an atom on its own).
 #### Operator precedence
 Basque's operators are the following (each line is ordered from high to low precedence). All binary operators are left-associative unless specified in the notes section.
 - type cast postfix `~ <type>`, func call `(,)`
-- unary prefixes `+ - ! ~ ++ -- $ &`, grouping `()`, dereferencing `[,]`
+- unary prefixes `+ - ! ~ ++ -- $ & lengthof`, grouping `()`, dereferencing `[,]`
 - bit shift operators `<< >>`
 - multiplication `*`, integer division `//`, modulo `%`
 - bitwise and `&`
@@ -78,9 +78,11 @@ Func calls are a func followed by a comma-seperated list of expressions (argumen
 
 Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value. With pointers, the increment/decrement is by the size of the dereferenced pointer, instead of just 1.
 
-The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
+The `$` operation evaluates to the size of its operand in bytes.
 
-The `&` unary prefix gives the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
+The `&` unary prefix evaluates to the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
+
+The `lengthof` operator evaluates to the amount of items in an array. `lengthof arr` is essentially syntactic sugar for `$arr // $[arr]`.
 
 The dereferencing operator (or dereferencing list) `[,]` is a comma seperated list in square brackets. Basque `[a]`, `[a,b]`, `[a,b,c]`, etc. are equivalent to C `*a`, `a[b]`, `a[b][c]`, etc.
 
