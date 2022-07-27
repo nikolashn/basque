@@ -9,6 +9,11 @@ struct ba_Type {
 	void* extraInfo;
 };
 
+struct ba_Str {
+	char* str;
+	u64 len;
+};
+
 struct ba_ArrExtraInfo {
 	struct ba_Type type;
 	u64 cnt;

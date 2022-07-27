@@ -36,11 +36,6 @@ typedef signed char i8;
 typedef double f64;
 typedef float f32;
 
-struct ba_Str {
-	char* str;
-	u64 len;
-};
-
 // ----- Basque includes -----
 
 #include "exitmsg.h"
