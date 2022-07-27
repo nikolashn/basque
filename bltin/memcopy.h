@@ -5,6 +5,8 @@
 
 #include "bltinflags.h"
 
+// TODO: page copy, alignment
+
 /* Params: dest ptr (0x8), src ptr (0x8), mem size (0x8)
  * Returns nothing */
 void ba_BltinMemCopy(struct ba_Ctr* ctr) {
