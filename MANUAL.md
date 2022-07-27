@@ -80,7 +80,7 @@ Only prefix increment (`++`) and decrement (`--`) are available in Basque. The o
 
 The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
 
-The `&` operator gives the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
+The `&` unary prefix gives the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
 
 The dereferencing operator (or dereferencing list) `[,]` is a comma seperated list in square brackets. Basque `[a]`, `[a,b]`, `[a,b,c]`, etc. are equivalent to C `*a`, `a[b]`, `a[b][c]`, etc.
 
