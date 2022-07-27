@@ -12,9 +12,6 @@ The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (
 
 In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, properly functioning `bool`.
 
-### String type
-String (string literal) currently exists as a temporary type to represent string literals, but will be removed very soon.
-
 ### Arrays
 Arrays in Basque are composed of a dimension on another type. This can be written as a rule `type[dimension]`. The type can be any valid data type, and each additional dimension with size *N* represents a repetition of a block of data of the fundamental type *N* times in series. Arrays in Basque are also different to those in C in some other ways, the main differences being:
 - The syntax for declaring a variable as an array is different: Basque `i8[15] x;` vs C `signed char x[15];`, Basque `i64[6][7] arr;` vs C `long long arr[7][6];`, Basque `u8[99]* users;` vs C `unsigned char* users[99];`.
@@ -41,7 +38,7 @@ comment
 ```
 ### Atoms
 An atom is one of the following:
-- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape sequences (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character).
+- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape sequences (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character). The type of a string literal is a `u8` array.
 - A series of string literals (which then combine together into 1 string).
 - An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). They may contain underscores after the first digit or prefix, which has no effect but can be used to make numbers more readable (Compare `3817193423` and `3_817_193_423`). The suffix `u` can be added to a literal to make it unsigned. Integer literals with no suffix are of type `i64` unless they represent a value larger than 2^63, in which case they are `u64`.
 - A character literal beginning and ending with a `'` character. The character literal consists of either a single character or an escape sequence.
@@ -82,6 +79,8 @@ Func calls are a func followed by a comma-seperated list of expressions (argumen
 Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value. With pointers, the increment/decrement is by the size of the dereferenced pointer, instead of just 1.
 
 The `$` operation evaluates to the size of its operand in bytes. Gives an error with the "string literal" type since it shouldn't really exist.
+
+The `&` operator gives the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
 
 The dereferencing operator (or dereferencing list) `[,]` is a comma seperated list in square brackets. Basque `[a]`, `[a,b]`, `[a,b,c]`, etc. are equivalent to C `*a`, `a[b]`, `a[b][c]`, etc.
 
@@ -182,7 +181,7 @@ Syntax: `exit` `<expression>` `;`
 Exits from a program with an exit code.
 
 #### Include statement
-Syntax: `include <string literal>;` { `<string literal>` }
+Syntax: `include <string literal>` { `<string literal>` } `;`
 
 Includes a Basque source file at a given path. As there is no preprocessor in the C Basque compiler, include statements are resolved by the parser.
 
@@ -283,7 +282,7 @@ while 1 {
 The C Basque compiler compiles to statically-linked Linux ELF64 executables, with no section headers or symbol table.
 
 ### ELF program layout
-Either 2 or 3 ELF segments (all LOAD) are generated: a header segment and a code segment, and a static segment for storing array literals (and in the future also string literals and static variables). All variables are currently stored on the stack.
+Either 2 or 3 ELF segments (all LOAD) are generated: a header segment and a code segment, and a static segment for storing array literals and string literals (in the future also static variables). All variables are currently stored on the stack.
 
 ### Calling convention
 All func arguments are passed on the stack. RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
