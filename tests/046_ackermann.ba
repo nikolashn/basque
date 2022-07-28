@@ -1,0 +1,22 @@
+u64 A(u64 m, u64 n) {
+	if m == 0u, return n + 1u;
+	elif n == 0u, return A(m-1u, 1);
+	else, return A(m-1u, A(m,n-1u));
+}
+
+i64 m = 0;
+while m <= 4 {
+	i64 n = 0;
+	while n < 6 - m {
+		"A(";
+		write m;
+		", ";
+		write n;
+		") = ";
+		write A(m, n);
+		"\n";
+		++n;
+	}
+	++m;
+}
+
