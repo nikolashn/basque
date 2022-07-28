@@ -33,8 +33,8 @@ struct ba_Ctr { // Controller
 	// For type coercion in array literals
 	struct ba_Stk* expCoercedTypeStk; // Takes struct ba_Type* as items
 
-	// Used with return statements, takes struct ba_Func* as items
-	struct ba_Stk* funcStk;
+	// Used with return statements
+	struct ba_Func* currFunc;
 
 	// Code generation
 	struct ba_IM* startIM;
@@ -83,7 +83,7 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->staticSeg = ba_NewDynArr8(0x1000);
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->isPermitArrLit = 0;
-	ctr->funcStk = ba_NewStk();
+	ctr->currFunc = 0;
 	ctr->paren = 0;
 	return ctr;
 }
