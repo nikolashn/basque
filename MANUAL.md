@@ -38,7 +38,7 @@ comment
 ```
 ### Atoms
 An atom is one of the following:
-- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape sequences (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character). The type of a string literal is a `u8` array.
+- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape sequences (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character). String literals are null-terminated `u8` arrays.
 - A series of string literals (which then combine together into 1 string).
 - An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). They may contain underscores after the first digit or prefix, which has no effect but can be used to make numbers more readable (Compare `3817193423` and `3_817_193_423`). The suffix `u` can be added to a literal to make it unsigned. Integer literals with no suffix are of type `i64` unless they represent a value larger than 2^63, in which case they are `u64`.
 - A character literal beginning and ending with a `'` character. The character literal consists of either a single character or an escape sequence.

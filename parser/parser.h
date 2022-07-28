@@ -522,7 +522,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			}
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
 				// Return value should already be on the stack
-				// TODO
+				// TODO: returning array from func
 				return ba_ExitMsg(BA_EXIT_ERR, "returning array from "
 					"a func currently not implemented,", line, col, ctr->currPath);
 			}
