@@ -19,8 +19,8 @@ Arrays in Basque are composed of a dimension on another type. This can be writte
 - For the above reason, arrays are passed by value to functions and are value copied in assignments.
 - Arrays can be casted to other array types of the same size, e.g. `u64[3]` can be casted to `i8[24]`.
 
-### Functions
-Func (function) is a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++.
+### Func
+Func (function) is a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). A func may have optional parameters, similar to as in C++. Furthermore, unlike in C, a func may be defined in a local scope, including the scope of another func.
 
 ### Other future types
 In the future there will be support for many other types: floating point numbers, structures, enumerations, and more.
