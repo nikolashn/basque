@@ -8,6 +8,21 @@
 
 u8 ba_PessimalInstrSize(struct ba_IM* im);
 
+void ba_EmplaceFuncs(struct ba_Ctr* ctr, struct ba_SymTable* st) {
+	for (u64 i = 0; i < st->ht->capacity; ++i) {
+		struct ba_HTEntry e = st->ht->entries[i];
+		struct ba_STVal* val = (struct ba_STVal*)e.val;
+		if (val && val->type.type == BA_TYPE_FUNC) {
+			struct ba_Func* func = val->type.extraInfo;
+			memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
+			ctr->im = func->imEnd;
+		}
+	}
+	for (u64 i = 0; i < st->childCnt; ++i) {
+		ba_EmplaceFuncs(ctr, st->children[i]);
+	}
+}
+
 u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	!ba_PageSize && (ba_PageSize = sysconf(_SC_PAGE_SIZE));
 
@@ -19,28 +34,9 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	 * use this as an offset */
 	u64 entryPoint = memStart + ba_PageSize;
 	
-	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
-		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
-		struct ba_STVal* val = (struct ba_STVal*)e.val;
-
-		if (!val || !e.key) {
-			goto BA_LBL_GENFUNCS_LOOPEND;
-		}
-
-		// Put functions in their place
-		// TODO: search through named scopes as well
-		/* Because of optimization passes in the future, perhaps this should be
-		   at the end of the parser instead? */
-		if (val->type.type == BA_TYPE_FUNC) {
-			struct ba_Func* func = val->type.extraInfo;
-			if (!func->isCalled) {
-				goto BA_LBL_GENFUNCS_LOOPEND;
-			}
-			memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
-			ctr->im = func->imEnd;
-		}
-		BA_LBL_GENFUNCS_LOOPEND:;
-	}
+	/* TODO: Because of optimization passes in the future, perhaps this should 
+	 * be at the end of the parser instead? */
+	ba_EmplaceFuncs(ctr, ctr->globalST);
 
 	// Addresses are relative to the start of the code segment
 	struct ba_IMLabel* labels = calloc(ctr->labelCnt, sizeof(*labels));
