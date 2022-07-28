@@ -17,12 +17,6 @@ u8 ba_PStmt(struct ba_Ctr* ctr);
 u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col, 
 	struct ba_Type retType)
 {
-	// TODO: once named scopes are added, change this
-	if (ctr->currScope != ctr->globalST) {
-		return ba_ExitMsg(BA_EXIT_ERR, "func can only be defined in "
-			"the outer scope,", line, col, ctr->currPath);
-	}
-
 	struct ba_STVal* prevFuncIdVal = ba_HTGet(ctr->currScope->ht, funcName);
 	if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
 		prevFuncIdVal->isInited))
@@ -59,7 +53,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	func->firstParam = param;
 
 	ctr->currScope = func->childScope;
-	ctr->currFunc = func;
+	ba_StkPush(ctr->funcStk, (void*)func);
 
 	struct ba_IM* oldIM = ctr->im;
 	ctr->im = func->imBegin;
@@ -298,7 +292,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 	func->imEnd = ctr->im;
 	ctr->im = oldIM;
-	ctr->currFunc = 0;
+	ba_StkPop(ctr->funcStk);
 	ctr->currScope = func->childScope->parent;
 
 	if (stmtType == TP_FULLDEC && retType.type != BA_TYPE_VOID && 

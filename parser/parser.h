@@ -480,10 +480,13 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	}
 	// "return" [ exp ] ";"
 	else if (ba_PAccept(BA_TK_KW_RETURN, ctr)) {
-		if (!ctr->currFunc) {
+		if (!ctr->funcStk->count) {
 			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'return' used outside of "
 				"func on", firstLine, firstCol, ctr->currPath);
 		}
+
+		struct ba_Func* currFunc = ba_StkTop(ctr->funcStk);
+
 		if (!ctr->lex) {
 			ba_PExpect(';', ctr);
 		}
@@ -492,7 +495,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 col = ctr->lex->colStart;
 
 		if (ba_PExp(ctr)) {
-			if (ctr->currFunc->retType.type == BA_TYPE_VOID) {
+			if (currFunc->retType.type == BA_TYPE_VOID) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning value from func with "
 					"return type 'void' on", line, col, ctr->currPath);
 			}
@@ -502,7 +505,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
 					ctr->currPath);
 			}
-			if (!ba_IsTypeNum(ctr->currFunc->retType) &&
+			if (!ba_IsTypeNum(currFunc->retType) &&
 				ba_IsTypeNum(stkItem->typeInfo)) 
 			{
 				return ba_ExitMsg(BA_EXIT_ERR, "returning numeric value "
@@ -527,20 +530,20 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 					"a func currently not implemented,", line, col, ctr->currPath);
 			}
 		}
-		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
+		else if (currFunc->retType.type != BA_TYPE_VOID) {
 			return ba_ExitMsg(BA_EXIT_ERR, "returning without value from func "
 				"that does not have return type 'void' on", line, col, 
 				ctr->currPath);
 		}
 
 		if (ctr->currScope->dataSize && 
-			ctr->currScope != ctr->currFunc->childScope) 
+			ctr->currScope != currFunc->childScope) 
 		{
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 		}
 
-		ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
-		ctr->currFunc->doesReturn = 1;
+		ba_AddIM(ctr, 2, BA_IM_LABELJMP, currFunc->lblEnd);
+		currFunc->doesReturn = 1;
 		return ba_PExpect(';', ctr);
 	}
 	// "exit" exp ";"
