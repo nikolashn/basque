@@ -1,0 +1,13 @@
+u64 F(u64 n, u64 x, u64 y) {
+	if n == 0u, return x + y;
+	elif y == 0u, return x;
+	else, return F(n-1u, F(n, x, y-1u), F(n, x, y-1u) + y);
+}
+
+write F(0, 0, 0); " = 0\n";
+write F(1, 1, 1); " = 3\n";
+write F(1, 3, 3); " = 35\n";
+write F(2, 1, 1); " = 8\n";
+write F(2, 2, 1); " = 27\n";
+write F(3, 1, 1); " = 10228\n";
+
