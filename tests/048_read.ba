@@ -1,0 +1,7 @@
+include "sys";
+u8[128] buf = garbage;
+
+u64 len = Read(&buf, lengthof buf, 0);
+"amount of chars read: "; write len; "\n";
+"value of first char: "; write [buf, 0]; "\n";
+
