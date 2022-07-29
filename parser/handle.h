@@ -653,6 +653,10 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					? *(struct ba_Type*)lhs->typeInfo.extraInfo 
 					: lhs->typeInfo;
 
+				if (rhs->typeInfo.type == BA_TYPE_DPTR) {
+					rhs->typeInfo = *(struct ba_Type*)rhs->typeInfo.extraInfo;
+				}
+
 				ba_POpAssignChecks(ctr, lhsType, rhs, op->line, op->col);
 
 				if (opLex != '=' && (!ba_IsTypeNum(lhsType) ||
