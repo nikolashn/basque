@@ -312,5 +312,6 @@ The system calls implemented so far are detailed below.
 i64 Read(void* buf, u64 count, i64 fd = 0);
 ```
 System call number: 0
+
 System call name: read
 
