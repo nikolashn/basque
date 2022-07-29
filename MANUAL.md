@@ -50,7 +50,7 @@ Syntax: `{ <expression>` { `, <expression>` } [ `,` ] `}`
 
 For example, `{ 1 + 2 + 3, 4 + 5, 6 }`, `{ stop, drop, roll, }`, `{ INIT_NUM }` are all syntactically valid array literals.
 
-Array literals represent series of values combined into a block of data, to which arrays (and in future, structs) can be assigned to. They can only be used as the right hand side of an assignment or definition of a variable or default func parameter, or as an argument of a func call. They have no other operations (notably they cannot be casted). If the literal is smaller than the array it is being set to, then the remainder of the array will be filled with garbage.
+Array literals represent series of values combined into a block of data, to which arrays (and in future, structs) can be assigned to. They can only be used as the right hand side of an assignment or definition of a variable or default func parameter, as an argument of a func call, or as the expression of a return statement. They have no other operations (notably they cannot be casted). If the literal is smaller than the array it is being set to, then the remainder of the array will be filled with garbage.
 
 ### Expressions
 An expression consists of atoms and operators (or just an atom on its own).
