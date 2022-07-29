@@ -653,8 +653,10 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					? *(struct ba_Type*)lhs->typeInfo.extraInfo 
 					: lhs->typeInfo;
 
+				bool isRhsDptr = 0;
 				if (rhs->typeInfo.type == BA_TYPE_DPTR) {
 					rhs->typeInfo = *(struct ba_Type*)rhs->typeInfo.extraInfo;
+					isRhsDptr = 1;
 				}
 
 				ba_POpAssignChecks(ctr, lhsType, rhs, op->line, op->col);
@@ -745,6 +747,17 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				((opLex == BA_TK_BITOREQ) && (imOp = BA_IM_OR));
 
 				u64 lhsSize = ba_GetSizeOfType(lhsType);
+
+				if (isRhsDptr) {
+					if (rhs->lexemeType == BA_TK_IMREGISTER) {
+						ba_AddIM(ctr, 4, BA_IM_MOV, 
+							ba_AdjRegSize(realReg, lhsSize),
+							BA_IM_ADR, (u64)rhs->val);
+					}
+					else { // TODO
+						exit(-1);
+					}
+				}
 
 				if (isUsingDiv) {
 					if (isRhsLiteral && !rhs->val) {
