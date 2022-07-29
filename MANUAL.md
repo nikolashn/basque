@@ -2,6 +2,8 @@
 
 Basque is extremely extremely alpha. The current features are very limited and rough around the edges. Nothing is stable; anything is subject to change. This manual itself may be incomplete.
 
+Note that throughout this manual, Extended Backus-Naur Form is used to specify syntax.
+
 ## Program structure
 
 Basque has no entry point function as there is in C. Code in the outer body of a program is executed as if it were in a main function.
@@ -99,12 +101,7 @@ Comparison operators are non-associative: instead they work by chaining, like in
 All assignment operators are right-associative. The left-hand side of an assignment must be an L-value. So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 
 ### Statements
-Statements are combinations of expressions that can be sequentially laid out to form a program. In this section, 
-- Square brackets [] signify optionality, 
-- Parentheses () signify grouping, 
-- Braces {} signify that a string can be repeated from 0 to infinite times, 
-- A bar | signifies alternation, 
-- Words in angle brackets `<>` represent a group or class of expressions or tokens.
+Statements are combinations of expressions that can be sequentially laid out to form a program.
 
 #### Write statements
 Syntax: `write <expression>;`
