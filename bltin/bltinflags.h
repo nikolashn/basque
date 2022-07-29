@@ -5,9 +5,12 @@
 
 enum {
 	BA_BLTIN_U64ToStr = 0,
-	BA_BLTIN_MemCopy = 1,
+	BA_BLTIN_MemCopy  = 1,
 	
-	BA_BLTIN__COUNT = 2
+	BA_BLTIN_Sys      = 2,
+	BA_BLTIN_SysRead  = 3,
+	
+	BA_BLTIN__COUNT   = 4
 };
 
 u64 ba_BltinFlags[1] = {0};

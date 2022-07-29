@@ -37,10 +37,8 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 			"size array on", line, col, ctr->currPath);
 	}
 
-	struct ba_STVal* funcIdVal = malloc(sizeof(struct ba_STVal));
-	if (!funcIdVal) {
-		return ba_ErrorMallocNoMem();
-	}
+	struct ba_STVal* funcIdVal = malloc(sizeof(*funcIdVal));
+	(!funcIdVal) && ba_ErrorMallocNoMem();
 	ba_HTSet(ctr->currScope->ht, funcName, (void*)funcIdVal);
 
 	funcIdVal->scope = ctr->currScope;
@@ -50,9 +48,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	funcIdVal->type.extraInfo = (void*)func;
 
 	func->retType = retType;
-	if (!func->childScope) {
-		func->childScope = ba_SymTableAddChild(ctr->currScope);
-	}
+	func->childScope = ba_SymTableAddChild(ctr->currScope);
 
 	struct ba_FuncParam* param = ba_NewFuncParam();
 	char* paramName = 0;

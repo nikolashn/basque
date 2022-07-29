@@ -23,23 +23,17 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
 		struct ba_STVal* val = (struct ba_STVal*)e.val;
 
-		if (!val || !e.key) {
-			goto BA_LBL_GENFUNCS_LOOPEND;
-		}
-
 		// Put functions in their place
 		// TODO: search through named scopes as well
 		/* Because of optimization passes in the future, perhaps this should be
 		   at the end of the parser instead? */
-		if (val->type.type == BA_TYPE_FUNC) {
+		if (val && e.key && val->type.type == BA_TYPE_FUNC) {
 			struct ba_Func* func = val->type.extraInfo;
-			if (!func->isCalled) {
-				goto BA_LBL_GENFUNCS_LOOPEND;
+			if (func->isCalled) {
+				memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
+				ctr->im = func->imEnd;
 			}
-			memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
-			ctr->im = func->imEnd;
 		}
-		BA_LBL_GENFUNCS_LOOPEND:;
 	}
 
 	// Addresses are relative to the start of the code segment
@@ -56,6 +50,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	while (im && im->count) {
 		(im == ctr->entryIM) && (entryPoint += code->cnt);
 
+		//printf("%s\n", ba_IMToStr(im)); // DEBUG
+		
 		switch (im->vals[0]) {
 			case BA_IM_NOP:
 			{

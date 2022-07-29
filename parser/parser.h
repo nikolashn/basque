@@ -637,60 +637,68 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		while (ba_PAccept(BA_TK_LITSTR, ctr));
 
-		if (ctr->dir && fileName[0] != '/') {
-			u64 dirLen = strlen(ctr->dir);
-			char* relFileName = malloc(dirLen + len + 2);
-			memcpy(relFileName, ctr->dir, dirLen+1);
-			relFileName[dirLen] = '/';
-			relFileName[dirLen+1] = 0;
-			strcat(relFileName, fileName);
-			free(fileName);
-			fileName = relFileName;
+		// Built in includes
+		if (!strcmp(fileName, "sys") && !ba_BltinFlagsTest(BA_BLTIN_Sys)) {
+			ba_IncludeSys(ctr, firstLine, firstCol);
+			return ba_PExpect(';', ctr);
 		}
-
-		FILE* includeFile = fopen(fileName, "r");
-		if (!includeFile) {
-			fprintf(stderr, "Error: cannot find file '%s' included on "
-				"line %llu:%llu in %s\n", fileName, firstLine, firstCol, 
-				ctr->currPath);
-			exit(-1);
-		}
-		
-		struct stat inclFileStat;
-		fstat(fileno(includeFile), &inclFileStat);
-		for (u64 i = 0; i < ctr->inclInodes->cnt; i++) {
-			if (ctr->inclInodes->arr[i] == inclFileStat.st_ino) {
-				return ba_PExpect(';', ctr);
+		else {
+			if (ctr->dir && fileName[0] != '/') {
+				u64 dirLen = strlen(ctr->dir);
+				char* relFileName = malloc(dirLen + len + 2);
+				memcpy(relFileName, ctr->dir, dirLen+1);
+				relFileName[dirLen] = '/';
+				relFileName[dirLen+1] = 0;
+				strcat(relFileName, fileName);
+				free(fileName);
+				fileName = relFileName;
 			}
+
+			// TODO: specifying paths to search as a command line flag
+			FILE* includeFile = fopen(fileName, "r");
+			if (!includeFile) {
+				fprintf(stderr, "Error: cannot find file '%s' included on "
+					"line %llu:%llu in %s\n", fileName, firstLine, firstCol, 
+					ctr->currPath);
+				exit(-1);
+			}
+			
+			struct stat inclFileStat;
+			fstat(fileno(includeFile), &inclFileStat);
+			for (u64 i = 0; i < ctr->inclInodes->cnt; i++) {
+				if (ctr->inclInodes->arr[i] == inclFileStat.st_ino) {
+					return ba_PExpect(';', ctr);
+				}
+			}
+			ba_PExpect(';', ctr);
+
+			++ctr->inclInodes->cnt;
+			(ctr->inclInodes->cnt > ctr->inclInodes->cap) && 
+				ba_ResizeDynArr64(ctr->inclInodes);
+			ctr->inclInodes->arr[ctr->inclInodes->cnt-1] = inclFileStat.st_ino;
+
+			u64 line = ctr->lex->line;
+			u64 col = ctr->lex->colStart;
+
+			struct ba_Lexeme* oldNextLex = ctr->lex;
+			ctr->lex = ba_NewLexeme();
+			ba_Tokenize(includeFile, ctr);
+			struct ba_Lexeme* nextLex = ctr->lex;
+			while (nextLex->next) {
+				nextLex = nextLex->next;
+			}
+			nextLex->type = BA_TK_FILECHANGE;
+			nextLex->line = line;
+			nextLex->colStart = col;
+
+			nextLex->valLen = strlen(ctr->currPath);
+			nextLex->val = malloc(nextLex->valLen+1);
+			strcpy(nextLex->val, ctr->currPath);
+
+			nextLex->next = oldNextLex;
+			ctr->currPath = fileName;
+			return 1;
 		}
-		ba_PExpect(';', ctr);
-
-		++ctr->inclInodes->cnt;
-		(ctr->inclInodes->cnt > ctr->inclInodes->cap) && 
-			ba_ResizeDynArr64(ctr->inclInodes);
-		ctr->inclInodes->arr[ctr->inclInodes->cnt-1] = inclFileStat.st_ino;
-
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		struct ba_Lexeme* oldNextLex = ctr->lex;
-		ctr->lex = ba_NewLexeme();
-		ba_Tokenize(includeFile, ctr);
-		struct ba_Lexeme* nextLex = ctr->lex;
-		while (nextLex->next) {
-			nextLex = nextLex->next;
-		}
-		nextLex->type = BA_TK_FILECHANGE;
-		nextLex->line = line;
-		nextLex->colStart = col;
-
-		nextLex->valLen = strlen(ctr->currPath);
-		nextLex->val = malloc(nextLex->valLen+1);
-		strcpy(nextLex->val, ctr->currPath);
-
-		nextLex->next = oldNextLex;
-		ctr->currPath = fileName;
-		return 1;
 	}
 	// scope
 	else if (ba_PScope(ctr)) {
