@@ -1,0 +1,66 @@
+include "sys";
+
+u8[0x8000] code = garbage;
+u8[0x8000] cells = garbage;
+
+i64 ptr = 0;
+i64 i = 0;
+u8 c = garbage;
+i64 jmp = 0;
+
+Read(&code, lengthof code);
+
+while i < (lengthof code)~i64 {
+	c = [code,i];
+	if !c, break;
+	elif c == '>' {
+		++ptr;
+		if ptr >= (lengthof cells)~i64, goto LBL_ERRCELLSEND;
+	}
+	elif c == '<' {
+		--ptr;
+		if ptr < 0, goto LBL_ERRCELLSSTART;
+	}
+	elif c == '+', ++[cells, ptr];
+	elif c == '-', --[cells, ptr];
+	elif c == '.', Write(&[cells, ptr], 1);
+	elif c == ',', Read(&[cells, ptr], 1);
+	elif c == '[' {
+		if ![cells, ptr] {
+			++i;
+			while ( i < (lengthof code)~i64 && (jmp || [code,i] != ']') ) {
+				if [code,i] == '[', --jmp;
+				elif [code,i] == ']', ++jmp;
+				++i;
+			}
+			if i >= (lengthof code)~i64, goto LBL_ERRCELLSEND;
+		}
+	}
+	elif c == ']' {
+		if [cells, ptr] {
+			--i;
+			while ( i >= 0 && (jmp || [code,i] != '[') ) {
+				if [code,i] == '[', --jmp;
+				elif [code,i] == ']', ++jmp;
+				--i;
+			}
+			if i < 0, goto LBL_ERRCELLSSTART;
+		}
+	}
+	++i;
+}
+
+exit 0;
+
+LBL_ERRCELLSSTART: {
+	u8[] msg = "Cannot go past start of cells\n";
+	Write(&msg, lengthof msg, 2);
+	exit 1;
+}
+
+LBL_ERRCELLSEND: {
+	u8[] msg = "Cannot go past end of cells\n";
+	Write(&msg, lengthof msg, 2);
+	exit 1;
+}
+
