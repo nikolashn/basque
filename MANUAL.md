@@ -313,5 +313,5 @@ i64 Read(void* buf, u64 count, i64 fd = 0);
 ```
 System call number: 0
 
-System call name: read
+System call name: `read`
 
