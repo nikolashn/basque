@@ -1,0 +1,14 @@
+u64[5] F() {
+	return { 1, 2, 3, 4, 5 };
+}
+
+u64[] x = F();
+
+u64 i = 0;
+while i < lengthof x {
+	if i, ", ";
+	write [x,i];
+	++i;
+}
+"\n";
+
