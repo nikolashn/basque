@@ -185,7 +185,15 @@ Exits from a program with an exit code.
 #### Include statement
 Syntax: `include <string literal>` { `<string literal>` } `;`
 
-Includes a Basque source file at a given path. As there is no preprocessor in the C Basque compiler, include statements are resolved by the parser.
+Includes a Basque source file at a given path, or a built-in include file (see section "Built-in include files"). As there is no preprocessor in the C Basque compiler, include statements are resolved by the parser.
+
+Examples of valid include statements:
+```
+# local file
+include "myfile.ba";
+# built-in
+include "sys";
+```
 
 #### Semicolon
 Syntax: `;`
@@ -288,4 +296,20 @@ Either 2 or 3 ELF segments (all LOAD) are generated: a header segment and a code
 
 ### Calling convention
 All func arguments are passed on the stack. RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
+
+## Built-in include files
+
+### sys
+```
+include "sys";
+```
+The "sys" include contains funcs which serve as wrappers for Linux system calls. Be aware that the order of parameters of a wrapper func may be different to that of the system call which it is wrapping.
+
+The system calls implemented so far are detailed below.
+
+#### Read
+```
+i64 Read(void* buf, u64 count, i64 fd = 0);
+```
+System call number: 0
 
