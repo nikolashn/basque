@@ -491,6 +491,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
 
+		ba_StkPush(ctr->expCoercedTypeStk, &ctr->currFunc->retType);
+		ctr->isPermitArrLit = 1;
 		if (ba_PExp(ctr)) {
 			if (ctr->currFunc->retType.type == BA_TYPE_VOID) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning value from func with "
@@ -521,10 +523,15 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
 			}
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
-				// Return value should already be on the stack
-				// TODO: returning array from func
-				return ba_ExitMsg(BA_EXIT_ERR, "returning array from "
-					"a func currently not implemented,", line, col, ctr->currPath);
+				// Reach outside of the stack frame
+				// TODO: properly calculate offset if registers praeserved
+				ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, 
+					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 8);
+				struct ba_PTkStkItem* destItem = malloc(sizeof(*destItem));
+				destItem->lexemeType = 0;
+				destItem->val = (void*)BA_IM_RAX;
+				ba_PAssignArr(ctr, destItem, stkItem, 
+					ba_GetSizeOfType(ctr->currFunc->retType));
 			}
 		}
 		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
@@ -532,6 +539,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				"that does not have return type 'void' on", line, col, 
 				ctr->currPath);
 		}
+		ctr->isPermitArrLit = 0;
+		ba_StkPop(ctr->expCoercedTypeStk);
 
 		if (ctr->currScope->dataSize && 
 			ctr->currScope != ctr->currFunc->childScope) 

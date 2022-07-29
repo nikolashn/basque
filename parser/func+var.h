@@ -373,12 +373,12 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 
 	if (!dataSize && idVal->type.type == BA_TYPE_ARR) {
 		dataSize = ba_GetSizeOfType(expItem->typeInfo);
-		if (expItem->lexemeType == BA_TK_LITSTR) {
-			struct ba_ArrExtraInfo extraInfo = 
-				*(struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo;
-			((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt = 
-				extraInfo.cnt / ba_GetSizeOfType(extraInfo.type);
-		}
+
+		struct ba_ArrExtraInfo extraInfo = 
+			*(struct ba_ArrExtraInfo*)expItem->typeInfo.extraInfo;
+		((struct ba_ArrExtraInfo*)idVal->type.extraInfo)->cnt = 
+			dataSize / ba_GetSizeOfType(extraInfo.type);
+		
 		idVal->address = ctr->currScope->dataSize + dataSize;
 	}
 	
@@ -433,7 +433,10 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		ctr->currScope->dataSize += dataSize;
 		if (!isGarbage) {
-			ba_PAssignArr(ctr, /* destItem = */ 0, expItem, dataSize);
+			struct ba_PTkStkItem* destItem = malloc(sizeof(*destItem));
+			destItem->lexemeType = 0;
+			destItem->val = (void*)BA_IM_RSP;
+			ba_PAssignArr(ctr, destItem, expItem, dataSize);
 		}
 	}
 	

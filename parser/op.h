@@ -493,8 +493,8 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	u64 reg = defaultReg;
 
 	// Destination pointer
-	if (!destItem) {
-		reg = BA_IM_RSP;
+	if (!destItem->lexemeType) {
+		reg = (u64)destItem->val;
 	}
 	else if (destItem->lexemeType == BA_TK_IDENTIFIER) {
 		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRADD, 
@@ -529,6 +529,15 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	else if (srcItem->lexemeType == BA_TK_LITSTR) {
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, 
 			ba_AllocStrLitStatic(ctr, (struct ba_Str*)srcItem->val));
+	}
+	else if (srcItem->lexemeType == BA_TK_IMRBPSUB) {
+		if (!srcItem->val) {
+			reg = BA_IM_RBP;
+		}
+		else {
+			ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRSUB, BA_IM_RBP, 
+				(u64)srcItem->val);
+		}
 	}
 	ba_AddIM(ctr, 2, BA_IM_PUSH, reg); // src ptr
 	

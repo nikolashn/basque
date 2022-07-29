@@ -1048,6 +1048,13 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 				}
 
+				// If ret. type is array, allocate stack space for ret. value
+				if (func->retType.type == BA_TYPE_ARR) {
+					u64 retSz = ba_GetSizeOfType(func->retType);
+					ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, retSz);
+					ctr->imStackSize += retSz;
+				}
+
 				// Enter a new stack frame
 				ba_UsedRegPreserve(ctr);
 				ba_StkPush(ctr->funcFrameStk, (void*)ctr->usedRegisters);
@@ -1111,8 +1118,11 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 
 								paramSize);
 							ctr->imStackSize += paramSize;
-							ba_PAssignArr(ctr, /* destItem = */ 0, funcArg, 
-								paramSize);
+							struct ba_PTkStkItem* destItem = 
+								malloc(sizeof(*destItem));
+							destItem->lexemeType = 0;
+							destItem->val = (void*)BA_IM_RSP;
+							ba_PAssignArr(ctr, destItem, funcArg, paramSize);
 						}
 						else {
 							return 0;
@@ -1160,8 +1170,11 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 
 								paramSize);
 							ctr->imStackSize += paramSize;
-							ba_PAssignArr(ctr, /* destItem = */ 0, funcArg, 
-								paramSize);
+							struct ba_PTkStkItem* destItem = 
+								malloc(sizeof(*destItem));
+							destItem->lexemeType = 0;
+							destItem->val = (void*)BA_IM_RSP;
+							ba_PAssignArr(ctr, destItem, funcArg, paramSize);
 						}
 						else {
 							return 0;
@@ -1186,49 +1199,58 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					return ba_ErrorMallocNoMem();
 				}
 
-				// TODO: get return value from stack
-				
 				// Leave the stack frame
 				ctr->usedRegisters = (u64)ba_StkPop(ctr->funcFrameStk);
-
-				// Get return value from rax
-				u64 regRet = BA_IM_RAX;
-				u64 stackPos = 0;
-				if (ctr->usedRegisters & BA_CTRREG_RAX) {
-					ba_POpAsgnRegOrStack(ctr, /* lexType = */ 0, 
-						&regRet, &stackPos);
-					ctr->usedRegisters &= ~ba_IMToCtrReg(regRet);
-					if (regRet) {
-						// Restore every register except RAX
-						ba_UsedRegRestore(ctr, 1);
-						ba_AddIM(ctr, 3, BA_IM_MOV, regRet, BA_IM_RAX);
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
-						ctr->imStackSize -= 8;
-					}
-					else {
-						// Restore every register except the last two 
-						// (should be RCX, RAX)
-						ba_UsedRegRestore(ctr, 2);
-						// Swap the return value and the original rax value
-						ba_AddIM(ctr, 2, BA_IM_MOV, BA_IM_RCX, BA_IM_RAX);
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRADD, 
-							BA_IM_RSP, 0x8);
-						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
-							0x8, BA_IM_RCX);
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
-						ctr->imStackSize += 8;
-					}
-					ctr->usedRegisters |= ba_IMToCtrReg(regRet);
+				
+				if (func->retType.type == BA_TYPE_ARR) {
+					// Get return value from stack
+					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+					u64 retSz = ba_GetSizeOfType(func->retType);
+					ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, retSz);
+					ctr->currScope->dataSize += retSz;
+					retVal->lexemeType = BA_TK_IMRBPSUB;
+					retVal->val = (void*)0;
 				}
 				else {
-					ba_UsedRegRestore(ctr, 0);
-					ctr->usedRegisters |= BA_CTRREG_RAX;
+					// Get return value from rax
+					u64 regRet = BA_IM_RAX;
+					u64 stackPos = 0;
+					if (ctr->usedRegisters & BA_CTRREG_RAX) {
+						ba_POpAsgnRegOrStack(ctr, /* lexType = */ 0, 
+							&regRet, &stackPos);
+						ctr->usedRegisters &= ~ba_IMToCtrReg(regRet);
+						if (regRet) {
+							// Restore every register except RAX
+							ba_UsedRegRestore(ctr, 1);
+							ba_AddIM(ctr, 3, BA_IM_MOV, regRet, BA_IM_RAX);
+							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+							ctr->imStackSize -= 8;
+						}
+						else {
+							// Restore every register except the last two 
+							// (should be RCX, RAX)
+							ba_UsedRegRestore(ctr, 2);
+							// Swap the return value and the original rax value
+							ba_AddIM(ctr, 2, BA_IM_MOV, BA_IM_RCX, BA_IM_RAX);
+							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRADD, 
+								BA_IM_RSP, 0x8);
+							ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+								0x8, BA_IM_RCX);
+							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
+							ctr->imStackSize += 8;
+						}
+						ctr->usedRegisters |= ba_IMToCtrReg(regRet);
+					}
+					else {
+						ba_UsedRegRestore(ctr, 0);
+						ctr->usedRegisters |= BA_CTRREG_RAX;
+					}
+					ba_POpSetArg(ctr, retVal, regRet, stackPos);
 				}
-
-				ba_POpSetArg(ctr, retVal, regRet, stackPos);
 				
 				retVal->typeInfo = func->retType;
 				retVal->isLValue = 0;
+				retVal->isConst = 0;
 				ba_StkPush(ctr->pTkStk, retVal);
 
 				return 2; // Go back to parsing as if having followed an atom
