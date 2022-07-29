@@ -526,12 +526,19 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 					++funcArgsCnt;
 				}
 				else if (funcArgsCnt != func->paramCnt) {
-					fprintf(stderr, "Error: func on line %llu:%llu in %s "
-						"takes %llu parameter%s, but %llu argument%s passed\n", 
-						op->line, op->col, ctr->currPath, func->paramCnt, 
-						func->paramCnt == 1 ? "" : "s", 
-						funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
-					exit(-1);
+					while (param && param->hasDefaultVal) {
+						ba_StkPush(ctr->pTkStk, (void*)0);
+						++funcArgsCnt;
+						param = param->next;
+					}
+					if (funcArgsCnt != func->paramCnt) {
+						fprintf(stderr, "Error: func on line %llu:%llu in %s "
+							"takes %llu parameter%s, but %llu argument%s passed\n", 
+							op->line, op->col, ctr->currPath, func->paramCnt, 
+							func->paramCnt == 1 ? "" : "s", 
+							funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
+						exit(-1);
+					}
 				}
 				
 				// 1 is added since arg cant be 0
