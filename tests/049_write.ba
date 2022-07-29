@@ -1,0 +1,5 @@
+include "sys";
+
+u8[] myFinalMsg = "Change da world\n";
+Write(&myFinalMsg, lengthof myFinalMsg, 1);
+
