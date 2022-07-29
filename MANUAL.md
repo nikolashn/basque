@@ -312,3 +312,11 @@ System call number: 0
 
 System call name: `read`
 
+#### Write
+```
+i64 Write(void* buf, u64 count, i64 fd = 1);
+```
+System call number: 1
+
+System call name: `write`
+
