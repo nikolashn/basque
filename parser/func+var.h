@@ -262,24 +262,13 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	}
 
 	// Error for mismatch with forward declaration types
-	if (prevFuncIdVal) {
-		struct ba_Func* prevFunc = prevFuncIdVal->type.extraInfo;
-		struct ba_FuncParam* fwdDecParam = prevFunc->firstParam;
-		param = func->firstParam;
-		while (fwdDecParam && param) {
-			if (!ba_AreTypesEqual(fwdDecParam->type, param->type)) {
-				break;
-			}
-			fwdDecParam = fwdDecParam->next;
-			param = param->next;
-		}
-		if (fwdDecParam || param) {
-			fprintf(stderr, "Error: parameters of func %s declared on line "
-				"%llu:%llu in %s incompatible with previously forward declared "
-				"definition\n", funcName, line, col, ctr->currPath);
-			exit(-1);
-		}
-		ba_DelFunc(prevFunc);
+	if (prevFuncIdVal && 
+		!ba_AreTypesEqual(prevFuncIdVal->type, funcIdVal->type)) 
+	{
+		fprintf(stderr, "Error: parameters of func %s declared on line "
+			"%llu:%llu in %s incompatible with previously forward declared "
+			"definition\n", funcName, line, col, ctr->currPath);
+		exit(-1);
 		free(prevFuncIdVal);
 	}
 	
