@@ -231,21 +231,29 @@ else {
 ```
 
 #### While loops
-Syntax: `while <expression>` ( `"," <statement>` | `{` { `<statement>` } `}` )
+Syntax: `while <expression>` \[ `iter <expression>` \] ( `"," <statement>` | `{` { `<statement>` } `}` )
 
-Executes code while the expressed condition is true. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop are in a local scope.
+Executes code while the condition expressed after the keyword `while` is true. If the keyword `iter` is also used, the expression after the keyword `iter` will be executed at the end of each iteration of the loop. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop are in a local scope.
 
+Examples:
 ```
-u64 i = 0;
-while i < 10u {
-	if i != 0u, ",";
+u8 c = -1;
+while c {
+	Read(&c, 1);
+	if 'a' <= c <= 'z' {
+		c -= 0x20;
+	}
+	Write(&c, 1);
+}
+```
+```
+i64 i = 0;
+while i < 10 iter ++i {
+	if i != 0, ",";
 	write i;
-	++i;
 }
 "\n";
 ```
-
-For loops and do-while statements will also be added in the future.
 
 #### Unnamed scopes
 Syntax: `{` { `<statement>` } `}`
