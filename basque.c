@@ -1,9 +1,9 @@
 // See LICENSE for copyright/license information
 
-#include "parser/parser.h"
-#include "elf64.h"
-
+#include "lexer.h"
 #include "bltin/bltin.h"
+#include "parser/parse.h"
+#include "elf64.h"
 
 char usageStr[] = 
 	"Usage: basque [options] file\n"
@@ -62,10 +62,10 @@ int main(int argc, char* argv[]) {
 							isRunCode = 1;
 							break;
 						case 's':
-							ba_IsSilenceWarns = 1;
+							ba_SetSilenceWarns();
 							break;
 						case 'W':
-							ba_IsWarnsAsErrors = 1;
+							ba_SetWarnsAsErrs();
 							break;
 						default:
 							fprintf(stderr, "Error: Command line option %s "
@@ -91,10 +91,10 @@ int main(int argc, char* argv[]) {
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (!strcmp(argv[i], "--silence-warnings")) {
-			ba_IsSilenceWarns = 1;
+			ba_SetSilenceWarns();
 		}
 		else if (!strcmp(argv[i], "--warnings-as-errors")) {
-			ba_IsWarnsAsErrors = 1;
+			ba_SetWarnsAsErrs();
 		}
 		else if (!strcmp(argv[i], "--page-size")) {
 			if (++i == argc) {
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
 					"--page-size\n");
 				return -1;
 			}
-			ba_PageSize = atoll(argv[i]);
+			ba_SetPageSize(atoll(argv[i]));
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
 		}
 		BA_LBL_MAIN_ARGSLOOPEND:;
 	}
-	if (ba_IsWarnsAsErrors && ba_IsSilenceWarns) {
+	if (ba_IsWarnsAsErrs() && ba_IsSilenceWarns()) {
 		fprintf(stderr, "Error: cannot both silence warnings and have warnings "
 			"as errors\n");
 		return -1;

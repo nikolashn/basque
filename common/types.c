@@ -1,8 +1,5 @@
 // See LICENSE for copyright/license information
 
-#ifndef BA__COMMON_TYPEHELPER_H
-#define BA__COMMON_TYPEHELPER_H
-
 #include "types.h"
 #include "func.h"
 
@@ -180,4 +177,3 @@ char* ba_GetTypeStr(struct ba_Type type) {
 	return 0;
 }
 
-#endif

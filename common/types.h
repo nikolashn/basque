@@ -3,9 +3,10 @@
 #ifndef BA__COMMON_TYPES_H
 #define BA__COMMON_TYPES_H
 
+#include "common.h"
+
 struct ba_Type {
 	u8 type;
-	/* For PTR: ba_Type*, the type pointed to */
 	void* extraInfo;
 };
 
@@ -41,5 +42,14 @@ enum /* u8 */ {
 	
 	BA_TYPE_TYPE = 0xff, // ooo meta
 };
+
+bool ba_IsTypeUnsigned(struct ba_Type type);
+bool ba_IsTypeSigned(struct ba_Type type);
+bool ba_IsTypeInt(struct ba_Type type);
+bool ba_IsTypeNum(struct ba_Type type);
+u64 ba_GetSizeOfType(struct ba_Type type);
+bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b);
+bool ba_IsPermitConvertPtr(struct ba_Type a, struct ba_Type b);
+char* ba_GetTypeStr(struct ba_Type type);
 
 #endif
