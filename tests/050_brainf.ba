@@ -8,9 +8,9 @@ i64 i = 0;
 u8 c = garbage;
 i64 jmp = 0;
 
-Read(&code, lengthof code);
+Read(&code, $code);
 
-while i < (lengthof code)~i64 {
+while i < ($code)~i64 {
 	c = [code,i];
 	if !c, break;
 	elif c == '>' {
@@ -28,12 +28,12 @@ while i < (lengthof code)~i64 {
 	elif c == '[' {
 		if ![cells, ptr] {
 			++i;
-			while ( i < (lengthof code)~i64 && (jmp || [code,i] != ']') ) {
+			while ( i < ($code)~i64 && (jmp || [code,i] != ']') ) {
 				if [code,i] == '[', --jmp;
 				elif [code,i] == ']', ++jmp;
 				++i;
 			}
-			if i >= (lengthof code)~i64, goto LBL_ERRCELLSEND;
+			if i >= ($code)~i64, goto LBL_ERRCELLSEND;
 		}
 	}
 	elif c == ']' {
@@ -54,13 +54,13 @@ exit 0;
 
 LBL_ERRCELLSSTART: {
 	u8[] msg = "Cannot go past start of cells\n";
-	Write(&msg, lengthof msg, 2);
+	Write(&msg, $msg, 2);
 	exit 1;
 }
 
 LBL_ERRCELLSEND: {
 	u8[] msg = "Cannot go past end of cells\n";
-	Write(&msg, lengthof msg, 2);
+	Write(&msg, $msg, 2);
 	exit 1;
 }
 
