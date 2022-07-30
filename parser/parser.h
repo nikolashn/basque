@@ -456,6 +456,28 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
 			ba_AddIM(ctr, 2, BA_IM_LABELJZ, endLblId);
 		}
+
+		struct ba_IM* imIterBegin = 0;
+		struct ba_IM* imIterEnd = 0;
+		// ... "iter" ...
+		if (ba_PAccept(BA_TK_KW_ITER, ctr)) {
+			struct ba_IM* oldIM = ctr->im;
+			imIterBegin = ba_NewIM();
+			ctr->im = imIterBegin;
+
+			// ... exp ...
+			if (!ba_PExp(ctr)) {
+				return 0;
+			}
+			stkItem = ba_StkPop(ctr->pTkStk);
+			if (!stkItem) {
+				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col, 
+					ctr->currPath);
+			}
+			
+			imIterEnd = ctr->im;
+			ctr->im = oldIM;
+		}
 		
 		// ... ( commaStmt | scope ) ...
 		ba_StkPush(ctr->breakLblStk, (void*)endLblId);
@@ -463,6 +485,12 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			return 0;
 		}
 		ba_StkPop(ctr->breakLblStk);
+
+		if (imIterBegin) {
+			memcpy(ctr->im, imIterBegin, sizeof(*ctr->im));
+			free(imIterBegin);
+			ctr->im = imIterEnd;
+		}
 
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, startLblId);
 		ba_AddIM(ctr, 2, BA_IM_LABEL, endLblId);

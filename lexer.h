@@ -543,6 +543,9 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 					else if (!strcmp(idBuf, "include")) {
 						nextLex->type = BA_TK_KW_INCLUDE;
 					}
+					else if (!strcmp(idBuf, "iter")) {
+						nextLex->type = BA_TK_KW_ITER;
+					}
 					else if (!strcmp(idBuf, "lengthof")) {
 						nextLex->type = BA_TK_KW_LENGTHOF;
 					}
