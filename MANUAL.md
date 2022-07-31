@@ -352,3 +352,19 @@ System call number: 8
 
 System call name: `lseek`
 
+#### MMap
+```
+i64 MMap(void* addr, u64 len, i64 prot, i64 flags, i64 fd, i64 offset);
+```
+System call number: 9
+
+System call name: `mmap`
+
+#### MUnmap
+```
+i64 MUnmap(void* addr, u64 len);
+```
+System call number: 10
+
+System call name: `munmap`
+
