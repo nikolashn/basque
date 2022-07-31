@@ -1,0 +1,16 @@
+#{
+	Expected output:
+	0 1
+	1
+}#
+
+bool b = 0;
+write b; " ";
+b += 20;
+write b; "\n";
+
+bool[5] x = garbage;
+[x,0] = 10;
+write [x,0]; "\n";
+
+
