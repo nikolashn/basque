@@ -988,7 +988,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	
 	if (ba_IsTypeNum(idVal->type)) {
 		u64 reg = BA_IM_RAX;
-		bool isExpLiteral = ba_IsLexemeLiteral(expItem->lexemeType);
+		bool isExpLiteral = !isGarbage && ba_IsLexemeLiteral(expItem->lexemeType);
 		
 		if (!isGarbage) {
 			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
