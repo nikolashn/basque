@@ -21,8 +21,10 @@ enum {
 	BA_BLTIN_SysLStat   = 9,
 	BA_BLTIN_SysPoll    = 10,
 	BA_BLTIN_SysLSeek   = 11,
+	BA_BLTIN_SysMMap    = 12,
+	BA_BLTIN_SysMUnmap  = 13,
 	
-	BA_BLTIN__COUNT     = 12,
+	BA_BLTIN__COUNT     = 14,
 	BA_BLTIN_FLAG_CNT   = 2, // ceil(BA_BLTIN__COUNT / 8.0)
 };
 
