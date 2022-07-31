@@ -24,6 +24,8 @@ Arrays in Basque are composed of a dimension on another type. This can be writte
 ### Functions
 Func (function) is a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++.
 
+A set of functions are available for use by default in a Basque program. These are called the core functions; more information about them is in a later section.
+
 ### Other future types
 In the future there will be support for many other types: floating point numbers, structures, enumerations, and more.
 
@@ -302,6 +304,15 @@ Either 2 or 3 ELF segments (all LOAD) are generated: a header segment and a code
 ### Calling convention
 All func arguments are passed on the stack. RBP, and R8 - R15 must be preserved by funcs (currently not fully implemented as R8 - R15 are not yet used by user made funcs). Return values, like arguments, are stored first in RAX, then on the stack.
 
+## Core functions
+The core functions of Basque are those functions which are included by default in the global name space.
+
+### MemCopy
+```
+void MemCopy(void* dest, void* src, u64 size);
+```
+Copies `size` bytes from `src` to `dest`. The memory regions specified must not overlap.
+
 ## Built-in include files
 
 ### sys
@@ -320,6 +331,8 @@ System call number: 0
 
 System call name: `read`
 
+Notice that the order of parameters is different to that of the actual syscall (`fd` is at the end instead of the start).
+
 #### Write
 ```
 i64 Write(void* buf, u64 count, i64 fd = 1);
@@ -327,6 +340,8 @@ i64 Write(void* buf, u64 count, i64 fd = 1);
 System call number: 1
 
 System call name: `write`
+
+Notice that the order of parameters is different to that of the actual syscall (`fd` is at the end instead of the start).
 
 #### Open
 ```
@@ -354,7 +369,7 @@ System call name: `lseek`
 
 #### MMap
 ```
-i64 MMap(void* addr, u64 len, i64 prot, i64 flags, i64 fd, i64 offset);
+void* MMap(void* addr = 0, u64 size, i64 prot, i64 flags, i64 fd = -1, i64 offset = 0);
 ```
 System call number: 9
 
@@ -362,9 +377,9 @@ System call name: `mmap`
 
 #### MUnmap
 ```
-i64 MUnmap(void* addr, u64 len);
+i64 MUnmap(void* addr, u64 size);
 ```
-System call number: 10
+System call number: 11
 
 System call name: `munmap`
 
