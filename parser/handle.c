@@ -757,8 +757,9 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							ba_AdjRegSize(realReg, lhsSize),
 							BA_IM_ADR, (u64)rhs->val);
 					}
-					else { // TODO
-						exit(-1);
+					else {
+						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+							stackPos, ba_AdjRegSize(realReg, lhsSize));
 					}
 				}
 
