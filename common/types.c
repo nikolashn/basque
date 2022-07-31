@@ -34,6 +34,7 @@ u64 ba_GetSizeOfType(struct ba_Type type) {
 		case BA_TYPE_BOOL:
 			return 1;
 		case BA_TYPE_DPTR:
+		case BA_TYPE_TYPE:
 			return ba_GetSizeOfType(*(struct ba_Type*)type.extraInfo);
 		case BA_TYPE_ARR: {
 			struct ba_ArrExtraInfo info = 

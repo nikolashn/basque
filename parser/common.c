@@ -66,6 +66,8 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 		if (lexType == '[') {
 			struct ba_ArrExtraInfo* extraInfo = malloc(sizeof(*extraInfo));
 			
+			struct ba_Stk* oldOpStk = ctr->pOpStk;
+			ctr->pOpStk = ba_NewStk();
 			if (ba_PAccept(']', ctr)) {
 				(!isInclIndefArr) &&
 					ba_ExitMsg(BA_EXIT_ERR, "invalid usage of indefinite size "
@@ -86,6 +88,8 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 			else {
 				return 0;
 			}
+			ba_DelStk(ctr->pOpStk);
+			ctr->pOpStk = oldOpStk;
 
 			extraInfo->type = *(struct ba_Type*)type.extraInfo;
 			*(struct ba_Type*)type.extraInfo = 

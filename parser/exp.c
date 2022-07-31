@@ -393,6 +393,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 	/* goto BA_LBL_PEXP_END due to a parenthesis (1) or bracket (2)
 	 * or other (0) */
 	u8 endDueTo = 0;
+	u64 lastPraefix = 0;
 
 	while (1) {
 		u64 lexType = ctr->lex->type;
@@ -409,6 +410,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ba_PAccept(BA_TK_KW_LENGTHOF, ctr) || 
 				ba_PAccept(BA_TK_INC, ctr) || ba_PAccept(BA_TK_DEC, ctr))
 			{
+				lastPraefix = lexType;
 				// Left grouping parenthesis / dereferencing bracket
 				// Enters a new expression frame (reset whether is cmp chain)
 				if (lexType == '(') {
@@ -429,7 +431,10 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ba_POpStkPush(ctr->pOpStk, line, col, lexType, BA_OP_PREFIX);
 			}
 			// Note: ba_PAtom pushes the atom to pTkStk
-			else if (ba_PAtom(ctr)) {
+			else if (ba_PAtom(ctr) || (lastPraefix == '$' && 
+				ba_PBaseType(ctr, /* isInclVoid = */ 0, 
+					/* isInclIndefArr = */ 0)))
+			{
 				isAfterAtom = 1;
 			}
 			else if (ctr->pOpStk->count) {
