@@ -1,0 +1,11 @@
+include "sys";
+
+u8* bufPtr = MMap(, 0x1000, 0x3 #{ PROT_READ|PROT_WRITE }#, 
+	0x22 #{ MAP_PRIVATE|MAP_ANONYMOUS }#);
+u8[] myStr = "white chocolate\n";
+MemCopy(bufPtr, &myStr, $myStr);
+u8[] anotherStr = "black";
+MemCopy(bufPtr, &anotherStr, $anotherStr-1u);
+Write(bufPtr, $myStr);
+MUnmap(bufPtr, 0x1000);
+

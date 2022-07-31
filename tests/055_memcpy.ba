@@ -1,0 +1,9 @@
+u64[] x = { 1, 2, 3, 4, 5 };
+u64[0x1000] y = garbage;
+MemCopy(&y, &x, $x);
+
+u64 i = 0;
+while (i < lengthof x) iter ++i {
+	write [y,i]; "\n";
+}
+
