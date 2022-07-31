@@ -10,9 +10,9 @@ Basque has no entry point function as there is in C. Code in the outer body of a
 
 ## Types
 ### Integer types
-The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `i8` (signed byte), `u8` (unsigned byte), `bool` (8-bit Boolean) and 64-bit pointers to any type (`i64*`, `u8[64]*`, `i64**`, etc.), as well as `void*` (generic pointer). Variables can be defined as any of those types, except currently `bool` or any pointer derived from it. Integer types (including pointers) are all commensurate with each other.
+The integer types in Basque are currently `i64` (64-bit signed integer), `u64` (64-bit unsigned integer), `i8` (signed byte), `u8` (unsigned byte), `bool` (8-bit Boolean) and 64-bit pointers to any type (`i64*`, `u8[64]*`, `i64**`, etc.), as well as `void*` (generic pointer). Variables can be defined as any of those types. Integer types (including pointers) are all commensurate with each other.
 
-In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`, properly functioning `bool`.
+In the future the following integer types will also exist: `i32`, `u32`, `i16`, `u16`.
 
 ### Arrays
 Arrays in Basque are composed of a dimension on another type. This can be written as a rule `type[dimension]`. The type can be any valid data type, and each additional dimension with size *N* represents a repetition of a block of data of the fundamental type *N* times in series. Arrays in Basque are also different to those in C in some other ways, the main differences being:
