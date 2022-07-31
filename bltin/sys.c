@@ -200,6 +200,8 @@ void ba_BltinSysBrk(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
+// TODO: 13 rt_sigaction, 14 rt_sigprocmask, 15 rt_sigreturn
+
 /* Including all the syscalls */
 
 void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
