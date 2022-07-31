@@ -391,3 +391,11 @@ System call number: 11
 
 System call name: `munmap`
 
+#### Brk
+```
+i64 MUnmap(void* addr);
+```
+System call number: 12
+
+System call name: `brk`
+
