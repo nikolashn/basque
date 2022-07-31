@@ -82,7 +82,7 @@ Func calls are a func followed by a comma-seperated list of expressions (argumen
 
 Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value. With pointers, the increment/decrement is by the size of the dereferenced pointer, instead of just 1.
 
-The `$` operation evaluates to the size of its operand in bytes.
+The `$` operation evaluates to the size of its operand in bytes. Its operand can be the name of a type rather than an expression.
 
 The `&` unary prefix evaluates to the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
 
