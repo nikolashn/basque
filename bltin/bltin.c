@@ -3,7 +3,7 @@
 #include "bltin.h"
 
 u64 bltinLbls[BA_BLTIN__COUNT] = {0};
-u64 bltinFlags[1] = {0}; // cnt = ceil(BA_BLTIN__COUNT / 8.0)
+u64 bltinFlags[BA_BLTIN_FLAG_CNT] = {0};
 
 void ba_BltinFlagsSet(u64 flag) {
 	bltinFlags[flag >> 6] |= 1 << (flag & 63);

@@ -14,8 +14,11 @@ enum {
 	BA_BLTIN_Sys        = 2,
 	BA_BLTIN_SysRead    = 3,
 	BA_BLTIN_SysWrite   = 4,
+	BA_BLTIN_SysOpen    = 5,
+	BA_BLTIN_SysClose   = 6,
 	
-	BA_BLTIN__COUNT     = 5
+	BA_BLTIN__COUNT     = 7,
+	BA_BLTIN_FLAG_CNT   = 1, // ceil(BA_BLTIN__COUNT / 8.0)
 };
 
 void ba_BltinFlagsSet(u64 flag);
