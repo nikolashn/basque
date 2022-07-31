@@ -344,3 +344,11 @@ System call number: 3
 
 System call name: `close`
 
+#### LSeek
+```
+i64 LSeek(i64 fd, i64 offset, i64 whence);
+```
+System call number: 8
+
+System call name: `lseek`
+
