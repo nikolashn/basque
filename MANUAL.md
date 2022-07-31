@@ -375,6 +375,14 @@ System call number: 9
 
 System call name: `mmap`
 
+#### MProtect
+```
+i64 MProtect(void* addr, u64 size, i64 prot);
+```
+System call number: 10
+
+System call name: `mprotect`
+
 #### MUnmap
 ```
 i64 MUnmap(void* addr, u64 size);
