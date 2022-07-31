@@ -412,7 +412,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		params[4] = ba_NewFuncParam();
 		params[4]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
 		params[4]->hasDefaultVal = 1;
-		params[4]->defaultVal = -1;
+		params[4]->defaultVal = (void*)-1;
 		params[3]->next = params[4];
 
 		// offset (R8)
