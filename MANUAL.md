@@ -328,3 +328,19 @@ System call number: 1
 
 System call name: `write`
 
+#### Open
+```
+i64 Open(u8* pathname, i64 flags, i64 mode = 0);
+```
+System call number: 2
+
+System call name: `open`
+
+#### Close
+```
+i64 Close(i64 fd);
+```
+System call number: 3
+
+System call name: `close`
+
