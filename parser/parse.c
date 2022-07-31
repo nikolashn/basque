@@ -4,6 +4,7 @@
 
 /* program = { stmt } eof */
 u8 ba_Parse(struct ba_Ctr* ctr) {
+	ba_IncludeCore(ctr);
 	while (!ba_PAccept(BA_TK_EOF, ctr)) {
 		if (!ba_PStmt(ctr)) {
 			// doesn't have anything to do with literals, 

@@ -116,7 +116,7 @@ void ba_BltinSysLSeek(struct ba_Ctr* ctr) {
 }
 
 /* syscall mmap
- * Params: addr (0x8), len (0x8), prot (0x8), flags (0x8), fd (0x8), off (0x8)
+ * Params: addr (0x8), size (0x8), prot (0x8), flags (0x8), fd (0x8), off (0x8)
  * Returns: (rax) pointer to mapped area */
 void ba_BltinSysMMap(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysMMap);
@@ -127,19 +127,19 @@ void ba_BltinSysMMap(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R10);
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R9);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R8);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R9);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 9);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x48);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x40);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x38);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R10, BA_IM_ADRADD, BA_IM_RBP, 0x30);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R9, BA_IM_ADRADD, BA_IM_RBP, 0x28);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R8, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R8, BA_IM_ADRADD, BA_IM_RBP, 0x28);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R9, BA_IM_ADRADD, BA_IM_RBP, 0x20);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R8);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R9);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R8);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R10);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
@@ -147,7 +147,7 @@ void ba_BltinSysMMap(struct ba_Ctr* ctr) {
 }
 
 /* syscall munmap
- * Params: start (0x8), len (0x8)
+ * Params: start (0x8), size (0x8)
  * Returns: (rax) 0 on success, -1 on failure */
 void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysMUnmap);
@@ -158,7 +158,7 @@ void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 10);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 11);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
@@ -169,39 +169,9 @@ void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 
 /* Including all the syscalls */
 
-struct ba_Func* ba_IncludeSysAddFunc(struct ba_Ctr* ctr, u64 line, u64 col, 
-	char* funcName) 
-{
-	// TODO: once named scopes are added, change this
-	if (ctr->currScope != ctr->globalST) {
-		ba_ExitMsg(BA_EXIT_ERR, "func (from built-in include) can only be "
-			"defined in the outer scope,", line, col, ctr->currPath);
-	}
-
-	struct ba_STVal* prevFuncIdVal = ba_HTGet(ctr->currScope->ht, funcName);
-	if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
-		prevFuncIdVal->isInited))
-	{
-		ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
-	}
-
-	struct ba_STVal* funcIdVal = malloc(sizeof(*funcIdVal));
-	(!funcIdVal) && ba_ErrorMallocNoMem();
-	ba_HTSet(ctr->currScope->ht, funcName, (void*)funcIdVal);
-
-	funcIdVal->scope = ctr->currScope;
-	funcIdVal->type.type = BA_TYPE_FUNC;
-	funcIdVal->isInited = 1;
-
-	struct ba_Func* func = ba_NewFunc();
-	funcIdVal->type.extraInfo = (void*)func;
-	
-	return func;
-}
-
 void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysRead)) {
-		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "Read");
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Read");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
 		ba_BltinSysRead(ctr);
@@ -241,7 +211,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysWrite)) {
-		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "Write");
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Write");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
 		ba_BltinSysWrite(ctr);
@@ -281,7 +251,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysOpen)) {
-		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "Open");
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Open");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
 		ba_BltinSysOpen(ctr);
@@ -321,7 +291,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysClose)) {
-		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "Close");
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Close");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
 		ba_BltinSysClose(ctr);
@@ -341,7 +311,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->firstParam->hasDefaultVal = 0;
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysLSeek)) {
-		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "LSeek");
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "LSeek");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
 		ba_BltinSysLSeek(ctr);
@@ -376,19 +346,22 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysMMap)) {
-		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "MMap");
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MMap");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysLSeek(ctr);
+		ba_BltinSysMMap(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
-
-		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
-		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysLSeek);
+		{
+			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			fundType->type = BA_TYPE_VOID;
+			func->retType = (struct ba_Type){ BA_TYPE_PTR, fundType };
+		}
+		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysMMap);
 		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 6;
-		func->paramStackSize = 0x18;
+		func->paramStackSize = 0x30;
 
 		struct ba_FuncParam* params[6];
 
@@ -399,10 +372,11 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
-		params[0]->hasDefaultVal = 0;
+		params[0]->hasDefaultVal = 1;
+		params[0]->defaultVal = 0; // NULL
 		func->firstParam = params[0];
 
-		// len (RSI)
+		// size (RSI)
 		params[1] = ba_NewFuncParam();
 		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
 		params[1]->hasDefaultVal = 0;
@@ -423,14 +397,49 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// fd (R9)
 		params[4] = ba_NewFuncParam();
 		params[4]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[4]->hasDefaultVal = 0;
+		params[4]->hasDefaultVal = 1;
+		params[4]->defaultVal = -1;
 		params[3]->next = params[4];
 
 		// offset (R8)
 		params[5] = ba_NewFuncParam();
 		params[5]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[5]->hasDefaultVal = 0;
+		params[5]->hasDefaultVal = 1;
+		params[5]->defaultVal = 0;
 		params[4]->next = params[5];
+	}
+	if (!ba_BltinFlagsTest(BA_BLTIN_SysMUnmap)) {
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MUnmap");
+		struct ba_IM* oldIM = ctr->im;
+		ctr->im = func->imBegin;
+		ba_BltinSysMUnmap(ctr);
+		func->imEnd = ctr->im;
+		ctr->im = oldIM;
+
+		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
+		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysMUnmap);
+		func->isCalled = 0;
+		func->doesReturn = 1;
+		func->paramCnt = 2;
+		func->paramStackSize = 0x10;
+
+		struct ba_FuncParam* params[2];
+
+		// addr (RDI)
+		params[0] = ba_NewFuncParam();
+		{
+			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			fundType->type = BA_TYPE_VOID;
+			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
+		}
+		params[0]->hasDefaultVal = 0;
+		func->firstParam = params[0];
+
+		// size (RSI)
+		params[1] = ba_NewFuncParam();
+		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
+		params[1]->hasDefaultVal = 0;
+		params[0]->next = params[1];
 	}
 }
 

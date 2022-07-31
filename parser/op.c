@@ -465,8 +465,9 @@ u64 ba_AllocStrLitStatic(struct ba_Ctr* ctr, struct ba_Str* str) {
 void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem, 
 	struct ba_PTkStkItem* srcItem, u64 size)
 {
-	if (!ba_BltinFlagsTest(BA_BLTIN_MemCopy)) {
-		ba_BltinMemCopy(ctr);
+	{ // Recognize MemCopy as having been called
+		struct ba_STVal* stVal = ba_HTGet(ctr->globalST->ht, "MemCopy");
+		((struct ba_Func*)stVal->type.extraInfo)->isCalled = 1;
 	}
 
 	// Setting the default register so that it does not trample on used ones
@@ -533,7 +534,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	
 	ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_IMM, size); // mem size
 	ba_AddIM(ctr, 2, BA_IM_PUSH, defaultReg);
-	ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLblGet(BA_BLTIN_MemCopy));
+	ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLblGet(BA_BLTIN_CoreMemCopy));
 	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
 }
 

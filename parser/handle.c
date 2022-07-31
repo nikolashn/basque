@@ -1146,6 +1146,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 										ba_AdjRegSize(reg, paramSize));
 								}
 								ctr->imStackSize += paramSize;
+								ctr->usedRegisters &= ~ba_IMToCtrReg(reg);
 							}
 							else {
 								ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
@@ -1186,6 +1187,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 									ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
 										BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
 								}
+								ctr->usedRegisters &= ~ba_IMToCtrReg(reg);
 							}
 							else {
 								ba_POpFuncCallPushArgReg(ctr, BA_IM_RAX, paramSize);
