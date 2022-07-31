@@ -111,6 +111,37 @@ void ba_BltinSysClose(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
+// TODO: 4 stat, 5 fstat, 6 lstat, 7 poll
+
+/* syscall lseek
+ * Params: fd (0x8), offset (0x8), whence (0x8)
+ * Returns: (rax) no. of bytes written or -1 if err */
+void ba_BltinSysLSeek(struct ba_Ctr* ctr) {
+	ba_BltinFlagsSet(BA_BLTIN_SysLSeek);
+	ba_BltinLblSet(BA_BLTIN_SysLSeek, ctr->labelCnt);
+	++ctr->labelCnt;
+	
+	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RDI);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RSI);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RDX);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 8);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x30);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x28);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDX);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RSI);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RDI);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
+	ba_AddIM(ctr, 1, BA_IM_RET);
+}
+
+
 /* Including all the syscalls */
 
 struct ba_Func* ba_IncludeSysAddFunc(struct ba_Ctr* ctr, u64 line, u64 col, 
@@ -283,6 +314,41 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->firstParam = ba_NewFuncParam();
 		func->firstParam->type = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->firstParam->hasDefaultVal = 0;
+	}
+	if (!ba_BltinFlagsTest(BA_BLTIN_SysLSeek)) {
+		struct ba_Func* func = ba_IncludeSysAddFunc(ctr, line, col, "LSeek");
+		struct ba_IM* oldIM = ctr->im;
+		ctr->im = func->imBegin;
+		ba_BltinSysLSeek(ctr);
+		func->imEnd = ctr->im;
+		ctr->im = oldIM;
+
+		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
+		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysLSeek);
+		func->isCalled = 0;
+		func->doesReturn = 1;
+		func->paramCnt = 3;
+		func->paramStackSize = 0x18;
+
+		struct ba_FuncParam* params[3];
+
+		// fd (RDI)
+		params[0] = ba_NewFuncParam();
+		params[0]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
+		params[0]->hasDefaultVal = 0;
+		func->firstParam = params[0];
+
+		// offset (RSI)
+		params[1] = ba_NewFuncParam();
+		params[1]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
+		params[1]->hasDefaultVal = 0;
+		params[0]->next = params[1];
+
+		// whence (RDX)
+		params[2] = ba_NewFuncParam();
+		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
+		params[2]->hasDefaultVal = 0;
+		params[1]->next = params[2];
 	}
 }
 
