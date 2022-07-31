@@ -510,7 +510,10 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 					nextLex->line = line;
 					nextLex->colStart = colStart;
 					
-					if (!strcmp(idBuf, "break")) {
+					if (!strcmp(idBuf, "bool")) {
+						nextLex->type = BA_TK_KW_BOOL;
+					}
+					else if (!strcmp(idBuf, "break")) {
 						nextLex->type = BA_TK_KW_BREAK;
 					}
 					else if (!strcmp(idBuf, "elif")) {

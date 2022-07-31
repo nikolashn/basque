@@ -330,14 +330,23 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			}
 			if (ba_IsTypeInt(stkItem->typeInfo)) {
 				// Return value in rax
-				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, 
-					ba_IsLexemeLiteral(stkItem->lexemeType));
+				bool isLiteral = ba_IsLexemeLiteral(stkItem->lexemeType);
+				bool isConvToBool = stkItem->typeInfo.type != BA_TYPE_BOOL && 
+					ctr->currFunc->retType.type == BA_TYPE_BOOL;
+				isConvToBool && isLiteral && 
+					(stkItem->val = (void*)(bool)stkItem->val);
+				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, isLiteral);
+				
 				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
 					(u64)stkItem->val != BA_IM_RAX)
-				{
+				{ // Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
-				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
+				
+				if (isConvToBool && !isLiteral) {
+					ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+					ba_AddIM(ctr, 2, BA_IM_SETNZ, BA_IM_AL);
+				}
 			}
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
 				// Reach outside of the stack frame
@@ -799,7 +808,8 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 						param->type, expItem->typeInfo);
 				}
 
-				param->defaultVal = expItem->val;
+				param->defaultVal = (expItem->typeInfo.type == BA_TYPE_BOOL) 
+					? (void*)(bool)expItem->val : expItem->val;
 				param->hasDefaultVal = 1;
 				state = ST_DEFAULTVAL;
 				goto BA_LBL_PFUNCDEF_ENDPARAM;
@@ -978,6 +988,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	
 	if (ba_IsTypeNum(idVal->type)) {
 		u64 reg = BA_IM_RAX;
+		bool isExpLiteral = ba_IsLexemeLiteral(expItem->lexemeType);
 		
 		if (!isGarbage) {
 			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
@@ -985,9 +996,10 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
 					ba_CalcSTValOffset(ctr->currScope, expItem->val));
 			}
-			if (ba_IsLexemeLiteral(expItem->lexemeType)) {
+			if (isExpLiteral) {
 				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 
-					(u64)expItem->val);
+					(idVal->type.type == BA_TYPE_BOOL)
+						? (bool)expItem->val : (u64)expItem->val);
 			}
 			(expItem->lexemeType == BA_TK_IMREGISTER) && 
 				(reg = (u64)expItem->val);
@@ -1005,9 +1017,15 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 			ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		}
 
-		if (dataSize < 8 && !isGarbage) {
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
-				ba_AdjRegSize(reg, dataSize));
+		if (!isGarbage) {
+			if (idVal->type.type == BA_TYPE_BOOL && !isExpLiteral) {
+				ba_AddIM(ctr, 3, BA_IM_TEST, reg, reg);
+				ba_AddIM(ctr, 2, BA_IM_SETNZ, reg - BA_IM_RAX + BA_IM_AL);
+			}
+			if (dataSize < 8) {
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
+					ba_AdjRegSize(reg, dataSize));
+			}
 		}
 	}
 	else if (idVal->type.type == BA_TYPE_ARR) {

@@ -28,7 +28,7 @@ u8 ba_PExpect(u64 type, struct ba_Ctr* ctr) {
 	return 1;
 }
 
-/* base_type = ( "u64" | "i64" | "u8" | "i8" | "void" "*" ) 
+/* base_type = ( "u64" | "i64" | "u8" | "i8" | "bool" | "void" "*" ) 
  *             { "*" | "[" exp "]" } [ "[" "]" ]
  *           | "void" # if isInclVoid */
 u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
@@ -37,7 +37,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 	
 	if (!ba_PAccept(BA_TK_KW_U64, ctr) && !ba_PAccept(BA_TK_KW_I64, ctr) && 
 		!ba_PAccept(BA_TK_KW_U8, ctr) && !ba_PAccept(BA_TK_KW_I8, ctr) &&
-		!ba_PAccept(BA_TK_KW_VOID, ctr))
+		!ba_PAccept(BA_TK_KW_BOOL, ctr) && !ba_PAccept(BA_TK_KW_VOID, ctr))
 	{
 		return 0;
 	}

@@ -56,6 +56,8 @@ struct ba_Type ba_GetTypeFromKeyword(u64 lexType) {
 			return (struct ba_Type){ BA_TYPE_U8, 0 };
 		case BA_TK_KW_I8:
 			return (struct ba_Type){ BA_TYPE_I8, 0 };
+		case BA_TK_KW_BOOL:
+			return (struct ba_Type){ BA_TYPE_BOOL, 0 };
 		case BA_TK_KW_VOID:
 			return (struct ba_Type){ BA_TYPE_VOID, 0 };
 	}

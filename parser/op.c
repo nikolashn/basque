@@ -126,10 +126,7 @@ bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg,
 	// Arrays are resolved as pointers to their starting location
 	bool isArr = arg->typeInfo.type == BA_TYPE_ARR;
 	if (isArr) {
-		argSize = ba_GetSizeOfType((struct ba_Type){
-			.type = BA_TYPE_PTR,
-			.extraInfo = (void*)0
-		});
+		argSize = ba_GetSizeOfType((struct ba_Type){ BA_TYPE_PTR, 0 });
 	}
 
 	if (arg->lexemeType == BA_TK_IDENTIFIER) {
@@ -149,13 +146,12 @@ bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg,
 		return 1;
 	}
 	if (isLiteral) {
-		// TODO: handle array literals
 		if (isArr) {
 			return 0;
 		}
-		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, 
-			argSize < 8 ? (u64)arg->val & ((1llu << (argSize*8))-1)
-				: (u64)arg->val);
+		u64 val = (argSize < 8) ? (u64)arg->val & ((1llu << (argSize*8))-1)
+			: (u64)arg->val;
+		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_IMM, val);
 		return 1;
 	}
 	return 0;

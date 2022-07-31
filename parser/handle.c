@@ -731,8 +731,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ctr->imStackSize += 16;
 				}
 
-				ba_POpMovArgToReg(ctr, rhs, realReg, isRhsLiteral);
-
 				u64 imOp = 0;
 				((opLex == BA_TK_ADDEQ) && (imOp = BA_IM_ADD)) ||
 				((opLex == BA_TK_SUBEQ) && (imOp = BA_IM_SUB)) ||
@@ -742,6 +740,14 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				((opLex == BA_TK_BITANDEQ) && (imOp = BA_IM_AND)) ||
 				((opLex == BA_TK_BITXOREQ) && (imOp = BA_IM_XOR)) ||
 				((opLex == BA_TK_BITOREQ) && (imOp = BA_IM_OR));
+
+				bool isConvToBool = lhsType.type == BA_TYPE_BOOL && 
+					rhs->typeInfo.type != BA_TYPE_BOOL;
+				
+				!imOp && isConvToBool && isRhsLiteral && 
+					(rhs->val = (void*)(bool)rhs->val);
+
+				ba_POpMovArgToReg(ctr, rhs, realReg, isRhsLiteral);
 
 				u64 lhsSize = ba_GetSizeOfType(lhsType);
 
@@ -807,6 +813,11 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(ctr, 2, BA_IM_POP, opResultReg);
 						ctr->imStackSize -= 8;
 					}
+				}
+
+				if (isConvToBool && (!isRhsLiteral || imOp)) {
+					ba_AddIM(ctr, 3, BA_IM_TEST, realReg, realReg);
+					ba_AddIM(ctr, 2, BA_IM_SETNZ, realReg-BA_IM_RAX+BA_IM_AL);
 				}
 
 				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
@@ -1108,8 +1119,23 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 								ctr->imStackSize += paramSize + 8;
 							}
 							
-							ba_POpMovArgToReg(ctr, funcArg, reg, 
-								ba_IsLexemeLiteral(funcArg->lexemeType));
+							bool isLiteral = 
+								ba_IsLexemeLiteral(funcArg->lexemeType);
+							bool isConvToBool = 
+								param->type.type == BA_TYPE_BOOL && 
+								funcArg->typeInfo.type != BA_TYPE_BOOL;
+							isConvToBool && isLiteral && 
+								(funcArg->val = (void*)(bool)funcArg->val);
+							
+							ba_POpMovArgToReg(ctr, funcArg, reg, isLiteral);
+
+							if (isConvToBool && !isLiteral) {
+								u64 realReg = reg ? reg : BA_IM_RAX;
+								ba_AddIM(ctr, 3, BA_IM_TEST, 
+									realReg, realReg);
+								ba_AddIM(ctr, 2, BA_IM_SETNZ, 
+									realReg - BA_IM_RAX + BA_IM_AL);
+							}
 
 							if (reg) {
 								ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
@@ -1299,6 +1325,26 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				{
 					return ba_ErrorConvertTypes(op->line, op->col, 
 						ctr->currPath, castedExp->typeInfo, newType);
+				}
+
+				if (newType.type == BA_TYPE_BOOL && 
+					 castedExp->typeInfo.type != BA_TYPE_BOOL) 
+				{
+					if (ba_IsLexemeLiteral(castedExp->lexemeType)) {
+						castedExp->val = (void*)(bool)castedExp->val;
+					}
+					else {
+						u64 stackPos = 0;
+						u64 expReg = (u64)castedExp->val;
+						ba_POpAsgnRegOrStack(ctr, castedExp->lexemeType, 
+							&expReg, &stackPos);
+						u64 reg = expReg ? expReg : BA_IM_RAX;
+						ba_POpMovArgToReg(ctr, castedExp, reg, 
+							/* isLiteral = */ 0);
+						ba_AddIM(ctr, 3, BA_IM_TEST, reg, reg);
+						ba_AddIM(ctr, 2, BA_IM_SETNZ, reg-BA_IM_RAX+BA_IM_AL);
+						ba_POpSetArg(ctr, castedExp, expReg, stackPos);
+					}
 				}
 
 				arg = castedExp;
