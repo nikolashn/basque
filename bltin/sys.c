@@ -181,6 +181,25 @@ void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
+/* syscall brk
+ * Params: start (0x8), size (0x8)
+ * Returns: (rax) 0 on success, -1 on failure */
+void ba_BltinSysBrk(struct ba_Ctr* ctr) {
+	ba_BltinFlagsSet(BA_BLTIN_SysBrk);
+	ba_BltinLblSet(BA_BLTIN_SysBrk, ctr->labelCnt);
+	++ctr->labelCnt;
+	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 11);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
+	ba_AddIM(ctr, 1, BA_IM_RET);
+}
+
 /* Including all the syscalls */
 
 void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
@@ -493,6 +512,30 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
 		params[1]->hasDefaultVal = 0;
 		params[0]->next = params[1];
+	}
+	if (!ba_BltinFlagsTest(BA_BLTIN_SysBrk)) {
+		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Brk");
+		struct ba_IM* oldIM = ctr->im;
+		ctr->im = func->imBegin;
+		ba_BltinSysBrk(ctr);
+		func->imEnd = ctr->im;
+		ctr->im = oldIM;
+
+		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
+		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysBrk);
+		func->isCalled = 0;
+		func->doesReturn = 1;
+		func->paramCnt = 1;
+		func->paramStackSize = 0x08;
+
+		// addr (RDI)
+		func->firstParam = ba_NewFuncParam();
+		{
+			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			fundType->type = BA_TYPE_VOID;
+			func->firstParam->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
+		}
+		func->firstParam->hasDefaultVal = 0;
 	}
 }
 
