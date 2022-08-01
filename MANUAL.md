@@ -393,7 +393,7 @@ System call name: `munmap`
 
 #### Brk
 ```
-void* Brk(void* addr);
+void* Brk(void* addr = 0);
 ```
 System call number: 12
 

@@ -205,6 +205,11 @@ void ba_BltinSysBrk(struct ba_Ctr* ctr) {
 /* Including all the syscalls */
 
 void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
+	struct ba_Type voidPtr = { BA_TYPE_PTR, ba_MAlloc(sizeof(struct ba_Type)) };
+	((struct ba_Type*)voidPtr.extraInfo)->type = BA_TYPE_VOID;
+	struct ba_Type u8Ptr = { BA_TYPE_PTR, ba_MAlloc(sizeof(struct ba_Type)) };
+	((struct ba_Type*)u8Ptr.extraInfo)->type = BA_TYPE_U8;
+
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysRead)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Read");
 		struct ba_IM* oldIM = ctr->im;
@@ -213,37 +218,28 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		struct ba_FuncParam* params[3] = {
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam()
+		};
+		*(params[2]) = (struct ba_FuncParam){ // fd (RDI)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.hasDefaultVal = 1,
+			.defaultVal = (void*)0, // sys.FD_STDIN
+		};
+		*(params[1]) = (struct ba_FuncParam){ // count (RDX)
+			.type = (struct ba_Type){ BA_TYPE_U64, 0 },
+			.next = params[2],
+		};
+		*(params[0]) = (struct ba_FuncParam){ // count (RDX)
+			.type = voidPtr,
+			.next = params[1],
+		};
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysRead);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 3;
 		func->paramStackSize = 0x18;
-
-		struct ba_FuncParam* params[3];
-
-		// buf (RSI)
-		params[0] = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		params[0]->hasDefaultVal = 0;
 		func->firstParam = params[0];
-
-		// count (RDX)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
-
-		// fd (RDI)
-		params[2] = ba_NewFuncParam();
-		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[2]->hasDefaultVal = 1;
-		params[2]->defaultVal = 0; // sys.FD_STDIN
-		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysWrite)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Write");
@@ -253,37 +249,28 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		struct ba_FuncParam* params[3] = {
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam()
+		};
+		*(params[2]) = (struct ba_FuncParam){ // fd (RDI)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.hasDefaultVal = 1,
+			.defaultVal = (void*)1, // sys.FD_STDOUT
+		};
+		*(params[1]) = (struct ba_FuncParam){ // count (RDX)
+			.type = (struct ba_Type){ BA_TYPE_U64, 0 },
+			.next = params[2],
+		};
+		*(params[0]) = (struct ba_FuncParam){ // buf (RSI)
+			.type = voidPtr,
+			.next = params[1],
+		};
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysWrite);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 3;
 		func->paramStackSize = 0x18;
-
-		struct ba_FuncParam* params[3];
-
-		// buf (RSI)
-		params[0] = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		params[0]->hasDefaultVal = 0;
 		func->firstParam = params[0];
-
-		// count (RDX)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
-
-		// fd (RDI)
-		params[2] = ba_NewFuncParam();
-		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[2]->hasDefaultVal = 1;
-		params[2]->defaultVal = (void*)1; // sys.FD_STDOUT
-		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysOpen)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Open");
@@ -293,37 +280,28 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		struct ba_FuncParam* params[3] = {
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam()
+		};
+		*(params[2]) = (struct ba_FuncParam){ // mode (RDX)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.hasDefaultVal = 1,
+			.defaultVal = (void*)0,
+		};
+		*(params[1]) = (struct ba_FuncParam){ // flags (RSI)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.next = params[2],
+		};
+		*(params[0]) = (struct ba_FuncParam){ // pathname (RDI)
+			.type = u8Ptr,
+			.next = params[1],
+		};
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysOpen);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 3;
 		func->paramStackSize = 0x18;
-
-		struct ba_FuncParam* params[3];
-
-		// pathname (RDI)
-		params[0] = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_U8;
-			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		params[0]->hasDefaultVal = 0;
 		func->firstParam = params[0];
-
-		// flags (RSI)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
-
-		// mode (RDX)
-		params[2] = ba_NewFuncParam();
-		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[2]->hasDefaultVal = 1;
-		params[2]->defaultVal = (void*)0;
-		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysClose)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Close");
@@ -333,17 +311,14 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		func->firstParam = ba_NewFuncParam(); // fd (RDI)
+		func->firstParam->type = (struct ba_Type){ BA_TYPE_I64, 0 };
+
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysClose);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 1;
 		func->paramStackSize = 0x8;
-
-		// fd (RDI)
-		func->firstParam = ba_NewFuncParam();
-		func->firstParam->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		func->firstParam->hasDefaultVal = 0;
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysLSeek)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "LSeek");
@@ -353,32 +328,26 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		struct ba_FuncParam* params[3] = {
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam()
+		};
+		*(params[2]) = (struct ba_FuncParam){ // whence (RDX)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+		};
+		*(params[1]) = (struct ba_FuncParam){ // offset (RSI)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.next = params[2],
+		};
+		*(params[0]) = (struct ba_FuncParam){ // fd (RDI)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.next = params[1],
+		};
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysLSeek);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 3;
 		func->paramStackSize = 0x18;
-
-		struct ba_FuncParam* params[3];
-
-		// fd (RDI)
-		params[0] = ba_NewFuncParam();
-		params[0]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[0]->hasDefaultVal = 0;
 		func->firstParam = params[0];
-
-		// offset (RSI)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
-
-		// whence (RDX)
-		params[2] = ba_NewFuncParam();
-		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[2]->hasDefaultVal = 0;
-		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysMMap)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MMap");
@@ -387,61 +356,46 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		ba_BltinSysMMap(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			func->retType = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
+
+		struct ba_FuncParam* params[6] = {
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam(),
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam(),
+		};
+		*(params[5]) = (struct ba_FuncParam){ // offset (R9)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.hasDefaultVal = 1,
+			.defaultVal = (void*)0,
+		};
+		*(params[4]) = (struct ba_FuncParam){ // fd (R8)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.hasDefaultVal = 1,
+			.defaultVal = (void*)-1,
+			.next = params[5],
+		};
+		*(params[3]) = (struct ba_FuncParam){ // flags (R10)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.next = params[4],
+		};
+		*(params[2]) = (struct ba_FuncParam){ // prot (RDX)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+			.next = params[3],
+		};
+		*(params[1]) = (struct ba_FuncParam){ // size (RSI)
+			.type = (struct ba_Type){ BA_TYPE_U64, 0 },
+			.next = params[2],
+		};
+		*(params[0]) = (struct ba_FuncParam){ // addr (RDI)
+			.type = voidPtr,
+			.hasDefaultVal = 1,
+			.defaultVal = (void*)0, // NULL
+			.next = params[1],
+		};
+		func->retType = voidPtr;
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysMMap);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 6;
 		func->paramStackSize = 0x30;
-
-		struct ba_FuncParam* params[6];
-
-		// addr (RDI)
-		params[0] = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		params[0]->hasDefaultVal = 1;
-		params[0]->defaultVal = 0; // NULL
 		func->firstParam = params[0];
-
-		// size (RSI)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
-
-		// prot (RDX)
-		params[2] = ba_NewFuncParam();
-		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[2]->hasDefaultVal = 0;
-		params[1]->next = params[2];
-
-		// flags (R10)
-		params[3] = ba_NewFuncParam();
-		params[3]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[3]->hasDefaultVal = 0;
-		params[2]->next = params[3];
-
-		// fd (R9)
-		params[4] = ba_NewFuncParam();
-		params[4]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[4]->hasDefaultVal = 1;
-		params[4]->defaultVal = (void*)-1;
-		params[3]->next = params[4];
-
-		// offset (R8)
-		params[5] = ba_NewFuncParam();
-		params[5]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[5]->hasDefaultVal = 1;
-		params[5]->defaultVal = 0;
-		params[4]->next = params[5];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysMProtect)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MProtect");
@@ -451,36 +405,26 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		struct ba_FuncParam* params[3] = {
+			ba_NewFuncParam(), ba_NewFuncParam(), ba_NewFuncParam()
+		};
+		*(params[2]) = (struct ba_FuncParam){ // prot (RDX)
+			.type = (struct ba_Type){ BA_TYPE_I64, 0 },
+		};
+		*(params[1]) = (struct ba_FuncParam){ // size (RSI)
+			.type = (struct ba_Type){ BA_TYPE_U64, 0 },
+			.next = params[2],
+		};
+		*(params[0]) = (struct ba_FuncParam){ // addr (RDI)
+			.type = voidPtr,
+			.next = params[1],
+		};
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysMProtect);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 3;
 		func->paramStackSize = 0x18;
-
-		struct ba_FuncParam* params[3];
-
-		// addr (RDI)
-		params[0] = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		params[0]->hasDefaultVal = 0;
 		func->firstParam = params[0];
-
-		// size (RSI)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
-
-		// prot (RDX)
-		params[2] = ba_NewFuncParam();
-		params[2]->type = (struct ba_Type){ BA_TYPE_I64, 0 };
-		params[2]->hasDefaultVal = 0;
-		params[1]->next = params[2];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysMUnmap)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MUnmap");
@@ -490,30 +434,22 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
+		struct ba_FuncParam* params[2] = {
+			ba_NewFuncParam(), ba_NewFuncParam(),
+		};
+		*(params[1]) = (struct ba_FuncParam){ // size (RSI)
+			.type = (struct ba_Type){ BA_TYPE_U64, 0 },
+		};
+		*(params[0]) = (struct ba_FuncParam){ // addr (RDI)
+			.type = voidPtr,
+			.next = params[1],
+		};
 		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysMUnmap);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 2;
 		func->paramStackSize = 0x10;
-
-		struct ba_FuncParam* params[2];
-
-		// addr (RDI)
-		params[0] = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		params[0]->hasDefaultVal = 0;
 		func->firstParam = params[0];
-
-		// size (RSI)
-		params[1] = ba_NewFuncParam();
-		params[1]->type = (struct ba_Type){ BA_TYPE_U64, 0 };
-		params[1]->hasDefaultVal = 0;
-		params[0]->next = params[1];
 	}
 	if (!ba_BltinFlagsTest(BA_BLTIN_SysBrk)) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Brk");
@@ -523,25 +459,16 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			func->retType = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
+		func->firstParam = ba_NewFuncParam(); // addr (RDI)
+		func->firstParam->type = voidPtr;
+		func->firstParam->hasDefaultVal = 1;
+		func->firstParam->defaultVal = (void*)0;
+
+		func->retType = voidPtr;
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysBrk);
-		func->isCalled = 0;
 		func->doesReturn = 1;
 		func->paramCnt = 1;
 		func->paramStackSize = 0x08;
-
-		// addr (RDI)
-		func->firstParam = ba_NewFuncParam();
-		{
-			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
-			fundType->type = BA_TYPE_VOID;
-			func->firstParam->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
-		}
-		func->firstParam->hasDefaultVal = 0;
 	}
 }
 
