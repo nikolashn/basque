@@ -265,10 +265,14 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 			bool isRhsLiteral = ba_IsLexemeLiteral(rhs->lexemeType);
 
 			// Correct DPTR unless the operation is some kind of assignment
-			op->lexemeType != '=' &&
-				!ba_IsLexemeCompoundAssign(op->lexemeType) && 
+			if (op->lexemeType != '=' &&
+				!ba_IsLexemeCompoundAssign(op->lexemeType))
+			{
 				!ba_PCorrectDPtr(ctr, lhs) &&
-				ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
+					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
+				!ba_PCorrectDPtr(ctr, rhs) &&
+					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
+			}
 
 			// Bit shifts
 			if (op->lexemeType == BA_TK_LSHIFT || 
