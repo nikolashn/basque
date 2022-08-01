@@ -3,15 +3,12 @@
 #include "func.h"
 
 struct ba_FuncParam* ba_NewFuncParam() {
-	struct ba_FuncParam* param = calloc(1, sizeof(*param));
-	if (!param) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_FuncParam* param = ba_CAlloc(1, sizeof(*param));
 	return param;
 }
  
 struct ba_Func* ba_NewFunc() {
-	struct ba_Func* func = malloc(sizeof(*func));
+	struct ba_Func* func = ba_MAlloc(sizeof(*func));
 	func->retType = (struct ba_Type){0};
 	func->lblStart = 0;
 	func->lblEnd = 0;

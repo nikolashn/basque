@@ -63,12 +63,6 @@ u8 ba_ErrorIntLitTooLong(u64 line, u64 col, char* path) {
 
 // ----- Independent errors ------
 
-u8 ba_ErrorMallocNoMem() {
-	fprintf(stderr, "Error: insufficient memory\n");
-	exit(-1);
-	return 0;
-}
-
 u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, char* path, u64 max) {
 	fprintf(stderr, "Error: encountered %s at %llu:%llu in %s greater than "
 		"maximum allowed length (%llu characters)\n", type, line, col, path, max);

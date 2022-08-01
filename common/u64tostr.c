@@ -133,10 +133,7 @@ u64 ba_StrToU64(char* str, u64 line, u64 col, char* path) {
 
 char* ba_U64ToStr(u64 num) {
 	u8 digits[20];
-	char* str = malloc(20);
-	if (!str) {
-		ba_ErrorMallocNoMem();
-	}
+	char* str = ba_MAlloc(20);
 	u64 len = 0;
 
 	if (!num) {

@@ -4,16 +4,10 @@
 #include "exitmsg.h"
 
 struct ba_Stk* ba_NewStk() {
-	struct ba_Stk* stk = malloc(sizeof(*stk));
-	if (!stk) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_Stk* stk = ba_MAlloc(sizeof(*stk));
 	stk->cap = 64;
 	stk->count = 0;
-	stk->items = malloc(stk->cap * sizeof(*stk->items));
-	if (!stk->items) {
-		ba_ErrorMallocNoMem();
-	}
+	stk->items = ba_MAlloc(stk->cap * sizeof(*stk->items));
 	return stk;
 }
 
@@ -24,10 +18,7 @@ void ba_DelStk(struct ba_Stk* stk) {
 
 u8 ba_ResizeStk(struct ba_Stk* stk) {
 	stk->cap <<= 1;
-	stk->items = realloc(stk->items, stk->cap * sizeof(*stk->items));
-	if (!stk->items) {
-		return ba_ErrorMallocNoMem();
-	}
+	stk->items = ba_Realloc(stk->items, stk->cap * sizeof(*stk->items));
 	return 1;
 }
 

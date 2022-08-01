@@ -127,10 +127,7 @@ void ba_BltinU64ToStr(struct ba_Ctr* ctr) {
 	// Push return location
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX);
 
-	ctr->im->vals = malloc(sizeof(u64));
-	if (!ctr->im->vals) {
-		ba_ErrorMallocNoMem();
-	}
+	ctr->im->vals = ba_MAlloc(sizeof(u64));
 	ctr->im->vals[0] = BA_IM_RET;
 	ctr->im->count = 1;
 	ctr->im->next = oldStartIM;

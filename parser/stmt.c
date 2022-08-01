@@ -27,7 +27,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 	// <file change>
 	if (ctr->lex->type == BA_TK_FILECHANGE) {
-		ctr->currPath = malloc(ctr->lex->valLen+1);
+		ctr->currPath = ba_MAlloc(ctr->lex->valLen+1);
 		strcpy(ctr->currPath, ctr->lex->val);
 		return ba_PAccept(BA_TK_FILECHANGE, ctr);
 	}
@@ -353,7 +353,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				// TODO: properly calculate offset if registers praeserved
 				ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, 
 					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 8);
-				struct ba_PTkStkItem* destItem = malloc(sizeof(*destItem));
+				struct ba_PTkStkItem* destItem = ba_MAlloc(sizeof(*destItem));
 				destItem->lexemeType = 0;
 				destItem->val = (void*)BA_IM_RAX;
 				ba_PAssignArr(ctr, destItem, stkItem, 
@@ -404,10 +404,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 lblNameLen = ctr->lex->valLen;
 		char* lblName = 0;
 		if (ctr->lex->val) {
-			lblName = malloc(lblNameLen+1);
-			if (!lblName) {
-				return ba_ErrorMallocNoMem();
-			}
+			lblName = ba_MAlloc(lblNameLen+1);
 			strcpy(lblName, ctr->lex->val);
 		}
 
@@ -433,10 +430,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	// "include" lit_str { lit_str } ";"
 	else if (ba_PAccept(BA_TK_KW_INCLUDE, ctr)) {
 		u64 len = ctr->lex->valLen;
-		char* fileName = malloc(len + 1);
-		if (!fileName) {
-			return ba_ErrorMallocNoMem();
-		}
+		char* fileName = ba_MAlloc(len + 1);
 		strcpy(fileName, ctr->lex->val);
 		ba_PExpect(BA_TK_LITSTR, ctr);
 
@@ -454,10 +448,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 					" too large to fit on the stack");
 			}
 
-			fileName = realloc(fileName, len+1);
-			if (!fileName) {
-				return ba_ErrorMallocNoMem();
-			}
+			fileName = ba_Realloc(fileName, len+1);
 			strcpy(fileName+oldLen, ctr->lex->val);
 			fileName[len] = 0;
 		}
@@ -471,7 +462,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		else {
 			if (ctr->dir && fileName[0] != '/') {
 				u64 dirLen = strlen(ctr->dir);
-				char* relFileName = malloc(dirLen + len + 2);
+				char* relFileName = ba_MAlloc(dirLen + len + 2);
 				memcpy(relFileName, ctr->dir, dirLen+1);
 				relFileName[dirLen] = '/';
 				relFileName[dirLen+1] = 0;
@@ -518,7 +509,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			nextLex->colStart = col;
 
 			nextLex->valLen = strlen(ctr->currPath);
-			nextLex->val = malloc(nextLex->valLen+1);
+			nextLex->val = ba_MAlloc(nextLex->valLen+1);
 			strcpy(nextLex->val, ctr->currPath);
 
 			nextLex->next = oldNextLex;
@@ -542,10 +533,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 idNameLen = ctr->lex->valLen;
 		char* idName = 0;
 		if (ctr->lex->val) {
-			idName = malloc(idNameLen+1);
-			if (!idName) {
-				return ba_ErrorMallocNoMem();
-			}
+			idName = ba_MAlloc(idNameLen+1);
 			strcpy(idName, ctr->lex->val);
 		}
 
@@ -573,10 +561,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 lblNameLen = ctr->lex->valLen;
 		char* lblName = 0;
 		if (ctr->lex->val) {
-			lblName = malloc(lblNameLen+1);
-			if (!lblName) {
-				return ba_ErrorMallocNoMem();
-			}
+			lblName = ba_MAlloc(lblNameLen+1);
 			strcpy(lblName, ctr->lex->val);
 		}
 
@@ -646,8 +631,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 			"size array on", line, col, ctr->currPath);
 	}
 
-	struct ba_STVal* funcIdVal = malloc(sizeof(*funcIdVal));
-	(!funcIdVal) && ba_ErrorMallocNoMem();
+	struct ba_STVal* funcIdVal = ba_MAlloc(sizeof(*funcIdVal));
 	ba_HTSet(ctr->currScope->ht, funcName, (void*)funcIdVal);
 
 	funcIdVal->scope = ctr->currScope;
@@ -715,10 +699,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 					ba_StkPop(ctr->pTkStk))->typeInfo.extraInfo;
 
 				if (ctr->lex->val) {
-					paramName = malloc(ctr->lex->valLen+1);
-					if (!paramName) {
-						return ba_ErrorMallocNoMem();
-					}
+					paramName = ba_MAlloc(ctr->lex->valLen+1);
 					strcpy(paramName, ctr->lex->val);
 				}
 
@@ -739,11 +720,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 					return ba_ErrorVarRedef(paramName, line, col, ctr->currPath);
 				}
 
-				struct ba_STVal* paramVal = malloc(sizeof(struct ba_STVal));
-				if (!paramVal) {
-					return ba_ErrorMallocNoMem();
-				}
-
+				struct ba_STVal* paramVal = ba_MAlloc(sizeof(struct ba_STVal));
 				paramVal->scope = func->childScope;
 				paramVal->type = param->type;
 
@@ -926,11 +903,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		}
 	}
 
-	struct ba_STVal* idVal = malloc(sizeof(struct ba_STVal));
-	if (!idVal) {
-		return ba_ErrorMallocNoMem();
-	}
-
+	struct ba_STVal* idVal = ba_MAlloc(sizeof(struct ba_STVal));
 	idVal->scope = ctr->currScope;
 	idVal->type = type;
 
@@ -1036,7 +1009,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, dataSize);
 		ctr->currScope->dataSize += dataSize;
 		if (!isGarbage) {
-			struct ba_PTkStkItem* destItem = malloc(sizeof(*destItem));
+			struct ba_PTkStkItem* destItem = ba_MAlloc(sizeof(*destItem));
 			destItem->lexemeType = 0;
 			destItem->val = (void*)BA_IM_RSP;
 			ba_PAssignArr(ctr, destItem, expItem, dataSize);

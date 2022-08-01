@@ -10,20 +10,14 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	u64 lexValLen = ctr->lex->valLen;
 	char* lexVal = 0;
 	if (ctr->lex->val) {
-		lexVal = malloc(lexValLen+1);
-		if (!lexVal) {
-			return ba_ErrorMallocNoMem();
-		}
+		lexVal = ba_MAlloc(lexValLen+1);
 		strcpy(lexVal, ctr->lex->val);
 	}
 
 	// lit_str { lit_str }
 	if (ba_PAccept(BA_TK_LITSTR, ctr)) {
 		u64 len = lexValLen;
-		char* str = malloc(len + 1);
-		if (!str) {
-			return ba_ErrorMallocNoMem();
-		}
+		char* str = ba_MAlloc(len + 1);
 		strcpy(str, lexVal);
 		
 		// do-while prevents 1 more str literal from being consumed than needed
@@ -40,20 +34,17 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 					" too large to fit on the stack");
 			}
 
-			str = realloc(str, len+1);
-			if (!str) {
-				return ba_ErrorMallocNoMem();
-			}
+			str = ba_Realloc(str, len+1);
 			strcpy(str+oldLen, ctr->lex->val);
 			str[len] = 0;
 		}
 		while (ba_PAccept(BA_TK_LITSTR, ctr));
 
-		struct ba_Str* pTkVal = malloc(sizeof(*pTkVal));
+		struct ba_Str* pTkVal = ba_MAlloc(sizeof(*pTkVal));
 		pTkVal->str = str;
 		pTkVal->len = len;
 
-		struct ba_ArrExtraInfo* extraInfo = malloc(sizeof(*extraInfo));
+		struct ba_ArrExtraInfo* extraInfo = ba_MAlloc(sizeof(*extraInfo));
 		extraInfo->type = (struct ba_Type){ BA_TYPE_U8, 0 };
 		extraInfo->cnt = len + 1;
 		struct ba_Type strType = { BA_TYPE_ARR, extraInfo };
@@ -355,10 +346,7 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 		}
 	}
 
-	struct ba_PTkStkItem* result = malloc(sizeof(*result));
-	if (!result) {
-		return ba_ErrorMallocNoMem();
-	}
+	struct ba_PTkStkItem* result = ba_MAlloc(sizeof(*result));
 
 	if (deReg) {
 		result->lexemeType = BA_TK_IMREGISTER;
@@ -447,11 +435,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 		}
 		// After an atom, postfix or grouped expression
 		else {
-			struct ba_POpStkItem* op = malloc(sizeof(*op));
-			if (!op) {
-				return ba_ErrorMallocNoMem();
-			}
-
+			struct ba_POpStkItem* op = ba_MAlloc(sizeof(*op));
 			op->line = line;
 			op->col = col;
 			op->lexemeType = lexType;

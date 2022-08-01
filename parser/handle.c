@@ -93,10 +93,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ba_POpMovIdToReg(ctr, arg->val, /* argSize = */ 8, 
 						reg, /* isLea = */ 1);
 					
-					struct ba_Type* origType = malloc(sizeof(*origType));
-					if (!origType) {
-						return ba_ErrorMallocNoMem();
-					}
+					struct ba_Type* origType = ba_MAlloc(sizeof(*origType));
 					memcpy(origType, &arg->typeInfo, sizeof(*origType));
 					arg->typeInfo.extraInfo = origType;
 				}
@@ -475,10 +472,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							/* a % (1<<b) == a & ((1<<b)-1) 
 							 * a % -(1<<b) == (a & ((1<<b)-1)) - (1<<b) */
 
-							struct ba_PTkStkItem* newRhs = malloc(sizeof(*newRhs));
-							if (!newRhs) {
-								return ba_ErrorMallocNoMem();
-							}
+							struct ba_PTkStkItem* newRhs = 
+								ba_MAlloc(sizeof(*newRhs));
 							newRhs->val = (void*)(rhsAbs-1);
 							newRhs->typeInfo.type = BA_TYPE_U64;
 							newRhs->lexemeType = BA_TK_LITINT;
@@ -879,7 +874,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						ctr->currPath, "comparison");
 				}
 
-				struct ba_PTkStkItem* rhsCopy = malloc(sizeof(*rhsCopy));
+				struct ba_PTkStkItem* rhsCopy = ba_MAlloc(sizeof(*rhsCopy));
 				memcpy(rhsCopy, rhs, sizeof(*rhsCopy));
 
 				u64 opLex = op->lexemeType;
@@ -1161,7 +1156,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 								paramSize);
 							ctr->imStackSize += paramSize;
 							struct ba_PTkStkItem* destItem = 
-								malloc(sizeof(*destItem));
+								ba_MAlloc(sizeof(*destItem));
 							destItem->lexemeType = 0;
 							destItem->val = (void*)BA_IM_RSP;
 							ba_PAssignArr(ctr, destItem, funcArg, paramSize);
@@ -1204,7 +1199,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 							ctr->imStackSize += paramSize;
 						}
 						else if (param->type.type == BA_TYPE_ARR) {
-							funcArg = malloc(sizeof(*funcArg));
+							funcArg = ba_MAlloc(sizeof(*funcArg));
 							funcArg->typeInfo = param->type;
 							funcArg->val = param->defaultVal;
 							funcArg->lexemeType = BA_TK_IMSTATIC;
@@ -1214,7 +1209,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 								paramSize);
 							ctr->imStackSize += paramSize;
 							struct ba_PTkStkItem* destItem = 
-								malloc(sizeof(*destItem));
+								ba_MAlloc(sizeof(*destItem));
 							destItem->lexemeType = 0;
 							destItem->val = (void*)BA_IM_RSP;
 							ba_PAssignArr(ctr, destItem, funcArg, paramSize);
@@ -1237,10 +1232,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, 
 						BA_IM_IMM, func->paramStackSize);
 				}
-				struct ba_PTkStkItem* retVal = malloc(sizeof(*retVal));
-				if (!retVal) {
-					return ba_ErrorMallocNoMem();
-				}
+				struct ba_PTkStkItem* retVal = ba_MAlloc(sizeof(*retVal));
 
 				// Leave the stack frame
 				ctr->usedRegisters = (u64)ba_StkPop(ctr->funcFrameStk);

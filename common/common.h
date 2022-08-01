@@ -36,4 +36,10 @@ typedef signed char i8;
 typedef double f64;
 typedef float f32;
 
+// ----- Funcs -----
+
+void* ba_MAlloc(u64 size);
+void* ba_Realloc(void* ptr, u64 size);
+void* ba_CAlloc(u64 itemCnt, u64 itemSize);
+
 #endif

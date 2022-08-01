@@ -39,8 +39,7 @@ struct ba_Func* ba_IncludeAddFunc(struct ba_Ctr* ctr, u64 line, u64 col,
 		ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
 	}
 
-	struct ba_STVal* funcIdVal = malloc(sizeof(*funcIdVal));
-	(!funcIdVal) && ba_ErrorMallocNoMem();
+	struct ba_STVal* funcIdVal = ba_MAlloc(sizeof(*funcIdVal));
 	ba_HTSet(ctr->currScope->ht, funcName, (void*)funcIdVal);
 
 	funcIdVal->scope = ctr->currScope;

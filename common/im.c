@@ -3,10 +3,7 @@
 #include "im.h"
 
 struct ba_IM* ba_NewIM() {
-	struct ba_IM* im = calloc(1, sizeof(*im));
-	if (!im) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_IM* im = ba_CAlloc(1, sizeof(*im));
 	return im;
 }
 
@@ -127,10 +124,7 @@ char* ba_IMItemToStr(u64 val) {
 }
 
 char* ba_IMToStr(struct ba_IM* im) {
-	char* str = malloc(255);
-	if (!str) {
-		ba_ErrorMallocNoMem();
-	}
+	char* str = ba_MAlloc(255);
 	*str = 0;
 
 	bool isImm = 0;

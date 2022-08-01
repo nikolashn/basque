@@ -43,16 +43,14 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 	}
 	
 	struct ba_Type type = { BA_TYPE_TYPE, 0 };
-	type.extraInfo = malloc(sizeof(struct ba_Type));
-	(!type.extraInfo) && ba_ErrorMallocNoMem();
+	type.extraInfo = ba_MAlloc(sizeof(struct ba_Type));
 	*(struct ba_Type*)type.extraInfo = ba_GetTypeFromKeyword(lexType);
 	
 	lexType = ctr->lex->type;
 	while (ba_PAccept('*', ctr) || ba_PAccept('[', ctr)) {
 		if (lexType == '*') {
 			struct ba_Type* oldInfo = type.extraInfo;
-			type.extraInfo = malloc(sizeof(struct ba_Type));
-			(!type.extraInfo) && ba_ErrorMallocNoMem();
+			type.extraInfo = ba_MAlloc(sizeof(struct ba_Type));
 			*(struct ba_Type*)type.extraInfo = 
 				(struct ba_Type){ BA_TYPE_PTR, oldInfo };
 			isVoid = 0;
@@ -64,7 +62,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 		}
 
 		if (lexType == '[') {
-			struct ba_ArrExtraInfo* extraInfo = malloc(sizeof(*extraInfo));
+			struct ba_ArrExtraInfo* extraInfo = ba_MAlloc(sizeof(*extraInfo));
 			
 			struct ba_Stk* oldOpStk = ctr->pOpStk;
 			ctr->pOpStk = ba_NewStk();

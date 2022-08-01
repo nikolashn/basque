@@ -195,10 +195,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 
 					nextLex->line = line;
 					nextLex->colStart = colStart;
-					nextLex->val = malloc(1);
-					if (!nextLex->val) {
-						return ba_ErrorMallocNoMem();
-					}
+					nextLex->val = ba_MAlloc(1);
 					nextLex->valLen = 1;
 					*nextLex->val = charVal;
 					nextLex->type = BA_TK_LITCHAR;
@@ -255,10 +252,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 
 						nextLex->line = line;
 						nextLex->colStart = colStart;
-						nextLex->val = malloc(BA_LITERAL_SIZE+1);
-						if (!nextLex->val) {
-							return ba_ErrorMallocNoMem();
-						}
+						nextLex->val = ba_MAlloc(BA_LITERAL_SIZE+1);
 						nextLex->valLen = litIter;
 						strcpy(nextLex->val, litBuf);
 						nextLex->type = BA_TK_LITINT;
@@ -568,10 +562,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 						nextLex->type = BA_TK_KW_WRITE;
 					}
 					else {
-						nextLex->val = malloc(BA_LITERAL_SIZE+1);
-						if (!nextLex->val) {
-							return ba_ErrorMallocNoMem();
-						}
+						nextLex->val = ba_MAlloc(BA_LITERAL_SIZE+1);
 						strcpy(nextLex->val, idBuf);
 						nextLex->valLen = idIter;
 						nextLex->type = BA_TK_IDENTIFIER;
@@ -597,10 +588,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 					nextLex->line = line;
 					nextLex->colStart = colStart;
 					
-					nextLex->val = malloc(BA_LITERAL_SIZE+1);
-					if (!nextLex->val) {
-						return ba_ErrorMallocNoMem();
-					}
+					nextLex->val = ba_MAlloc(BA_LITERAL_SIZE+1);
 					// memcpy, not strcpy because there could be zeros
 					memcpy(nextLex->val, litBuf, litIter+1);
 					nextLex->valLen = litIter;
@@ -669,10 +657,7 @@ u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
 
 					nextLex->line = line;
 					nextLex->colStart = colStart;
-					nextLex->val = malloc(litIter+1);
-					if (!nextLex->val) {
-						return ba_ErrorMallocNoMem();
-					}
+					nextLex->val = ba_MAlloc(litIter+1);
 					nextLex->valLen = litIter;
 					strcpy(nextLex->val, litBuf);
 					nextLex->type = BA_TK_LITINT;

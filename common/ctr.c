@@ -5,10 +5,7 @@
 #include "dynarr.h"
 
 struct ba_Ctr* ba_NewCtr() {
-	struct ba_Ctr* ctr = malloc(sizeof(struct ba_Ctr));
-	if (!ctr) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_Ctr* ctr = ba_MAlloc(sizeof(struct ba_Ctr));
 	ctr->startLex = ba_NewLexeme();
 	ctr->lex = ctr->startLex;
 	ctr->dir = 0;
@@ -69,10 +66,7 @@ void ba_DelCtr(struct ba_Ctr* ctr) {
 }
 
 void ba_AddIM(struct ba_Ctr* ctr, u64 count, ...) {
-	ctr->im->vals = malloc(sizeof(u64) * count);
-	if (!ctr->im->vals) {
-		ba_ErrorMallocNoMem();
-	}
+	ctr->im->vals = ba_MAlloc(sizeof(u64) * count);
 	
 	va_list vals;
 	va_start(vals, count);

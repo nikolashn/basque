@@ -4,22 +4,13 @@
 #include "exitmsg.h"
 
 struct ba_SymTable* ba_NewSymTable() {
-	struct ba_SymTable* st = malloc(sizeof(*st));
-	if (!st) {
-		ba_ErrorMallocNoMem();
-	}
-
+	struct ba_SymTable* st = ba_MAlloc(sizeof(*st));
 	st->ht = ba_NewHashTable();
-	if (!st->ht) {
-		ba_ErrorMallocNoMem();
-	}
-
 	st->parent = 0;
 	st->children = 0;
 	st->childCnt = 0;
 	st->childCap = 0;
 	st->dataSize = 0;
-
 	return st;
 }
 
@@ -33,11 +24,11 @@ struct ba_SymTable* ba_SymTableAddChild(struct ba_SymTable* parent) {
 	child->parent = parent;
 	if (!parent->childCap) {
 		parent->childCap = 0x20;
-		parent->children = malloc(0x20 * sizeof(*parent->children));
+		parent->children = ba_MAlloc(0x20 * sizeof(*parent->children));
 	}
 	else if (parent->childCap >= parent->childCnt) {
 		parent->childCap <<= 1;
-		parent->children = realloc(parent->children, 
+		parent->children = ba_Realloc(parent->children, 
 			parent->childCap * sizeof(*parent->children));
 	}
 	parent->children[parent->childCnt++] = child;

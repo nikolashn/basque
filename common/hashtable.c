@@ -14,16 +14,9 @@ u64 ba_Hash(char* str) {
 }
 
 struct ba_HashTable* ba_NewHashTable() {
-	struct ba_HashTable* ht = malloc(sizeof(*ht));
-	if (!ht) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_HashTable* ht = ba_MAlloc(sizeof(*ht));
 	
-	ht->entries = calloc(BA_HASHTABLE_CAPACITY, sizeof(*ht->entries));
-	if (!ht->entries) {
-		ba_ErrorMallocNoMem();
-	}
-
+	ht->entries = ba_CAlloc(BA_HASHTABLE_CAPACITY, sizeof(*ht->entries));
 	ht->capacity = BA_HASHTABLE_CAPACITY;
 	ht->count = 0;
 
@@ -87,10 +80,7 @@ bool ba_HTExpand(struct ba_HashTable* ht) {
 	
 	u64 newCapacity = ht->capacity << 1;
 	
-	struct ba_HTEntry* newEntries = calloc(newCapacity, sizeof(*newEntries));
-	if (!newEntries) {
-		return ba_ErrorMallocNoMem();
-	}
+	struct ba_HTEntry* newEntries = ba_CAlloc(newCapacity, sizeof(*newEntries));
 	
 	for (u64 i = 0; i < ht->capacity; i++) {
 		ba_HTSetNoExpand(ht, ht->entries[i].key, ht->entries[i].val);

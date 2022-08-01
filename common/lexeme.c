@@ -4,10 +4,7 @@
 #include "exitmsg.h"
 
 struct ba_Lexeme* ba_NewLexeme() {
-	struct ba_Lexeme* lex = malloc(sizeof(struct ba_Lexeme));
-	if (!lex) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_Lexeme* lex = ba_MAlloc(sizeof(struct ba_Lexeme));
 	lex->type = BA_TK_EOF;
 	lex->line = 0;
 	lex->colStart = 0;
@@ -69,10 +66,7 @@ char* ba_GetLexemeStr(u64 lex) {
 		return "eof";
 	}
 	else if (lex <= 0xff) {
-		char* str = malloc(4);
-		if (!str) {
-			ba_ErrorMallocNoMem();
-		}
+		char* str = ba_MAlloc(4);
 		str[0] = '\'';
 		str[1] = lex;
 		str[2] = '\'';

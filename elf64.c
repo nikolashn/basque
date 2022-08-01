@@ -35,10 +35,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	}
 
 	// Addresses are relative to the start of the code segment
-	struct ba_IMLabel* labels = calloc(ctr->labelCnt, sizeof(*labels));
-	if (!labels) {
-		return ba_ErrorMallocNoMem();
-	}
+	struct ba_IMLabel* labels = ba_CAlloc(ctr->labelCnt, sizeof(*labels));
 	struct ba_Stk* movStaticStk = ba_NewStk();
 
 	// Generate binary code

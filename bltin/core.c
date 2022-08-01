@@ -75,7 +75,7 @@ void ba_IncludeCore(struct ba_Ctr* ctr) {
 
 		params[0] = ba_NewFuncParam(); // dest
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -84,7 +84,7 @@ void ba_IncludeCore(struct ba_Ctr* ctr) {
 
 		params[1] = ba_NewFuncParam(); // src
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[1]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}

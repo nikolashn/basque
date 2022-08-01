@@ -225,7 +225,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// buf (RSI)
 		params[0] = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -265,7 +265,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// buf (RSI)
 		params[0] = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -305,7 +305,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// pathname (RDI)
 		params[0] = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_U8;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -388,7 +388,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			func->retType = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -403,7 +403,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// addr (RDI)
 		params[0] = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -463,7 +463,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// addr (RDI)
 		params[0] = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -502,7 +502,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// addr (RDI)
 		params[0] = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			params[0]->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}
@@ -533,7 +533,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		// addr (RDI)
 		func->firstParam = ba_NewFuncParam();
 		{
-			struct ba_Type* fundType = malloc(sizeof(*fundType));
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
 			fundType->type = BA_TYPE_VOID;
 			func->firstParam->type = (struct ba_Type){ BA_TYPE_PTR, fundType };
 		}

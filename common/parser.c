@@ -10,10 +10,7 @@
 void ba_PTkStkPush(struct ba_Stk* stk, void* val, struct ba_Type type, 
 	u64 lexemeType, bool isLValue, bool isConst)
 {
-	struct ba_PTkStkItem* stkItem = malloc(sizeof(*stkItem));
-	if (!stkItem) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_PTkStkItem* stkItem = ba_MAlloc(sizeof(*stkItem));
 	stkItem->val = val;
 	stkItem->typeInfo = type;
 	stkItem->lexemeType = lexemeType;
@@ -25,10 +22,7 @@ void ba_PTkStkPush(struct ba_Stk* stk, void* val, struct ba_Type type,
 void ba_POpStkPush(struct ba_Stk* stk, u64 line, u64 col, 
 	u64 lexemeType, u8 syntax)
 {
-	struct ba_POpStkItem* stkItem = malloc(sizeof(*stkItem));
-	if (!stkItem) {
-		ba_ErrorMallocNoMem();
-	}
+	struct ba_POpStkItem* stkItem = ba_MAlloc(sizeof(*stkItem));
 	stkItem->line = line;
 	stkItem->col = col;
 	stkItem->lexemeType = lexemeType;

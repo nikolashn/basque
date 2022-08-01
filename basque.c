@@ -111,13 +111,13 @@ int main(int argc, char* argv[]) {
 		}
 		else if (!srcFile) {
 			if (!strcmp(argv[i], "-")) {
-				srcFileName = malloc(2);
+				srcFileName = ba_MAlloc(2);
 				srcFileName[0] = '.';
 				srcFileName[1] = 0;
 				srcFile = stdin;
 			}
 			else {
-				srcFileName = malloc(strlen(argv[i])+1);
+				srcFileName = ba_MAlloc(strlen(argv[i])+1);
 				strcpy(srcFileName, argv[i]);
 				srcFile = fopen(srcFileName, "r");
 			}
@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
 	
 	struct ba_Ctr* ctr = ba_NewCtr();
 	ctr->currPath = srcFileName;
-	ctr->dir = malloc(strlen(srcFileName)+1);
+	ctr->dir = ba_MAlloc(strlen(srcFileName)+1);
 	strcpy(ctr->dir, srcFileName);
 	ctr->dir = dirname(ctr->dir);
 
@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
 		// Relative path
 		if (outFileName[0] != '/') {
 			// Add "./" to the start
-			runFileName = malloc(strlen(outFileName)+2);
+			runFileName = ba_MAlloc(strlen(outFileName)+2);
 			runFileName[0] = '.';
 			runFileName[1] = '/';
 			runFileName[2] = 0;
