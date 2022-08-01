@@ -523,7 +523,11 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
-		func->retType = (struct ba_Type){ BA_TYPE_I64, 0 };
+		{
+			struct ba_Type* fundType = ba_MAlloc(sizeof(*fundType));
+			fundType->type = BA_TYPE_VOID;
+			func->retType = (struct ba_Type){ BA_TYPE_PTR, fundType };
+		}
 		func->lblStart = ba_BltinLblGet(BA_BLTIN_SysBrk);
 		func->isCalled = 0;
 		func->doesReturn = 1;
