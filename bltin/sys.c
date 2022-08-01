@@ -183,7 +183,7 @@ void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 
 /* syscall brk
  * Params: start (0x8), size (0x8)
- * Returns: (rax) 0 on success, -1 on failure */
+ * Returns: (rax) program break */
 void ba_BltinSysBrk(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysBrk);
 	ba_BltinLblSet(BA_BLTIN_SysBrk, ctr->labelCnt);
