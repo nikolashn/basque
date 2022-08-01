@@ -192,7 +192,7 @@ void ba_BltinSysBrk(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 11);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 12);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
