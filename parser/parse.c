@@ -5,6 +5,8 @@
 /* program = { stmt } eof */
 u8 ba_Parse(struct ba_Ctr* ctr) {
 	ba_IncludeCore(ctr);
+	
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	while (!ba_PAccept(BA_TK_EOF, ctr)) {
 		if (!ba_PStmt(ctr)) {
 			// doesn't have anything to do with literals, 
@@ -28,7 +30,8 @@ u8 ba_Parse(struct ba_Ctr* ctr) {
 				ctr->lex->colStart, ctr->currPath);
 		}
 	}
-	
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+
 	// Exit
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 60);
 	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_RDI, BA_IM_RDI);

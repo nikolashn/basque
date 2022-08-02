@@ -33,8 +33,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	}
 	// "write" ...
 	else if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
-		// TODO: this should eventually be replaced with a Write() function
-		// and a lone string literal statement
+		/* TODO: this should eventually be replaced with a function
+		 * and a lone string literal statement */
 	
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
@@ -157,9 +157,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 					reg = (u64)stkItem->val;
 				}
 				else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
+					i64 offset = ba_CalcVarOffset(ctr->currScope, stkItem->val);
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-						BA_IM_ADRADD, BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, stkItem->val));
+						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
+						offset < 0 ? -offset : offset);
 				}
 				u64 adjReg = ba_AdjRegSize(reg, 
 					ba_GetSizeOfType(stkItem->typeInfo));
@@ -167,7 +168,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				ba_AddIM(ctr, 2, BA_IM_LABELJZ, lblId);
 			}
 		
-			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
+			if (!ba_PCommaStmt(ctr, 0) && !ba_PScope(ctr, 0)) {
 				return 0;
 			}
 
@@ -187,7 +188,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 
 		if (hasReachedElse) {
-			if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
+			if (!ba_PCommaStmt(ctr, 0) && !ba_PScope(ctr, 0)) {
 				return 0;
 			}
 		}
@@ -203,7 +204,11 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 col = ctr->lex->colStart;
 
 		u64 startLblId = ctr->labelCnt++;
+		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 		ba_AddIM(ctr, 2, BA_IM_LABEL, startLblId);
+
+		ctr->currScope = ba_SymTableAddChild(ctr->currScope);
 
 		// ... exp ...
 		if (!ba_PExp(ctr)) {
@@ -236,9 +241,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				reg = (u64)stkItem->val;
 			}
 			else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
+				i64 offset = ba_CalcVarOffset(ctr->currScope, stkItem->val);
 				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-					BA_IM_ADRADD, BA_IM_RSP, 
-					ba_CalcSTValOffset(ctr->currScope, stkItem->val));
+					offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
+					offset < 0 ? -offset : offset);
 			}
 			u64 adjReg = ba_AdjRegSize(reg, 
 				ba_GetSizeOfType(stkItem->typeInfo));
@@ -269,11 +275,13 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		
 		// ... ( commaStmt | scope ) ...
-		ba_StkPush(ctr->breakLblStk, (void*)endLblId);
-		if (!ba_PCommaStmt(ctr) && !ba_PScope(ctr)) {
+		ba_PBreakStkPush(ctr->pBreakStk, endLblId, ctr->currScope);
+		if (!ba_PCommaStmt(ctr, ctr->currScope) && 
+			!ba_PScope(ctr, ctr->currScope)) 
+		{
 			return 0;
 		}
-		ba_StkPop(ctr->breakLblStk);
+		ba_StkPop(ctr->pBreakStk);
 
 		if (imIterBegin) {
 			memcpy(ctr->im, imIterBegin, sizeof(*ctr->im));
@@ -281,18 +289,31 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			ctr->im = imIterEnd;
 		}
 
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, startLblId);
+
 		ba_AddIM(ctr, 2, BA_IM_LABEL, endLblId);
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+
+		ctr->currScope = ctr->currScope->parent;
 
 		return 1;
 	}
 	// "break" ";"
 	else if (ba_PAccept(BA_TK_KW_BREAK, ctr)) {
-		if (!ctr->breakLblStk->count) {
+		if (!ctr->pBreakStk->count) {
 			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'break' used outside of "
 				"loop on", firstLine, firstCol, ctr->currPath);
 		}
-		ba_AddIM(ctr, 2, BA_IM_LABELJMP, (u64)ba_StkTop(ctr->breakLblStk));
+		struct ba_PLabel* label = ba_StkTop(ctr->pBreakStk);
+		struct ba_SymTable* scope = ctr->currScope;
+		while (scope->parent != label->scope) {
+			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+			scope = scope->parent;
+		}
+		ba_AddIM(ctr, 2, BA_IM_LABELJMP, label->id);
 		return ba_PExpect(';', ctr);
 	}
 	// "return" [ exp ] ";"
@@ -349,15 +370,14 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				}
 			}
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
-				// Reach outside of the stack frame
-				// TODO: properly calculate offset if registers praeserved
+				u64 retValSize = ba_GetSizeOfType(ctr->currFunc->retType);
 				ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, 
-					ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 8);
+					BA_IM_RBP, ctr->currFunc->childScope->prserveSize + 
+						ctr->currFunc->paramStackSize - retValSize);
 				struct ba_PTkStkItem* destItem = ba_MAlloc(sizeof(*destItem));
 				destItem->lexemeType = 0;
 				destItem->val = (void*)BA_IM_RAX;
-				ba_PAssignArr(ctr, destItem, stkItem, 
-					ba_GetSizeOfType(ctr->currFunc->retType));
+				ba_PAssignArr(ctr, destItem, stkItem, retValSize);
 			}
 		}
 		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
@@ -368,12 +388,12 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		ctr->isPermitArrLit = 0;
 		ba_StkPop(ctr->expCoercedTypeStk);
 
-		if (ctr->currScope->dataSize && 
-			ctr->currScope != ctr->currFunc->childScope) 
-		{
+		struct ba_SymTable* scope = ctr->currScope;
+		while (scope != ctr->currFunc->childScope) {
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+			scope = scope->parent;
 		}
-
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
 		ctr->currFunc->doesReturn = 1;
 		return ba_PExpect(';', ctr);
@@ -415,14 +435,21 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			return 0;
 		}
 
-		u64 lblId = (u64)ba_HTGet(ctr->labelTable, lblName);
+		struct ba_PLabel* label = ba_HTGet(ctr->labelTable, lblName);
+		struct ba_SymTable* scope = ctr->currScope;
 
-		if (lblId) {
-			ba_AddIM(ctr, 2, BA_IM_LABELJMP, lblId);
+		if (label) {
+			while (scope && scope != label->scope) {
+				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+				ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+				scope = scope->parent;
+			}
+			(!scope) && ba_ErrorGoto(line, col, ctr->currPath);
+			ba_AddIM(ctr, 2, BA_IM_LABELJMP, label->id);
 		}
 		else {
-			ba_AddIM(ctr, 5, BA_IM_GOTO, (u64)lblName, line, col, 
-				(u64)ctr->currPath);
+			ba_AddIM(ctr, 6, BA_IM_GOTO, (u64)lblName, (u64)ctr->currScope, 
+				line, col, (u64)ctr->currPath);
 		}
 		
 		return ba_PExpect(';', ctr);
@@ -518,7 +545,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 	}
 	// scope
-	else if (ba_PScope(ctr)) {
+	else if (ba_PScope(ctr, 0)) {
 		return 1;
 	}
 	// ( base_type | "void" ) identifier ...
@@ -575,9 +602,11 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			return ba_ErrorVarRedef(lblName, line, col, ctr->currPath);
 		}
 
-		u64 lblId = ctr->labelCnt++;
-		ba_AddIM(ctr, 2, BA_IM_LABEL, lblId);
-		ba_HTSet(ctr->labelTable, lblName, (void*)lblId);
+		struct ba_PLabel* label = malloc(sizeof(*label));
+		label->id = ctr->labelCnt++;
+		label->scope = ctr->currScope;
+		ba_AddIM(ctr, 2, BA_IM_LABEL, label->id);
+		ba_HTSet(ctr->labelTable, lblName, label);
 
 		return 1;
 	}
@@ -671,6 +700,10 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 	funcIdVal->isInited = 1;
 
+	if (func->retType.type == BA_TYPE_ARR) {
+		func->paramStackSize = ba_GetSizeOfType(func->retType);
+	}
+
 	while (state != ST_RPAREN) {
 		switch (state) {
 			case ST_RPAREN: return 0;
@@ -720,16 +753,15 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 					return ba_ErrorVarRedef(paramName, line, col, ctr->currPath);
 				}
 
-				struct ba_STVal* paramVal = ba_MAlloc(sizeof(struct ba_STVal));
-				paramVal->scope = func->childScope;
-				paramVal->type = param->type;
+				param->stVal = ba_MAlloc(sizeof(struct ba_STVal));
+				param->stVal->scope = func->childScope;
+				param->stVal->type = param->type;
 
-				u64 paramSize = ba_GetSizeOfType(paramVal->type);
-				func->childScope->dataSize += paramSize;
+				u64 paramSize = ba_GetSizeOfType(param->stVal->type);
 				func->paramStackSize += paramSize;
-				paramVal->address = func->childScope->dataSize;
+				param->stVal->address = func->paramStackSize;
 
-				ba_HTSet(func->childScope->ht, paramName, (void*)paramVal);
+				ba_HTSet(func->childScope->ht, paramName, (void*)param->stVal);
 
 				state = ST_PARAM;
 			}
@@ -821,9 +853,10 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	func->lblEnd = ctr->labelCnt++;
 
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblStart);
-	// TODO: preserve registers
-	func->childScope->dataSize += 8; // For the return location
+	// TODO: praeserve registers
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	func->childScope->prserveSize = 16; // return location + rbp
 
 	if (!stmtType && ba_PAccept(';', ctr)) {
 		funcIdVal->isInited = 0;
@@ -833,19 +866,29 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 		funcIdVal->isInited = 0;
 		ba_PExpect(';', ctr);
 	}
-	else if (ba_PAccept(',', ctr)) {
-		stmtType = TP_FULLDEC;
-		if (!ba_PStmt(ctr)) {
+	else {
+		// Correct param addresses
+		param = func->firstParam;
+		for (u64 i = 0; i < func->paramCnt; ++i) {
+			param->stVal->address -= func->paramStackSize + 
+				func->childScope->prserveSize;
+			param = param->next;
+		}
+
+		if (ba_PAccept(',', ctr)) {
+			stmtType = TP_FULLDEC;
+			if (!ba_PStmt(ctr)) {
+				return 0;
+			}
+		}
+		else if (ba_PAccept('{', ctr)) {
+			stmtType = TP_FULLDEC;
+			while (ba_PStmt(ctr));
+			ba_PExpect('}', ctr);
+		}
+		else {
 			return 0;
 		}
-	}
-	else if (ba_PAccept('{', ctr)) {
-		stmtType = TP_FULLDEC;
-		while (ba_PStmt(ctr));
-		ba_PExpect('}', ctr);
-	}
-	else {
-		return 0;
 	}
 
 	// Error for mismatch with forward declaration types
@@ -860,12 +903,9 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	}
 	
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblEnd);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
 	// TODO: restore registers
-	// Fix stack
-	if (func->childScope->dataSize - func->paramStackSize - 8) {
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
-			func->childScope->dataSize - func->paramStackSize - 8);
-	}
 	ba_AddIM(ctr, 1, BA_IM_RET);
 
 	func->imEnd = ctr->im;
@@ -965,9 +1005,10 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		
 		if (!isGarbage) {
 			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
+				i64 offset = ba_CalcVarOffset(ctr->currScope, expItem->val);
 				ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, dataSize), 
-					BA_IM_ADRADD, ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-					ba_CalcSTValOffset(ctr->currScope, expItem->val));
+					offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP,
+					offset < 0 ? -offset : offset);
 			}
 			if (isExpLiteral) {
 				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 
@@ -1020,36 +1061,28 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 }
 
 void ba_PStmtWrite(struct ba_Ctr* ctr, u64 len, char* str) {
-	// Round up to nearest 0x10
-	u64 memLen = len & 0xf;
-	if (!len) {
-		memLen = 0x10;
-	}
-	else if (memLen) {
-		memLen ^= len;
-		memLen += 0x10;
-	}
-	else {
-		memLen = len;
+	// Round up to nearest 0x08
+	u64 memLen = (len + 0x7) & ~0x7;
+	if (!memLen) {
+		memLen = 0x8;
 	}
 	
 	// Allocate stack memory
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
 
 	u64 val = 0;
 	u64 strIter = 0;
-	u64 adrSub = memLen;
+	u64 adrAdd = 0;
 	
 	// Store the string on the stack
 	while (1) {
 		if ((strIter && !(strIter & 7)) || (strIter >= len)) {
 			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
-			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-				adrSub, BA_IM_RAX);
+			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+				adrAdd, BA_IM_RAX);
 			
 			if (!(strIter & 7)) {
-				adrSub -= 8;
+				adrAdd += 8;
 				val = 0;
 			}
 			if (strIter >= len) {
@@ -1068,47 +1101,53 @@ void ba_PStmtWrite(struct ba_Ctr* ctr, u64 len, char* str) {
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	
 	// deallocate stack memory
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
 }
 
 // commaStmt = "," stmt
-u8 ba_PCommaStmt(struct ba_Ctr* ctr) {
+u8 ba_PCommaStmt(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
 	if (!ba_PAccept(',', ctr)) {
 		return 0;
 	}
 
-	struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-	ctr->currScope = scope;
-
+	if (!scope) {
+		ctr->currScope = ba_SymTableAddChild(ctr->currScope);
+		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	}
+	
 	if (!ba_PStmt(ctr)) {
 		return 0;
 	}
 
-	if (scope->dataSize) {
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, scope->dataSize);
+	if (!scope) {
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+		ctr->currScope = ctr->currScope->parent;
 	}
-
-	ctr->currScope = scope->parent;
 
 	return 1;
 }
 
 // scope = "{" { stmt } "}"
-u8 ba_PScope(struct ba_Ctr* ctr) {
+u8 ba_PScope(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
 	if (!ba_PAccept('{', ctr)) {
 		return 0;
 	}
 
-	struct ba_SymTable* scope = ba_SymTableAddChild(ctr->currScope);
-	ctr->currScope = scope;
-
-	while (ba_PStmt(ctr));
-
-	if (scope->dataSize) {
-		ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, scope->dataSize);
+	if (!scope) {
+		ctr->currScope = ba_SymTableAddChild(ctr->currScope);
+		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	}
 
-	ctr->currScope = scope->parent;
+	while (ba_PStmt(ctr));
+	
+	if (!scope) {
+		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+		ctr->currScope = ctr->currScope->parent;
+	}
 
 	return ba_PExpect('}', ctr);
 }

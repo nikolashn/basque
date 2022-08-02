@@ -11,6 +11,7 @@ struct ba_SymTable* ba_NewSymTable() {
 	st->childCnt = 0;
 	st->childCap = 0;
 	st->dataSize = 0;
+	st->prserveSize = 8;
 	return st;
 }
 
@@ -50,11 +51,12 @@ struct ba_STVal* ba_STParentFind(struct ba_SymTable* st,
 	return 0;
 }
 
-// Offset from RSP if ctr->imStackSize == 0, otherwise RBP
-u64 ba_CalcSTValOffset(struct ba_SymTable* currScope, struct ba_STVal* id) {
-	u64 stackStart = id->scope->dataSize;
+// Offset from RBP
+i64 ba_CalcVarOffset(struct ba_SymTable* currScope, struct ba_STVal* id) {
+	i64 offset = -id->address;
 	while (currScope && currScope != id->scope) {
-		stackStart += currScope->dataSize;
+		offset += (currScope->parent ? currScope->parent->dataSize : 0) + 
+			currScope->prserveSize;
 		currScope = currScope->parent;
 	}
 	if (!currScope) {
@@ -62,6 +64,6 @@ u64 ba_CalcSTValOffset(struct ba_SymTable* currScope, struct ba_STVal* id) {
 			"descendant of its own scope\n");
 		exit(-1);
 	}
-	return stackStart - id->address;
+	return offset;
 }
 

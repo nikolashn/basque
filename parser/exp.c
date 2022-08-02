@@ -277,9 +277,6 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 
 			u64 effAddReg = addReg;
 			if (!addReg) {
-				if (!ctr->imStackSize) {
-					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-				}
 				// Only preserve rcx/rdx
 				effAddReg = deReg == BA_IM_RCX ? BA_IM_RDX : BA_IM_RCX;
 				ba_AddIM(ctr, 2, BA_IM_PUSH, effAddReg);
@@ -353,8 +350,8 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 		result->val = (void*)deReg;
 	}
 	else {
-		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, 
-			BA_IM_RBP, deStackPos, BA_IM_RAX);
+		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+			ctr->currScope->dataSize + deStackPos, BA_IM_RAX);
 		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
 		ctr->imStackSize -= 8;
 		result->lexemeType = BA_TK_IMRBPSUB;

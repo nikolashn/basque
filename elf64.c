@@ -2,6 +2,7 @@
 
 #include "elf64.h"
 #include "common/dynarr.h"
+#include "common/parser.h"
 
 u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	if (!ba_GetPageSize()) {
@@ -47,6 +48,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 
 		//printf("%s\n", ba_IMToStr(im)); // DEBUG
 		
+		BA_LBL_WRITECODELOOPSTART:
 		switch (im->vals[0]) {
 			case BA_IM_NOP:
 			{
@@ -1178,21 +1180,38 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 
 			case BA_IM_GOTO:
 			{
-				if (im->count < 5) {
-					return ba_ErrorIMArgCount(4, im);
+				if (im->count < 6) {
+					return ba_ErrorIMArgCount(5, im);
 				}
 
 				char* lblName = (char*)im->vals[1];
-				u64 line = im->vals[2];
-				u64 col = im->vals[3];
-				char* path = (char*)im->vals[4];
+				u64 line = im->vals[3];
+				u64 col = im->vals[4];
+				char* path = (char*)im->vals[5];
+				struct ba_PLabel* label = ba_HTGet(ctr->labelTable, lblName);
 
-				u64 lblId = (u64)ba_HTGet(ctr->labelTable, lblName);
+				if (label) {
+					struct ba_IM* imNext = im->next;
+					struct ba_IM* imStart = im;
+					ctr->im = imStart;
+					free(imStart->vals);
 
-				if (lblId) {
-					// Fallthrough :)
-					im->vals[0] = BA_IM_LABELJMP;
-					im->vals[1] = lblId;
+					struct ba_SymTable* scope = (void*)im->vals[2];
+					while (scope && scope != label->scope) {
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+						scope = scope->parent;
+					}
+					(!scope) && ba_ErrorGoto(line, col, path);
+
+					ctr->im->next = imNext;
+					ctr->im->count = 2;
+					ctr->im->vals = ba_MAlloc(2 * sizeof(u64));
+					ctr->im->vals[0] = BA_IM_LABELJMP;
+					ctr->im->vals[1] = label->id;
+					
+					im = imStart;
+					goto BA_LBL_WRITECODELOOPSTART;
 				}
 				else {
 					return ba_ExitMsg(BA_EXIT_ERR, "goto label not found on",
@@ -1892,8 +1911,10 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		}
 
 		// JMP/Jcc instructions are all calculated pessimally
-		case BA_IM_LABELCALL: case BA_IM_LABELJMP: case BA_IM_GOTO:
+		case BA_IM_LABELCALL: case BA_IM_LABELJMP: 
 			return 5;
+		case BA_IM_GOTO:
+			return 0xff;
 		case BA_IM_LABELJNZ: case BA_IM_LABELJZ: case BA_IM_LABELJB: 
 		case BA_IM_LABELJBE: case BA_IM_LABELJA: case BA_IM_LABELJAE:
 		case BA_IM_LABELJL: case BA_IM_LABELJLE: case BA_IM_LABELJG: 

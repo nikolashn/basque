@@ -12,18 +12,19 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->currPath = 0;
 	ctr->pTkStk = ba_NewStk();
 	ctr->pOpStk = ba_NewStk();
+	ctr->pBreakStk = ba_NewStk();
 	ctr->shortCircLblStk = ba_NewStk();
 	ctr->cmpLblStk = ba_NewStk();
 	ctr->cmpRegStk = ba_NewStk();
 	ctr->cmpRegStk->count = 1;
 	ctr->cmpRegStk->items[0] = (void*)0;
-	ctr->breakLblStk = ba_NewStk();
 	ctr->funcFrameStk = ba_NewStk();
 	ctr->expCoercedTypeStk = ba_NewStk();
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
+	ctr->globalST->prserveSize = 0;
 	ctr->currScope = ctr->globalST;
 	ctr->labelTable = ba_NewHashTable();
 	ctr->inclInodes = ba_NewDynArr64(0x400);
@@ -48,11 +49,15 @@ void ba_DelCtr(struct ba_Ctr* ctr) {
 	for (u64 i = 0; i < ctr->pOpStk->cap; i++) {
 		free(ctr->pOpStk->items[i]);
 	}
-	ba_DelStk(ctr->shortCircLblStk);
+	ba_DelStk(ctr->pOpStk);
+	for (u64 i = 0; i < ctr->pBreakStk->cap; i++) {
+		free(ctr->pBreakStk->items[i]);
+	}
+	ba_DelStk(ctr->pBreakStk);
 	for (u64 i = 0; i < ctr->shortCircLblStk->cap; i++) {
 		free(ctr->shortCircLblStk->items[i]);
 	}
-	ba_DelStk(ctr->pOpStk);
+	ba_DelStk(ctr->shortCircLblStk);
 
 	ba_DelIM(ctr->startIM);
 	ba_DelIM(ctr->im);

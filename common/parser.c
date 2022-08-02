@@ -30,3 +30,10 @@ void ba_POpStkPush(struct ba_Stk* stk, u64 line, u64 col,
 	ba_StkPush(stk, (void*)stkItem);
 }
 
+void ba_PBreakStkPush(struct ba_Stk* stk, u64 id, struct ba_SymTable* scope) {
+	struct ba_PLabel* stkItem = ba_MAlloc(sizeof(*stkItem));
+	stkItem->id = id;
+	stkItem->scope = scope;
+	ba_StkPush(stk, (void*)stkItem);
+}
+

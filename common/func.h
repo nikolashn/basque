@@ -11,6 +11,7 @@ struct ba_FuncParam {
 	struct ba_Type type;
 	struct ba_FuncParam* next;
 	void* defaultVal;
+	struct ba_STVal* stVal;
 	bool hasDefaultVal;
 };
 

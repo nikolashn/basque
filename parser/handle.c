@@ -106,8 +106,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 				// IMRBPSUB must be a DPTR
 				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, reg, BA_IM_ADRSUB, 
-						BA_IM_RBP, (u64)arg->val);
+					ba_AddIM(ctr, 5, BA_IM_MOV, reg, BA_IM_ADRSUB, BA_IM_RBP, 
+						ctr->currScope->dataSize + (u64)arg->val);
 				}
 				
 				ba_POpSetArg(ctr, arg, argReg, stackPos);
@@ -211,9 +211,10 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (arg->lexemeType == BA_TK_IDENTIFIER) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, arg->val), 
+					i64 offset = ba_CalcVarOffset(ctr->currScope, arg->val);
+					ba_AddIM(ctr, 5, BA_IM_MOV, 
+						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
+						offset < 0 ? -offset : offset, 
 						ba_AdjRegSize(reg, argSize));
 				}
 				// IMREGISTER or IMRBPSUB must be a DPTR
@@ -222,8 +223,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						ba_AdjRegSize(reg, argSize));
 				}
 				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, 
-						BA_IM_RBP, (u64)arg->val, reg);
+					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
+						ctr->currScope->dataSize + (u64)arg->val, reg);
 				}
 
 				ba_POpSetArg(ctr, arg, argReg, stackPos);
@@ -530,9 +531,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					}
 
 					if (!regL) {
-						if (!ctr->imStackSize) {
-							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-						}
 						lhsStackPos = ctr->imStackSize + 8;
 						/* Only result location pushed, since rax will be 
 						 * praeserved later */
@@ -717,9 +715,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				
 				u64 realReg = reg;
 				if (!reg) {
-					if (!ctr->imStackSize) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-					}
 					stackPos = ctr->imStackSize + 8;
 					// First: result location, second: praeserve realReg
 					realReg = (lhs->lexemeType == BA_TK_IMREGISTER && 
@@ -758,7 +753,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					}
 					else {
 						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-							stackPos, ba_AdjRegSize(realReg, lhsSize));
+							ctr->currScope->dataSize + stackPos, 
+							ba_AdjRegSize(realReg, lhsSize));
 					}
 				}
 
@@ -821,9 +817,10 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, 
-						ctr->imStackSize ? BA_IM_RBP : BA_IM_RSP, 
-						ba_CalcSTValOffset(ctr->currScope, lhs->val), 
+					i64 offset = ba_CalcVarOffset(ctr->currScope, lhs->val);
+					ba_AddIM(ctr, 5, BA_IM_MOV, 
+						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
+						offset < 0 ? -offset : offset, 
 						ba_AdjRegSize(realReg, lhsSize));
 				}
 				// (DPTR)
@@ -835,7 +832,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					u64 tmpReg = realReg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
 					ba_AddIM(ctr, 2, BA_IM_PUSH, tmpReg);
 					ba_AddIM(ctr, 5, BA_IM_MOV, tmpReg, BA_IM_ADRSUB, 
-						BA_IM_RBP, (u64)lhs->val);
+						BA_IM_RBP, ctr->currScope->dataSize + (u64)lhs->val);
 					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, tmpReg, realReg);
 					ba_AddIM(ctr, 2, BA_IM_POP, tmpReg);
 				}
@@ -846,7 +843,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 				else {
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-						stackPos, BA_IM_RCX);
+						ctr->currScope->dataSize + stackPos, BA_IM_RCX);
 					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
 					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
 					ctr->imStackSize -= 16;
@@ -969,7 +966,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					arg->lexemeType = BA_TK_IMRBPSUB;
 					arg->val = (void*)ctr->imStackSize;
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
-						lhsStackPos, BA_IM_RAX);
+						ctr->currScope->dataSize + lhsStackPos, BA_IM_RAX);
 				}
 
 				if (handler && ba_IsLexemeCompare(handler->lexemeType)) {
@@ -1067,10 +1064,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					return ba_ExitMsg(BA_EXIT_ERR, "calling forward declared "
 						"func that has not been given a definition on", 
 						op->line, op->col, ctr->currPath);
-				}
-
-				if (!ctr->imStackSize) {
-					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 				}
 
 				// If ret. type is array, allocate stack space for ret. value
@@ -1243,12 +1236,11 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				
 				if (func->retType.type == BA_TYPE_ARR) {
 					// Get return value from stack
-					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 					u64 retSz = ba_GetSizeOfType(func->retType);
 					ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, retSz);
 					ctr->currScope->dataSize += retSz;
-					retVal->lexemeType = BA_TK_IMRBPSUB;
-					retVal->val = (void*)0;
+					retVal->lexemeType = BA_TK_IMREGISTER;
+					retVal->val = (void*)BA_IM_RSP;
 				}
 				else {
 					// Get return value from rax

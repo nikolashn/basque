@@ -32,5 +32,6 @@ u8 ba_ErrorConvertTypes(u64 line, u64 col, char* path,
 u8 ba_WarnImplicitSignedConversion(u64 line, u64 col, char* path, char* opName);
 u8 ba_ErrorIMArgCount(u64 args, struct ba_IM* im);
 u8 ba_ErrorIMArgInvalid(struct ba_IM* im);
+u8 ba_ErrorGoto(u64 line, u64 col, char* path);
 
 #endif

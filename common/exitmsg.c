@@ -132,3 +132,8 @@ u8 ba_ErrorIMArgInvalid(struct ba_IM* im) {
 	return 0;
 }
 
+u8 ba_ErrorGoto(u64 line, u64 col, char* path) {
+	return ba_ExitMsg(BA_EXIT_ERR, "'goto' statement does not jump to the same "
+		"scope or an outer scope", line, col, path);
+}
+
