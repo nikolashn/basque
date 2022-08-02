@@ -281,7 +281,7 @@ Syntax (goto) `goto <identifier>;`
 
 Syntax (label) `<identifier>:`
 
-A goto statement jumps to a position in execution specified by a label.
+A goto statement jumps to a position in execution specified by a label. A goto statement can only jump to a label in the same scope as the statment itself, or to a label in an outer scope.
 
 ```
 # Prints the even numbers between 0 and 15
