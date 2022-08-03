@@ -477,8 +477,8 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	}
 	u64 reg = defaultReg;
 
-	if (srcItem->lexemeType == BA_TK_IMREGISTER && srcItem->val == BA_IM_RSP && 
-		!destItem->lexemeType && destItem->val == BA_IM_RSP)
+	if (srcItem->lexemeType == BA_TK_IMREGISTER && !destItem->lexemeType && 
+		srcItem->val == (void*)BA_IM_RSP && destItem->val == (void*)BA_IM_RSP)
 	{
 		return;
 	}
