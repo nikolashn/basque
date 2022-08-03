@@ -1,6 +1,6 @@
 #{
 	Expected output:
-	8,8,1,1,40,15,8
+	8,8,1,1,40,15,8,1
 }#
 
 write $u64; ",";
@@ -9,5 +9,5 @@ write $i8; ",";
 write $bool; ",";
 write $u64[5]; ",";
 write $u8[3][5]; ",";
-write $u8*; "\n";
+write $i64*; "\n";
 
