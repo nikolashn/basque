@@ -23,6 +23,7 @@ struct ba_Func {
 	struct ba_FuncParam* firstParam;
 	u64 paramCnt;
 	u64 paramStackSize;
+	u64 contextSize;
 	struct ba_IM* imBegin;
 	struct ba_IM* imEnd;
 	bool isCalled;

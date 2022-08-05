@@ -5,7 +5,9 @@
 
 #include "exitmsg.h"
 #include "stack.h"
-#include "func.h"
+#include "im.h"
+
+struct ba_Func; // Forward declaration
 
 struct ba_Ctr { // Controller
 	// Lexer
@@ -32,9 +34,6 @@ struct ba_Ctr { // Controller
 	struct ba_Stk* funcFrameStk; // Takes u64 (usedRegisters) as items
 	// For type coercion in array literals
 	struct ba_Stk* expCoercedTypeStk; // Takes struct ba_Type* as items
-
-	// Used with return statements
-	struct ba_Func* currFunc;
 
 	// Code generation
 	struct ba_IM* startIM;

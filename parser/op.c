@@ -109,11 +109,15 @@ void ba_POpAsgnRegOrStack(struct ba_Ctr* ctr, u64 lexType, u64* reg,
 void ba_POpMovIdToReg(struct ba_Ctr* ctr, struct ba_STVal* id, u64 argSize, 
 	u64 reg, bool isLea)
 {
-	i64 offset = ba_CalcVarOffset(ctr->currScope, id);
+	bool isPopRbp = 0;
+	i64 offset = ba_CalcVarOffset(ctr, id, &isPopRbp);
 	ba_AddIM(ctr, 5, isLea ? BA_IM_LEA : BA_IM_MOV, 
 		ba_AdjRegSize(reg, argSize), 
 		offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
 		offset < 0 ? -offset : offset);
+	if (isPopRbp) {
+		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+	}
 }
 
 bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg, 
@@ -158,15 +162,12 @@ bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg,
 bool ba_POpMovArgToRegDPTR(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg,
 	u64 size, u64 reg, u64 testReg, u64 tmpRegDef, u64 tmpRegBackup) 
 {
-	u64 rszdReg = ba_AdjRegSize(reg, size);
 	if (arg->lexemeType == BA_TK_IDENTIFIER) {
-		i64 offset = ba_CalcVarOffset(ctr->currScope, arg->val);
-		ba_AddIM(ctr, 5, BA_IM_MOV, rszdReg, 
-			offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
-			offset < 0 ? -offset : offset);
+		ba_POpMovIdToReg(ctr, arg->val, size, reg, /* isLea = */ 0);
 		return 1;
 	}
 	if (arg->lexemeType == BA_TK_IMREGISTER) { // DPTR
+		u64 rszdReg = ba_AdjRegSize(reg, size);
 		ba_AddIM(ctr, 4, BA_IM_MOV, rszdReg, BA_IM_ADR, (u64)arg->val);
 		return 1;
 	}
@@ -488,10 +489,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 		reg = (u64)destItem->val;
 	}
 	else if (destItem->lexemeType == BA_TK_IDENTIFIER) {
-		i64 offset = ba_CalcVarOffset(ctr->currScope, destItem->val);
-		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, 
-			offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
-			offset < 0 ? -offset : offset);
+		ba_POpMovIdToReg(ctr, destItem->val, 8, defaultReg, /* isLea = */ 1);
 	}
 	else if (destItem->lexemeType == BA_TK_IMREGISTER) {
 		// (DPTR)
@@ -508,10 +506,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	// Source pointer
 	reg = defaultReg;
 	if (srcItem->lexemeType == BA_TK_IDENTIFIER) {
-		i64 offset = ba_CalcVarOffset(ctr->currScope, srcItem->val);
-		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, 
-			offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
-			offset < 0 ? -offset : offset);
+		ba_POpMovIdToReg(ctr, srcItem->val, 8, defaultReg, /* isLea = */ 1);
 	}
 	else if (srcItem->lexemeType == BA_TK_IMREGISTER) {
 		reg = (u64)srcItem->val;

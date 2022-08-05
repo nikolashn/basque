@@ -2,6 +2,7 @@
 
 #include "symtable.h"
 #include "exitmsg.h"
+#include "func.h"
 
 struct ba_SymTable* ba_NewSymTable() {
 	struct ba_SymTable* st = ba_MAlloc(sizeof(*st));
@@ -10,8 +11,9 @@ struct ba_SymTable* ba_NewSymTable() {
 	st->children = 0;
 	st->childCnt = 0;
 	st->childCap = 0;
+	st->depth = 0;
 	st->dataSize = 0;
-	st->prserveSize = 8;
+	st->func = 0;
 	return st;
 }
 
@@ -23,6 +25,8 @@ void ba_DelSymTable(struct ba_SymTable* st) {
 struct ba_SymTable* ba_SymTableAddChild(struct ba_SymTable* parent) {
 	struct ba_SymTable* child = ba_NewSymTable();
 	child->parent = parent;
+	child->depth = parent->depth + 1;
+	child->func = parent->func;
 	if (!parent->childCap) {
 		parent->childCap = 0x20;
 		parent->children = ba_MAlloc(0x20 * sizeof(*parent->children));
@@ -51,19 +55,30 @@ struct ba_STVal* ba_STParentFind(struct ba_SymTable* st,
 	return 0;
 }
 
-// Offset from RBP
-i64 ba_CalcVarOffset(struct ba_SymTable* currScope, struct ba_STVal* id) {
-	i64 offset = -id->address;
-	while (currScope && currScope != id->scope) {
-		offset += (currScope->parent ? currScope->parent->dataSize : 0) + 
-			currScope->prserveSize;
-		currScope = currScope->parent;
+i64 ba_CalcVarOffset(struct ba_Ctr* ctr, struct ba_STVal* id, bool* isPushRbp) {
+	*isPushRbp = 0;
+	i64 framePtrOffset = 0;
+	struct ba_SymTable* scope = ctr->currScope;
+	while (scope != id->scope) {
+		if (!scope->func || scope != scope->func->childScope) {
+			// +8 accounts for the pushed frame pointer of each scope
+			framePtrOffset += (scope->parent ? scope->parent->dataSize : 0) + 8;
+		}
+		else { // outermost scope of a func
+			if (!*isPushRbp) {
+				*isPushRbp = 1;
+				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+			}
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_ADR, BA_IM_RBP);
+			framePtrOffset = 0;
+		}
+		scope = scope->parent;
 	}
-	if (!currScope) {
+	if (!scope) {
 		fprintf(stderr, "Error: identifier used in scope that is not a "
 			"descendant of its own scope\n");
 		exit(-1);
 	}
-	return offset;
+	return framePtrOffset - id->address;
 }
 

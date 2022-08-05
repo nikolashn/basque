@@ -153,17 +153,15 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				}
 			}
 			else {
+				u64 size = ba_GetSizeOfType(stkItem->typeInfo);
 				if (stkItem->lexemeType == BA_TK_IMREGISTER) {
 					reg = (u64)stkItem->val;
 				}
 				else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
-					i64 offset = ba_CalcVarOffset(ctr->currScope, stkItem->val);
-					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
-						offset < 0 ? -offset : offset);
+					ba_POpMovIdToReg(ctr, stkItem->val, size, BA_IM_RAX, 
+						/* isLea = */ 0);
 				}
-				u64 adjReg = ba_AdjRegSize(reg, 
-					ba_GetSizeOfType(stkItem->typeInfo));
+				u64 adjReg = ba_AdjRegSize(reg, size);
 				ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
 				ba_AddIM(ctr, 2, BA_IM_LABELJZ, lblId);
 			}
@@ -237,14 +235,13 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			}
 		}
 		else {
+			u64 size = ba_GetSizeOfType(stkItem->typeInfo);
 			if (stkItem->lexemeType == BA_TK_IMREGISTER) {
 				reg = (u64)stkItem->val;
 			}
 			else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
-				i64 offset = ba_CalcVarOffset(ctr->currScope, stkItem->val);
-				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, 
-					offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
-					offset < 0 ? -offset : offset);
+				ba_POpMovIdToReg(ctr, stkItem->val, size, BA_IM_RAX, 
+					/* isLea = */ 0);
 			}
 			u64 adjReg = ba_AdjRegSize(reg, 
 				ba_GetSizeOfType(stkItem->typeInfo));
@@ -308,7 +305,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		struct ba_PLabel* label = ba_StkTop(ctr->pBreakStk);
 		struct ba_SymTable* scope = ctr->currScope;
-		while (scope->parent != label->scope) {
+		while (scope != label->scope) {
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
 			scope = scope->parent;
@@ -318,7 +315,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	}
 	// "return" [ exp ] ";"
 	else if (ba_PAccept(BA_TK_KW_RETURN, ctr)) {
-		if (!ctr->currFunc) {
+		struct ba_Func* func = ctr->currScope->func;
+		if (!func) {
 			return ba_ExitMsg(BA_EXIT_ERR, "keyword 'return' used outside of "
 				"func on", firstLine, firstCol, ctr->currPath);
 		}
@@ -329,10 +327,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->colStart;
 
-		ba_StkPush(ctr->expCoercedTypeStk, &ctr->currFunc->retType);
+		ba_StkPush(ctr->expCoercedTypeStk, &func->retType);
 		ctr->isPermitArrLit = 1;
 		if (ba_PExp(ctr)) {
-			if (ctr->currFunc->retType.type == BA_TYPE_VOID) {
+			if (func->retType.type == BA_TYPE_VOID) {
 				return ba_ExitMsg(BA_EXIT_ERR, "returning value from func with "
 					"return type 'void' on", line, col, ctr->currPath);
 			}
@@ -342,7 +340,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
 					ctr->currPath);
 			}
-			if (!ba_IsTypeNum(ctr->currFunc->retType) &&
+			if (!ba_IsTypeNum(func->retType) &&
 				ba_IsTypeNum(stkItem->typeInfo)) 
 			{
 				return ba_ExitMsg(BA_EXIT_ERR, "returning numeric value "
@@ -353,7 +351,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				// Return value in rax
 				bool isLiteral = ba_IsLexemeLiteral(stkItem->lexemeType);
 				bool isConvToBool = stkItem->typeInfo.type != BA_TYPE_BOOL && 
-					ctr->currFunc->retType.type == BA_TYPE_BOOL;
+					func->retType.type == BA_TYPE_BOOL;
 				isConvToBool && isLiteral && 
 					(stkItem->val = (void*)(bool)stkItem->val);
 				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, isLiteral);
@@ -370,17 +368,16 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				}
 			}
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
-				u64 retValSize = ba_GetSizeOfType(ctr->currFunc->retType);
-				ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, 
-					BA_IM_RBP, ctr->currFunc->childScope->prserveSize + 
-						ctr->currFunc->paramStackSize - retValSize);
+				u64 retValSize = ba_GetSizeOfType(func->retType);
+				ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RBP, 
+					func->contextSize + func->paramStackSize - retValSize);
 				struct ba_PTkStkItem* destItem = ba_MAlloc(sizeof(*destItem));
 				destItem->lexemeType = 0;
 				destItem->val = (void*)BA_IM_RAX;
 				ba_PAssignArr(ctr, destItem, stkItem, retValSize);
 			}
 		}
-		else if (ctr->currFunc->retType.type != BA_TYPE_VOID) {
+		else if (func->retType.type != BA_TYPE_VOID) {
 			return ba_ExitMsg(BA_EXIT_ERR, "returning without value from func "
 				"that does not have return type 'void' on", line, col, 
 				ctr->currPath);
@@ -389,13 +386,13 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		ba_StkPop(ctr->expCoercedTypeStk);
 
 		struct ba_SymTable* scope = ctr->currScope;
-		while (scope != ctr->currFunc->childScope) {
+		while (scope != func->childScope) {
 			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
 			scope = scope->parent;
 		}
-		ba_AddIM(ctr, 2, BA_IM_LABELJMP, ctr->currFunc->lblEnd);
-		ctr->currFunc->doesReturn = 1;
+		ba_AddIM(ctr, 2, BA_IM_LABELJMP, func->lblEnd);
+		func->doesReturn = 1;
 		return ba_PExpect(';', ctr);
 	}
 	// "exit" exp ";"
@@ -439,7 +436,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		struct ba_SymTable* scope = ctr->currScope;
 
 		if (label) {
-			while (scope && scope != label->scope) {
+			while (scope != label->scope) {
 				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
 				ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
 				scope = scope->parent;
@@ -640,12 +637,6 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col, 
 	struct ba_Type retType)
 {
-	// TODO: once named scopes are added, change this
-	if (ctr->currScope != ctr->globalST) {
-		return ba_ExitMsg(BA_EXIT_ERR, "func can only be defined in "
-			"the outer scope,", line, col, ctr->currPath);
-	}
-
 	struct ba_STVal* prevFuncIdVal = ba_HTGet(ctr->currScope->ht, funcName);
 	if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
 		prevFuncIdVal->isInited))
@@ -671,13 +662,11 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 	func->retType = retType;
 	func->childScope = ba_SymTableAddChild(ctr->currScope);
+	func->childScope->func = func;
 
 	struct ba_FuncParam* param = ba_NewFuncParam();
 	char* paramName = 0;
 	func->firstParam = param;
-
-	ctr->currScope = func->childScope;
-	ctr->currFunc = func;
 
 	struct ba_IM* oldIM = ctr->im;
 	ctr->im = func->imBegin;
@@ -853,10 +842,19 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	func->lblEnd = ctr->labelCnt++;
 
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblStart);
+
+	func->contextSize = 0x18; // return location + dynamic link + static link
+
 	// TODO: praeserve registers
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
-	func->childScope->prserveSize = 16; // return location + rbp
+	
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP); // dynamic link
+	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 8); // static link
+
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP); // enter stack frame
+
+	ctr->currScope = func->childScope;
+	struct ba_Stk* oldBreakStk = ctr->pBreakStk;
+	ctr->pBreakStk = ba_NewStk();
 
 	if (!stmtType && ba_PAccept(';', ctr)) {
 		funcIdVal->isInited = 0;
@@ -870,8 +868,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 		// Correct param addresses
 		param = func->firstParam;
 		for (u64 i = 0; i < func->paramCnt; ++i) {
-			param->stVal->address -= func->paramStackSize + 
-				func->childScope->prserveSize;
+			param->stVal->address -= func->paramStackSize + func->contextSize;
 			param = param->next;
 		}
 
@@ -903,15 +900,18 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	}
 	
 	ba_AddIM(ctr, 2, BA_IM_LABEL, func->lblEnd);
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP); // leave stack frame
+
+	ba_DelStk(ctr->pBreakStk);
+	ctr->pBreakStk = oldBreakStk;
+	ctr->currScope = func->childScope->parent;
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // pop static pointer
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // pop dynamic pointer
 	// TODO: restore registers
 	ba_AddIM(ctr, 1, BA_IM_RET);
 
 	func->imEnd = ctr->im;
 	ctr->im = oldIM;
-	ctr->currFunc = 0;
-	ctr->currScope = func->childScope->parent;
 
 	if (stmtType == TP_FULLDEC && retType.type != BA_TYPE_VOID && 
 		!func->doesReturn) 
@@ -1005,10 +1005,14 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		
 		if (!isGarbage) {
 			if (expItem->lexemeType == BA_TK_IDENTIFIER) {
-				i64 offset = ba_CalcVarOffset(ctr->currScope, expItem->val);
+				bool isPopRbp = 0;
+				i64 offset = ba_CalcVarOffset(ctr, expItem->val, &isPopRbp);
 				ba_AddIM(ctr, 5, BA_IM_MOV, ba_AdjRegSize(BA_IM_RAX, dataSize), 
 					offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP,
 					offset < 0 ? -offset : offset);
+				if (isPopRbp) {
+					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+				}
 			}
 			if (isExpLiteral) {
 				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 

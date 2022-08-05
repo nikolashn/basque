@@ -26,12 +26,6 @@ u64 ba_BltinLblGet(u64 bltin) {
 struct ba_Func* ba_IncludeAddFunc(struct ba_Ctr* ctr, u64 line, u64 col, 
 	char* funcName) 
 {
-	// TODO: once named scopes are added, change this
-	if (ctr->currScope != ctr->globalST) {
-		ba_ExitMsg(BA_EXIT_ERR, "func (from built-in include) can only be "
-			"defined in the outer scope,", line, col, ctr->currPath);
-	}
-
 	struct ba_STVal* prevFuncIdVal = ba_HTGet(ctr->currScope->ht, funcName);
 	if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
 		prevFuncIdVal->isInited))

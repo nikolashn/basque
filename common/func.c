@@ -16,6 +16,7 @@ struct ba_Func* ba_NewFunc() {
 	func->firstParam = 0;
 	func->paramCnt = 0;
 	func->paramStackSize = 0;
+	func->contextSize = 0;
 	func->imBegin = ba_NewIM();
 	func->imEnd = 0;
 	func->isCalled = 0;

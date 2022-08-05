@@ -1,6 +1,7 @@
 // See LICENSE for copyright/license information
 
 #include "reg.h"
+#include "im.h"
 
 // TODO: assign some registers to variables rather than intermediate values
 

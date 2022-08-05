@@ -211,11 +211,15 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (arg->lexemeType == BA_TK_IDENTIFIER) {
-					i64 offset = ba_CalcVarOffset(ctr->currScope, arg->val);
+					bool isPopRbp = 0;
+					i64 offset = ba_CalcVarOffset(ctr, arg->val, &isPopRbp);
 					ba_AddIM(ctr, 5, BA_IM_MOV, 
 						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
 						offset < 0 ? -offset : offset, 
 						ba_AdjRegSize(reg, argSize));
+					if (isPopRbp) {
+						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+					}
 				}
 				// IMREGISTER or IMRBPSUB must be a DPTR
 				else if (arg->lexemeType == BA_TK_IMREGISTER) {
@@ -817,11 +821,15 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
-					i64 offset = ba_CalcVarOffset(ctr->currScope, lhs->val);
+					bool isPopRbp = 0;
+					i64 offset = ba_CalcVarOffset(ctr, lhs->val, &isPopRbp);
 					ba_AddIM(ctr, 5, BA_IM_MOV, 
 						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
 						offset < 0 ? -offset : offset, 
 						ba_AdjRegSize(realReg, lhsSize));
+					if (isPopRbp) {
+						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+					}
 				}
 				// (DPTR)
 				else if (lhs->lexemeType == BA_TK_IMREGISTER) {
@@ -1222,6 +1230,22 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				// Reset stack
 				ba_DelStk(argsStk);
 				ctr->imStackSize = originalImStackSize;
+
+				// Put static link on the stack (in the callee's stack frame)
+				bool isPushRbp = ctr->currScope != func->childScope->parent;
+				if (isPushRbp) {
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
+				}
+				struct ba_SymTable* scope = ctr->currScope;
+				while (scope != func->childScope->parent) {
+					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_ADR, BA_IM_RBP);
+					scope = scope->parent;
+				}
+				ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RSP,
+					func->contextSize - 8 * isPushRbp, BA_IM_RBP);
+				if (isPushRbp) {
+					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+				}
 
 				// Call the function, clear args from stack, init return value
 				ba_AddIM(ctr, 2, BA_IM_LABELCALL, func->lblStart);

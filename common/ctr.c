@@ -3,6 +3,7 @@
 #include "ctr.h"
 #include "lexeme.h"
 #include "dynarr.h"
+#include "symtable.h"
 
 struct ba_Ctr* ba_NewCtr() {
 	struct ba_Ctr* ctr = ba_MAlloc(sizeof(struct ba_Ctr));
@@ -24,7 +25,6 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
 	ctr->globalST = ba_NewSymTable();
-	ctr->globalST->prserveSize = 0;
 	ctr->currScope = ctr->globalST;
 	ctr->labelTable = ba_NewHashTable();
 	ctr->inclInodes = ba_NewDynArr64(0x400);
@@ -33,7 +33,6 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->staticSeg = ba_NewDynArr8(0x1000);
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->isPermitArrLit = 0;
-	ctr->currFunc = 0;
 	ctr->paren = 0;
 	return ctr;
 }

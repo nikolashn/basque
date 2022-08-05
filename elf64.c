@@ -3,6 +3,24 @@
 #include "elf64.h"
 #include "common/dynarr.h"
 #include "common/parser.h"
+#include "common/func.h"
+
+void ba_EmplaceFuncs(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
+	for (u64 i = 0; i < scope->ht->capacity; i++) {
+		struct ba_HTEntry e = scope->ht->entries[i];
+		struct ba_STVal* val = (struct ba_STVal*)e.val;
+		if (val && e.key && val->type.type == BA_TYPE_FUNC) {
+			struct ba_Func* func = val->type.extraInfo;
+			if (func->isCalled) {
+				memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
+				ctr->im = func->imEnd;
+			}
+		}
+	}
+	for (u64 i = 0; i < scope->childCnt; ++i) {
+		ba_EmplaceFuncs(ctr, scope->children[i]);
+	}
+}
 
 u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	if (!ba_GetPageSize()) {
@@ -18,22 +36,8 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	 * use this as an offset */
 	u64 entryPoint = memStart + pageSz;
 	
-	for (u64 i = 0; i < ctr->globalST->ht->capacity; i++) {
-		struct ba_HTEntry e = ctr->globalST->ht->entries[i];
-		struct ba_STVal* val = (struct ba_STVal*)e.val;
-
-		// Put functions in their place
-		// TODO: search through named scopes as well
-		/* Because of optimization passes in the future, perhaps this should be
-		   at the end of the parser instead? */
-		if (val && e.key && val->type.type == BA_TYPE_FUNC) {
-			struct ba_Func* func = val->type.extraInfo;
-			if (func->isCalled) {
-				memcpy(ctr->im, func->imBegin, sizeof(*ctr->im));
-				ctr->im = func->imEnd;
-			}
-		}
-	}
+	// Put functions in their place
+	ba_EmplaceFuncs(ctr, ctr->globalST);
 
 	// Addresses are relative to the start of the code segment
 	struct ba_IMLabel* labels = ba_CAlloc(ctr->labelCnt, sizeof(*labels));

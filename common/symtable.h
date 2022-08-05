@@ -5,6 +5,9 @@
 
 #include "types.h"
 #include "hashtable.h"
+#include "ctr.h"
+
+struct ba_Func; // forward declaration
 
 struct ba_SymTable {
 	struct ba_HashTable* ht;
@@ -12,8 +15,9 @@ struct ba_SymTable {
 	struct ba_SymTable** children;
 	u64 childCnt;
 	u64 childCap;
+	u64 depth;
 	u64 dataSize;
-	u64 prserveSize;
+	struct ba_Func* func;
 };
 
 struct ba_STVal {
@@ -29,6 +33,6 @@ void ba_DelSymTable(struct ba_SymTable* st);
 struct ba_SymTable* ba_SymTableAddChild(struct ba_SymTable* parent);
 struct ba_STVal* ba_STParentFind(struct ba_SymTable* st, 
 	struct ba_SymTable** stFoundInPtr, char* key);
-i64 ba_CalcVarOffset(struct ba_SymTable* currScope, struct ba_STVal* id);
+i64 ba_CalcVarOffset(struct ba_Ctr* ctr, struct ba_STVal* id, bool* isPushRbp);
 
 #endif
