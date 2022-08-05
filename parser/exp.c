@@ -354,7 +354,7 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 			ctr->currScope->dataSize + deStackPos, BA_IM_RAX);
 		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
 		ctr->imStackSize -= 8;
-		result->lexemeType = BA_TK_IMRBPSUB;
+		result->lexemeType = BA_TK_IMSTACK;
 		result->val = (void*)ctr->imStackSize;
 	}
 

@@ -80,7 +80,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				{
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
-				// Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
+				// Note: stkItem->lexemeType won't ever be BA_TK_IMSTACK
 				
 				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 
@@ -358,7 +358,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				
 				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
 					(u64)stkItem->val != BA_IM_RAX)
-				{ // Note: stkItem->lexemeType won't ever be BA_TK_IMRBPSUB
+				{ // Note: stkItem->lexemeType won't ever be BA_TK_IMSTACK
 					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
 				}
 				

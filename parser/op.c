@@ -142,7 +142,7 @@ bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg,
 		}
 		return 1;
 	}
-	if (arg->lexemeType == BA_TK_IMRBPSUB) {
+	if (arg->lexemeType == BA_TK_IMSTACK) {
 		ba_AddIM(ctr, 5, isArr ? BA_IM_LEA : BA_IM_MOV, reg, BA_IM_ADRSUB, 
 			BA_IM_RBP, ctr->currScope->dataSize + (u64)arg->val);
 		return 1;
@@ -171,7 +171,7 @@ bool ba_POpMovArgToRegDPTR(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg,
 		ba_AddIM(ctr, 4, BA_IM_MOV, rszdReg, BA_IM_ADR, (u64)arg->val);
 		return 1;
 	}
-	if (arg->lexemeType == BA_TK_IMRBPSUB) { // DPTR
+	if (arg->lexemeType == BA_TK_IMSTACK) { // DPTR
 		u64 tmpReg = testReg == tmpRegDef ? tmpRegBackup : tmpRegDef;
 		ba_AddIM(ctr, 2, BA_IM_PUSH, tmpReg);
 		ba_AddIM(ctr, 5, BA_IM_MOV, tmpReg, BA_IM_ADRSUB, BA_IM_RBP, 
@@ -195,7 +195,7 @@ void ba_POpSetArg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg,
 			ctr->currScope->dataSize + stackPos, BA_IM_RAX);
 		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
 		ctr->imStackSize -= 8;
-		arg->lexemeType = BA_TK_IMRBPSUB;
+		arg->lexemeType = BA_TK_IMSTACK;
 		arg->val = (void*)ctr->imStackSize;
 	}
 }
@@ -383,7 +383,7 @@ u8 ba_PCorrectDPtr(struct ba_Ctr* ctr, struct ba_PTkStkItem* item) {
 			ba_AddIM(ctr, 3, BA_IM_MOVZX, (u64)item->val, adjReg);
 		}
 	}
-	else if (item->lexemeType == BA_TK_IMRBPSUB) {
+	else if (item->lexemeType == BA_TK_IMSTACK) {
 		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 		ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRSUB, 
 			BA_IM_RBP, ctr->currScope->dataSize + (u64)item->val);
@@ -495,7 +495,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 		// (DPTR)
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_ADR, (u64)destItem->val);
 	}
-	else if (destItem->lexemeType == BA_TK_IMRBPSUB) {
+	else if (destItem->lexemeType == BA_TK_IMSTACK) {
 		// (DPTR)
 		ba_AddIM(ctr, 5, BA_IM_MOV, defaultReg, BA_IM_ADRSUB, BA_IM_RBP, 
 			ctr->currScope->dataSize + (u64)destItem->val);
@@ -519,7 +519,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, 
 			ba_AllocStrLitStatic(ctr, (struct ba_Str*)srcItem->val));
 	}
-	else if (srcItem->lexemeType == BA_TK_IMRBPSUB) {
+	else if (srcItem->lexemeType == BA_TK_IMSTACK) {
 		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRSUB, BA_IM_RBP, 
 			ctr->currScope->dataSize + (u64)srcItem->val);
 	}
@@ -628,7 +628,7 @@ void ba_POpNonLitDivMod(struct ba_Ctr* ctr, struct ba_PTkStkItem* lhs,
 			else {
 				ba_AddIM(ctr, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
 					ctr->currScope->dataSize + lhsStackPos, BA_IM_RDX);
-				arg->lexemeType = BA_TK_IMRBPSUB;
+				arg->lexemeType = BA_TK_IMSTACK;
 				arg->val = (void*)ctr->imStackSize;
 			}
 		}

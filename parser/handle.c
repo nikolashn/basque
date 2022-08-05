@@ -104,8 +104,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_STATIC, 
 						ba_AllocStrLitStatic(ctr, (struct ba_Str*)arg->val));
 				}
-				// IMRBPSUB must be a DPTR
-				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+				// IMSTACK must be a DPTR
+				else if (arg->lexemeType == BA_TK_IMSTACK) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, reg, BA_IM_ADRSUB, BA_IM_RBP, 
 						ctr->currScope->dataSize + (u64)arg->val);
 				}
@@ -221,12 +221,12 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
 					}
 				}
-				// IMREGISTER or IMRBPSUB must be a DPTR
+				// IMREGISTER or IMSTACK must be a DPTR
 				else if (arg->lexemeType == BA_TK_IMREGISTER) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, (u64)arg->val,
 						ba_AdjRegSize(reg, argSize));
 				}
-				else if (arg->lexemeType == BA_TK_IMRBPSUB) {
+				else if (arg->lexemeType == BA_TK_IMSTACK) {
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
 						ctr->currScope->dataSize + (u64)arg->val, reg);
 				}
@@ -836,7 +836,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, 
 						(u64)lhs->val, ba_AdjRegSize(realReg, lhsSize));
 				}
-				else if (lhs->lexemeType == BA_TK_IMRBPSUB) {
+				else if (lhs->lexemeType == BA_TK_IMSTACK) {
 					u64 tmpReg = realReg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
 					ba_AddIM(ctr, 2, BA_IM_PUSH, tmpReg);
 					ba_AddIM(ctr, 5, BA_IM_MOV, tmpReg, BA_IM_ADRSUB, 
@@ -856,7 +856,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RCX);
 					ctr->imStackSize -= 16;
 
-					arg->lexemeType = BA_TK_IMRBPSUB;
+					arg->lexemeType = BA_TK_IMSTACK;
 					arg->val = (void*)ctr->imStackSize;
 				}
 
@@ -971,7 +971,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					arg->val = (void*)realRegL;
 				}
 				else {
-					arg->lexemeType = BA_TK_IMRBPSUB;
+					arg->lexemeType = BA_TK_IMSTACK;
 					arg->val = (void*)ctr->imStackSize;
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP,
 						ctr->currScope->dataSize + lhsStackPos, BA_IM_RAX);

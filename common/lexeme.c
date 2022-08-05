@@ -38,7 +38,7 @@ bool ba_IsLexemeCompare(u64 lexType) {
 
 bool ba_IsLexemeLiteral(u64 lexType) {
 	return lexType != BA_TK_IDENTIFIER && 
-		lexType != BA_TK_IMRBPSUB && 
+		lexType != BA_TK_IMSTACK && 
 		lexType != BA_TK_IMREGISTER &&
 		lexType != BA_TK_IMSTATIC;
 }

@@ -63,7 +63,7 @@ enum {
 	/* Not actual lexemes but instead used by 
 	 * the parser for intermediate values */
 	BA_TK_IMREGISTER = 0x1000, // always 8 bytes
-	BA_TK_IMRBPSUB   = 0x1001, // always 8 bytes
+	BA_TK_IMSTACK    = 0x1001, // always 8 bytes
 	BA_TK_IMSTATIC   = 0x1002, // size varies
 };
 
