@@ -63,7 +63,7 @@ i64 ba_CalcVarOffset(struct ba_Ctr* ctr, struct ba_STVal* id, bool* isPushRbp) {
 	i64 address = -id->address;
 	struct ba_SymTable* lastScope = 0;
 	struct ba_SymTable* scope = ctr->currScope;
-	bool isPastLink = 0;
+	i64 linksPassed = 0;
 
 	while (scope && scope != id->scope) {
 		lastScope = scope;
@@ -75,10 +75,10 @@ i64 ba_CalcVarOffset(struct ba_Ctr* ctr, struct ba_STVal* id, bool* isPushRbp) {
 		}
 
 		if (!lastScope->func || lastScope != lastScope->func->childScope) {
-			if (!isPastLink && lastScope->hasFramePtrLink) {
-				isPastLink = 1;
+			if (!linksPassed && lastScope->hasFramePtrLink) {
+				++linksPassed;
 			}
-			if (isPastLink) {
+			if (linksPassed) {
 				address += scope->dataSize + 8 * lastScope->hasFramePtrLink;
 			}
 		}
@@ -87,13 +87,16 @@ i64 ba_CalcVarOffset(struct ba_Ctr* ctr, struct ba_STVal* id, bool* isPushRbp) {
 				*isPushRbp = 1;
 				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 			}
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_ADR, BA_IM_RBP);
+			++linksPassed;
+			while (linksPassed) {
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_ADR, BA_IM_RBP);
+				--linksPassed;
+			}
 			address = -id->address;
-			isPastLink = 0;
 		}
 	}
 
-	if (!isPastLink) {
+	if (!linksPassed) {
 		while (scope && !scope->hasFramePtrLink) {
 			scope = scope->parent;
 			address -= scope ? scope->dataSize : 0;
