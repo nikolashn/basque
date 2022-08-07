@@ -1,11 +1,11 @@
 #{
 	Expected output:
-	140726508183296 = 140726508183296
+	<address P> = <address P>
 	2 = 2
 	3 = 3
 	29 = 29 = 29
-	<address P> = <address P>
 	<address Q> = <address Q>
+	<address R> = <address R>
 	37 != 101 != 202 != 67 != 68
 	11,13,17,19
 	11,13,17,19
