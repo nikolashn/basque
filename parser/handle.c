@@ -203,8 +203,19 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				ba_POpMovArgToRegDPTR(ctr, arg, argSize, reg, reg, BA_IM_RAX, 
 					BA_IM_RCX);
 
-				if (arg->typeInfo.type == BA_TYPE_PTR && argSize != 1) {
-					ba_AddIM(ctr, 4, ptrImOp, reg, BA_IM_IMM, argSize);
+				if (arg->typeInfo.type == BA_TYPE_PTR) {
+					struct ba_Type* extraInfo = arg->typeInfo.extraInfo;
+					if (extraInfo->type == BA_TYPE_VOID) {
+						ba_ExitMsg(BA_EXIT_ERR, "increment/decrement of void "
+							"pointer", op->line, op->col, ctr->currPath);
+					}
+					argSize = ba_GetSizeOfType(*extraInfo);
+					if (argSize == 1) {
+						ba_AddIM(ctr, 2, imOp, reg);
+					}
+					else {
+						ba_AddIM(ctr, 4, ptrImOp, reg, BA_IM_IMM, argSize);
+					}
 				}
 				else {
 					ba_AddIM(ctr, 2, imOp, reg);
