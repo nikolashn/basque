@@ -1202,8 +1202,10 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 
 					struct ba_SymTable* scope = (void*)im->vals[2];
 					while (scope && scope != label->scope) {
-						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+						if (scope->hasFramePtrLink) {
+							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+							ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+						}
 						scope = scope->parent;
 					}
 					(!scope) && ba_ErrorGoto(line, col, path);

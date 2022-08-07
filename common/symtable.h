@@ -12,12 +12,14 @@ struct ba_Func; // forward declaration
 struct ba_SymTable {
 	struct ba_HashTable* ht;
 	struct ba_SymTable* parent;
+	struct ba_SymTable* frameScope;
 	struct ba_SymTable** children;
 	u64 childCnt;
 	u64 childCap;
 	u64 depth;
 	u64 dataSize;
 	struct ba_Func* func;
+	bool hasFramePtrLink;
 };
 
 struct ba_STVal {

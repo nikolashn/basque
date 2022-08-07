@@ -207,6 +207,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		ba_AddIM(ctr, 2, BA_IM_LABEL, startLblId);
 
 		ctr->currScope = ba_SymTableAddChild(ctr->currScope);
+		ctr->currScope->hasFramePtrLink = 1;
+		ctr->currScope->frameScope = ctr->currScope;
 
 		// ... exp ...
 		if (!ba_PExp(ctr)) {
@@ -387,8 +389,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 		struct ba_SymTable* scope = ctr->currScope;
 		while (scope != func->childScope) {
-			ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-			ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+			if (scope->hasFramePtrLink) {
+				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+				ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+			}
 			scope = scope->parent;
 		}
 		ba_AddIM(ctr, 2, BA_IM_LABELJMP, func->lblEnd);
@@ -437,8 +441,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 		if (label) {
 			while (scope != label->scope) {
-				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-				ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+				if (scope->hasFramePtrLink) {
+					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
+					ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+				}
 				scope = scope->parent;
 			}
 			(!scope) && ba_ErrorGoto(line, col, ctr->currPath);
@@ -663,6 +669,8 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	func->retType = retType;
 	func->childScope = ba_SymTableAddChild(ctr->currScope);
 	func->childScope->func = func;
+	func->childScope->hasFramePtrLink = 1;
+	func->childScope->frameScope = func->childScope;
 
 	struct ba_FuncParam* param = ba_NewFuncParam();
 	char* paramName = 0;
@@ -1116,8 +1124,6 @@ u8 ba_PCommaStmt(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
 
 	if (!scope) {
 		ctr->currScope = ba_SymTableAddChild(ctr->currScope);
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
-		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	}
 	
 	if (!ba_PStmt(ctr)) {
@@ -1125,8 +1131,10 @@ u8 ba_PCommaStmt(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
 	}
 
 	if (!scope) {
-		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+		if (ctr->currScope->dataSize) {
+			ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
+				ctr->currScope->dataSize);
+		}
 		ctr->currScope = ctr->currScope->parent;
 	}
 
@@ -1141,15 +1149,15 @@ u8 ba_PScope(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
 
 	if (!scope) {
 		ctr->currScope = ba_SymTableAddChild(ctr->currScope);
-		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
-		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	}
 
 	while (ba_PStmt(ctr));
 	
 	if (!scope) {
-		ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);
-		ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
+		if (ctr->currScope->dataSize) {
+			ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
+				ctr->currScope->dataSize);
+		}
 		ctr->currScope = ctr->currScope->parent;
 	}
 

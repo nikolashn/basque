@@ -1234,14 +1234,18 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				// Put static link on the stack (in the callee's stack frame)
 				// Built-in funcs with no child scope don't need this
 				if (func->childScope) {
-					bool isPushRbp = ctr->currScope != func->childScope->parent;
+					struct ba_SymTable* scope = ctr->currScope->frameScope;
+					struct ba_SymTable* funcFrameScope = 
+						func->childScope->parent->frameScope;
+
+					bool isPushRbp = scope != funcFrameScope;
 					if (isPushRbp) {
 						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 					}
-					struct ba_SymTable* scope = ctr->currScope;
-					while (scope != func->childScope->parent) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_ADR, BA_IM_RBP);
-						scope = scope->parent;
+					while (scope != funcFrameScope) {
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RBP, BA_IM_ADR, 
+							BA_IM_RBP);
+						scope = scope->parent->frameScope;
 					}
 					ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RSP,
 						func->contextSize - 8 * isPushRbp, BA_IM_RBP);

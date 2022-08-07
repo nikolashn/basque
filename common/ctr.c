@@ -11,21 +11,28 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->lex = ctr->startLex;
 	ctr->dir = 0;
 	ctr->currPath = 0;
+
 	ctr->pTkStk = ba_NewStk();
 	ctr->pOpStk = ba_NewStk();
 	ctr->pBreakStk = ba_NewStk();
 	ctr->shortCircLblStk = ba_NewStk();
 	ctr->cmpLblStk = ba_NewStk();
+
 	ctr->cmpRegStk = ba_NewStk();
 	ctr->cmpRegStk->count = 1;
 	ctr->cmpRegStk->items[0] = (void*)0;
+
 	ctr->funcFrameStk = ba_NewStk();
 	ctr->expCoercedTypeStk = ba_NewStk();
+
 	ctr->startIM = ba_NewIM();
 	ctr->im = ctr->startIM;
 	ctr->entryIM = ctr->startIM;
+
 	ctr->globalST = ba_NewSymTable();
+	ctr->globalST->frameScope = ctr->globalST;
 	ctr->currScope = ctr->globalST;
+
 	ctr->labelTable = ba_NewHashTable();
 	ctr->inclInodes = ba_NewDynArr64(0x400);
 	ctr->usedRegisters = 0;
@@ -34,6 +41,7 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->isPermitArrLit = 0;
 	ctr->paren = 0;
+
 	return ctr;
 }
 
