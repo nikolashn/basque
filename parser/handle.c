@@ -1329,9 +1329,9 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				return 2; // Go back to parsing as if having followed an atom
 			}
 			else if (op->lexemeType == '~') {
-				!ba_PCorrectDPtr(ctr, arg) && 
-					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
+				!ba_PCorrectDPtr(ctr, castedExp) && 
+					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 				if (!castedExp) {
 					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 
 						op->line, op->col, ctr->currPath);
