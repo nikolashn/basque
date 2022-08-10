@@ -1,0 +1,9 @@
+include "sys";
+
+u8[5][] strs = { "abcd", "efgh" };
+u64 i = 0;
+while i < lengthof strs iter ++i {
+	Write(&[strs,i], 4);
+}
+"\n";
+

@@ -1,0 +1,9 @@
+include "sys";
+
+u8*[] strs = { &"last msg\n", &"FirstMessage\n" };
+i64[] lens = { 9, 13 };
+i64 i = lengthof strs;
+while --i >= 0 {
+	Write([strs,i], [lens,i]);
+}
+
