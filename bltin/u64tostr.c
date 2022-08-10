@@ -16,18 +16,19 @@ void ba_BltinU64ToStr(struct ba_Ctr* ctr) {
 	ctr->im = ctr->startIM;
 
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-5);
-	// Store return location in RBX
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX);
-	// Integer value to be convertedj
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R8);
-	// Preserve RBP, R8, R9, R10
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in RBX
+	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX); // Integer value to be converted
+	// Praeserve RBP, R8, R9, R10
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R8);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R9);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R10);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
+	// Integer value to be converted
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_R8, BA_IM_RAX);
 	// String length
 	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_R9, BA_IM_R9);
+	
 	ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
 	// In the case that the number is 0
 	ba_AddIM(ctr, 2, BA_IM_LABELJNZ, ctr->labelCnt-4);
@@ -117,15 +118,13 @@ void ba_BltinU64ToStr(struct ba_Ctr* ctr) {
 	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x18);
 
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	// Return value in RAX
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, BA_IM_R9);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, BA_IM_R9); // Return value in RAX
 	// Restore R10, R9, R8, RBP
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_R10, BA_IM_ADR, BA_IM_RBP);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R9, BA_IM_ADRADD, BA_IM_RBP, 0x08);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R8, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RBP, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	// Push return location
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX);
+	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 
 	ctr->im->vals = ba_MAlloc(sizeof(u64));
 	ctr->im->vals[0] = BA_IM_RET;

@@ -13,16 +13,14 @@ void ba_BltinSysRead(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysRead, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 3, BA_IM_XOR, BA_IM_RAX, BA_IM_RAX);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -34,16 +32,14 @@ void ba_BltinSysWrite(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysWrite, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -55,16 +51,14 @@ void ba_BltinSysOpen(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysOpen, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 2);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -76,14 +70,12 @@ void ba_BltinSysClose(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysClose, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 3);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -97,16 +89,14 @@ void ba_BltinSysLSeek(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysLSeek, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 8);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -118,25 +108,23 @@ void ba_BltinSysMMap(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysMMap, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R10);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R8);
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_R9);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 9);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x48);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x40);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x38);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R10, BA_IM_ADRADD, BA_IM_RBP, 0x30);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R8, BA_IM_ADRADD, BA_IM_RBP, 0x28);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R9, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x50);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x48);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x40);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R10, BA_IM_ADRADD, BA_IM_RBP, 0x38);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R8, BA_IM_ADRADD, BA_IM_RBP, 0x30);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_R9, BA_IM_ADRADD, BA_IM_RBP, 0x28);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R9);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R8);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_R10);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -148,16 +136,14 @@ void ba_BltinSysMProtect(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysMProtect, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -169,15 +155,13 @@ void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysMUnmap, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 11);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RSI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
@@ -189,14 +173,12 @@ void ba_BltinSysBrk(struct ba_Ctr* ctr) {
 	ba_BltinLblSet(BA_BLTIN_SysBrk, ctr->labelCnt);
 	++ctr->labelCnt;
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 12);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDI, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 

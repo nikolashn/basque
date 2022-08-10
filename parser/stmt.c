@@ -84,8 +84,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				
 				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
 
-				ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
-					ba_BltinLblGet(BA_BLTIN_U64ToStr));
+				ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLblGet(BA_BLTIN_U64ToStr));
 
 				// write
 				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);

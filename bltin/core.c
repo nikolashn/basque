@@ -13,13 +13,12 @@ void ba_BltinCoreMemCopy(struct ba_Ctr* ctr) {
 	
 	// --- MemCopy ---
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-5);
-	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBX); // Store return location in rbx
 	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP); // Praeserve rbp
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RBP, BA_IM_RSP);
 	// rax: dest ptr, rcx: src ptr, rdx: mem size
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RBP, 0x18);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
-	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x08);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RBP, 0x20);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RCX, BA_IM_ADRADD, BA_IM_RBP, 0x18);
+	ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_RDX, BA_IM_ADRADD, BA_IM_RBP, 0x10);
 
 	// If whole words can be copied, copy whole words, otherwise copy bytes
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-4);
@@ -51,7 +50,6 @@ void ba_BltinCoreMemCopy(struct ba_Ctr* ctr) {
 	// Epilogue
 	ba_AddIM(ctr, 2, BA_IM_LABEL, ctr->labelCnt-1);
 	ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP); // Restore rbp
-	ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBX); // Push return location
 	ba_AddIM(ctr, 1, BA_IM_RET);
 }
 
