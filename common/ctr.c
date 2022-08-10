@@ -37,7 +37,7 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->inclInodes = ba_NewDynArr64(0x400);
 	ctr->usedRegisters = 0;
 	ctr->imStackSize = 0;
-	ctr->staticSeg = ba_NewDynArr8(0x1000);
+	ctr->statics = ba_NewDynArr64(0x400);
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->isPermitArrLit = 0;
 	ctr->paren = 0;
@@ -72,7 +72,7 @@ void ba_DelCtr(struct ba_Ctr* ctr) {
 	ba_DelSymTable(ctr->globalST);
 	ba_DelHashTable(ctr->labelTable);
 	ba_DelDynArr64(ctr->inclInodes);
-	ba_DelDynArr8(ctr->staticSeg);
+	ba_DelDynArr64(ctr->statics);
 
 	free(ctr);
 }

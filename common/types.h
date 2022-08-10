@@ -4,21 +4,33 @@
 #define BA__COMMON_TYPES_H
 
 #include "common.h"
+#include "dynarr.h"
 
 struct ba_Type {
 	u8 type;
 	void* extraInfo;
 };
 
-struct ba_Str {
-	char* str;
-	u64 len;
-	u64 staticStart;
-};
-
 struct ba_ArrExtraInfo {
 	struct ba_Type type;
 	u64 cnt;
+};
+
+struct ba_Static {
+	struct ba_DynArr8* arr;
+	u64 offset; // Offset from the start of the static segment
+	bool isUsed;
+};
+
+struct ba_StaticAddr {
+	struct ba_Static* statObj;
+	u64 index;
+};
+
+struct ba_Str {
+	char* str;
+	u64 len;
+	struct ba_StaticAddr* staticAddr;
 };
 
 enum /* u8 */ {

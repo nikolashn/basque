@@ -43,7 +43,7 @@ struct ba_Ctr { // Controller
 	// Parser
 	u64 usedRegisters;
 	u64 imStackSize;
-	struct ba_DynArr8* staticSeg;
+	struct ba_DynArr64* statics; // takes ba_Static* as elements
 	u64 labelCnt;
 	bool isPermitArrLit;
 	// Counts expression parentheses etc. to make sure they are balanced

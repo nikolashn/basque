@@ -605,7 +605,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			return ba_ErrorVarRedef(lblName, line, col, ctr->currPath);
 		}
 
-		struct ba_PLabel* label = malloc(sizeof(*label));
+		struct ba_PLabel* label = ba_MAlloc(sizeof(*label));
 		label->id = ctr->labelCnt++;
 		label->scope = ctr->currScope;
 		ba_AddIM(ctr, 2, BA_IM_LABEL, label->id);

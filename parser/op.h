@@ -31,7 +31,8 @@ u8 ba_PCorrectDPtr(struct ba_Ctr* ctr, struct ba_PTkStkItem* item);
 u8 ba_POpAssignChecks(struct ba_Ctr* ctr, struct ba_Type lhsType, 
 	struct ba_PTkStkItem* rhs, u64 line, u64 col);
 void ba_POpFuncCallPushArgReg(struct ba_Ctr* ctr, u64 reg, u64 size);
-u64 ba_AllocStrLitStatic(struct ba_Ctr* ctr, struct ba_Str* str);
+struct ba_StaticAddr* 
+ba_AllocStrLitStatic(struct ba_Ctr* ctr, struct ba_Str* str);
 void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem, 
 	struct ba_PTkStkItem* srcItem, u64 size);
 void ba_POpNonLitDivMod(struct ba_Ctr* ctr, struct ba_PTkStkItem* lhs, 

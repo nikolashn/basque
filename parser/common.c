@@ -54,6 +54,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 			*(struct ba_Type*)type.extraInfo = 
 				(struct ba_Type){ BA_TYPE_PTR, oldInfo };
 			isVoid = 0;
+			lexType = ctr->lex->type;
 			continue;
 		}
 

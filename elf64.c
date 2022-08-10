@@ -1,7 +1,6 @@
 // See LICENSE for copyright/license information
 
 #include "elf64.h"
-#include "common/dynarr.h"
 #include "common/parser.h"
 #include "common/func.h"
 
@@ -23,13 +22,26 @@ void ba_EmplaceFuncs(struct ba_Ctr* ctr, struct ba_SymTable* scope) {
 }
 
 u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
+	// Put static segment in its place
+	u64 staticSize = 0;
+	for (u64 i = 0; i < ctr->statics->cnt; ++i) {
+		struct ba_Static* staticPtr = (void*)ctr->statics->arr[i];
+		if (staticPtr->isUsed) {
+			staticPtr->offset = staticSize;
+			staticSize += staticPtr->arr->cnt;
+		}
+		else {
+			free(staticPtr);
+		}
+	}
+
 	if (!ba_GetPageSize()) {
 		ba_SetPageSize(sysconf(_SC_PAGE_SIZE));
 	}
 
 	u64 pageSz = ba_GetPageSize();
 	u64 memStart = 0x400000;
-	u64 phCnt = ctr->staticSeg->cnt ? 3 : 2;
+	u64 phCnt = staticSize ? 3 : 2;
 	u64 pHeaderSz = phCnt * 0x38; // Program header size
 	u64 fHeaderSz = 0x40 + pHeaderSz; // File header size
 	/* Not the final entry point, the actual entry point will 
@@ -64,7 +76,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_LABEL:
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 				
 				u64 labelID = im->vals[1];
@@ -98,7 +110,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_MOV:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgCount(2, im);
+					return ba_ErrorIMArgCount(3, im);
 				}
 
 				u8 adrAddDestSize = 
@@ -131,7 +143,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPR, ADR GPR
 					else if (im->vals[2] == BA_IM_ADR) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(4, im);
 						}
 
 						if (!(BA_IM_RAX <= im->vals[3]) || 
@@ -168,7 +180,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						im->vals[2] == BA_IM_ADRSUB) 
 					{
 						if (im->count < 5) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(5, im);
 						}
 
 						if (!(BA_IM_RAX <= im->vals[3]) || 
@@ -215,7 +227,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPR, ADRADDREGMUL GPR (+) IMM (*) GPR
 					else if (im->vals[2] == BA_IM_ADRADDREGMUL) {
 						if (im->count < 6) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(6, im);
 						}
 
 						u64 fact = im->vals[4];
@@ -257,14 +269,17 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						im->vals[2] == BA_IM_STATIC) 
 					{
 						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(4, im);
 						}
 
 						if (im->vals[2] == BA_IM_STATIC) {
+							struct ba_StaticAddr* staticAddr = (void*)im->vals[3];
+							u64 addr = staticAddr->statObj->offset + staticAddr->index;
+
 							/* Add a bit so that the address is interpreted as 
 							 * 64-bit. This caps static segment addresses to 63 
 							 * bits, which shouldn't be an issue */
-							im->vals[3] |= (1llu<<63);
+							im->vals[3] = addr | (1llu<<63);
 							// Push to a stack used to make the address absolute
 							ba_StkPush(movStaticStk, (void*)code->cnt);
 						}
@@ -312,7 +327,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPRb, ADR GPR
 					if (im->vals[2] == BA_IM_ADR) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(4, im);
 						}
 
 						if (!(BA_IM_RAX <= im->vals[3]) || 
@@ -347,7 +362,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						im->vals[2] == BA_IM_ADRSUB) 
 					{
 						if (im->count < 5) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(5, im);
 						}
 
 						bool sub = im->vals[2] == BA_IM_ADRSUB;
@@ -389,7 +404,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPRb, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(4, im);
 						}
 						byte0 |= (reg0 >= 8);
 						u8 imm = im->vals[3];
@@ -411,7 +426,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				// Into ADR GPR effective address
 				else if (im->vals[1] == BA_IM_ADR) {
 					if (im->count < 4) {
-						return ba_ErrorIMArgCount(2, im);
+						return ba_ErrorIMArgCount(4, im);
 					}
 
 					if (!(BA_IM_RAX <= im->vals[2]) || 
@@ -476,7 +491,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				// Into ADRADD/ADRSUB GPR effective address
 				else if (adrAddDestSize) {
 					if (im->count < 5) {
-						return ba_ErrorIMArgCount(2, im);
+						return ba_ErrorIMArgCount(5, im);
 					}
 
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
@@ -572,7 +587,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						}
 
 						if (im->count < 6) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(6, im);
 						}
 
 						u64 imm = im->vals[5];
@@ -628,7 +643,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_LEA:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgCount(2, im);
+					return ba_ErrorIMArgCount(3, im);
 				}
 
 				// Into GPR
@@ -640,7 +655,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						im->vals[2] == BA_IM_ADRSUB) 
 					{
 						if (im->count < 5) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(5, im);
 						}
 
 						if (!(BA_IM_RAX <= im->vals[3]) || 
@@ -686,7 +701,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPR, ADRADDREGMUL GPR (+) IMM (*) GPR
 					else if (im->vals[2] == BA_IM_ADRADDREGMUL) {
 						if (im->count < 6) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(6, im);
 						}
 
 						u64 fact = im->vals[4];
@@ -747,7 +762,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				((im->vals[0] == BA_IM_XOR) && (instrName = "XOR"));
 
 				if (im->count < 3) {
-					return ba_ErrorIMArgCount(2, im);
+					return ba_ErrorIMArgCount(3, im);
 				}
 
 				u8 byte1Offset = 0;
@@ -782,7 +797,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(4, im);
 						}
 
 						u64 imm = im->vals[3];
@@ -862,7 +877,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					(im->vals[1] == BA_IM_ADRSUB))
 				{
 					if (im->count < 5) {
-						return ba_ErrorIMArgCount(2, im);
+						return ba_ErrorIMArgCount(5, im);
 					}
 					
 					if (!(BA_IM_RAX <= im->vals[2]) || !(BA_IM_R15 >= im->vals[2])) {
@@ -947,7 +962,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				}
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// GPR
@@ -974,7 +989,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_TEST:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgCount(2, im);
+					return ba_ErrorIMArgCount(3, im);
 				}
 
 				// First arg GPR
@@ -1043,7 +1058,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				((im->vals[0] == BA_IM_SAR) && (instrName = "SAR"));
 
 				if (im->count < 3) {
-					return ba_ErrorIMArgCount(2, im);
+					return ba_ErrorIMArgCount(3, im);
 				}
 
 				// First arg GPR
@@ -1070,7 +1085,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					// GPR, IMM
 					else if (im->vals[2] == BA_IM_IMM) {
 						if (im->count < 4) {
-							return ba_ErrorIMArgCount(2, im);
+							return ba_ErrorIMArgCount(4, im);
 						}
 
 						u64 imm = im->vals[3];
@@ -1108,7 +1123,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_MUL: case BA_IM_DIV: case BA_IM_IDIV:
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// First arg GPR
@@ -1138,7 +1153,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_IMUL:
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// First arg GPR
@@ -1185,7 +1200,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_GOTO:
 			{
 				if (im->count < 6) {
-					return ba_ErrorIMArgCount(5, im);
+					return ba_ErrorIMArgCount(6, im);
 				}
 
 				char* lblName = (char*)im->vals[1];
@@ -1265,7 +1280,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					(opCodeNear = opCodeShort + 0x10);
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				u64 labelID = im->vals[1];
@@ -1379,7 +1394,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				u8 isInstrPop = im->vals[0] == BA_IM_POP;
 
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// GPR
@@ -1395,7 +1410,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				// IMM
 				else if ((!isInstrPop) && (im->vals[1] == BA_IM_IMM)) {
 					if (im->count < 3) {
-						return ba_ErrorIMArgCount(1, im);
+						return ba_ErrorIMArgCount(3, im);
 					}
 
 					u64 imm = im->vals[2];
@@ -1424,7 +1439,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_MOVZX:
 			{
 				if (im->count < 3) {
-					return ba_ErrorIMArgCount(2, im);
+					return ba_ErrorIMArgCount(3, im);
 				}
 
 				// Into GPR
@@ -1462,7 +1477,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			case BA_IM_SETL: case BA_IM_SETLE: case BA_IM_SETG: case BA_IM_SETGE: 
 			{
 				if (im->count < 2) {
-					return ba_ErrorIMArgCount(1, im);
+					return ba_ErrorIMArgCount(2, im);
 				}
 
 				// GPRb
@@ -1566,7 +1581,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		0,    0,    0,    0,    0,    0,    0,    0,  // {(static start)}
 		0,    0,    0,    0,    0,    0,    0,    0,  // {(static start mem)}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
-		0,    0,    0,    0,    0,    0,    0,    0,  // {ctr->staticSeg->cnt}
+		0,    0,    0,    0,    0,    0,    0,    0,  // {staticSize}
 		0,    0,    0,    0,    0,    0,    0,    0,  // "
 		0,    0,    0,    0,    0,    0,    0,    0,  // {pageSz}
 	};
@@ -1587,7 +1602,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 
 		u64 tmpStaticM = memStart + tmpStatic;
 		staticStartM = tmpStaticM;
-		u64 tmpStaticSz = ctr->staticSeg->cnt;
+		u64 tmpStaticSz = staticSize;
 
 		for (u64 i = 0; i < 8; i++) {
 			programHeader[0x10+i] = tmpStartM & 0xff;
@@ -1618,7 +1633,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		}
 	}
 
-	// Correct addresses of MOVSTATIC instructions
+	// Correct addresses of MOV STATIC instructions
 	while (movStaticStk->count) {
 		u64 addr = (u64)ba_StkPop(movStaticStk);
 		u64 addend = staticStartM;
@@ -1685,12 +1700,18 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 	fwrite(buf, 1, staticPadding, file);
 
 	// Write static segment, if it exists
-	if (ctr->staticSeg->cnt) {
-		u8* staticPtr = ctr->staticSeg->arr;
-		while (staticPtr - ctr->staticSeg->arr < ctr->staticSeg->cnt) {
-			fwrite(staticPtr, 1, ctr->staticSeg->cnt >= BA_FILE_BUF_SIZE
-				? BA_FILE_BUF_SIZE : ctr->staticSeg->cnt, file);
-			staticPtr += BA_FILE_BUF_SIZE;
+	if (staticSize) {
+		for (u64 i = 0; i < ctr->statics->cnt; ++i) {
+			struct ba_Static* statObj = (void*)ctr->statics->arr[i];
+			if (statObj->isUsed) {
+				u8* ptr = statObj->arr->arr;
+				while (ptr - statObj->arr->arr < statObj->arr->cnt) {
+					fwrite(ptr, 1, statObj->arr->cnt >= BA_FILE_BUF_SIZE
+						? BA_FILE_BUF_SIZE : statObj->arr->cnt, file);
+					ptr += BA_FILE_BUF_SIZE;
+				}
+				free(statObj);
+			}
 		}
 	}
 

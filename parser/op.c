@@ -448,15 +448,23 @@ void ba_POpFuncCallPushArgReg(struct ba_Ctr* ctr, u64 reg, u64 size) {
 	}
 }
 
-u64 ba_AllocStrLitStatic(struct ba_Ctr* ctr, struct ba_Str* str) {
-	u64 staticStart = ctr->staticSeg->cnt;
-	ctr->staticSeg->cnt += str->len + 1;
-	(ctr->staticSeg->cnt > ctr->staticSeg->cap) && 
-		ba_ResizeDynArr8(ctr->staticSeg);
-	u8* memStart = ctr->staticSeg->arr + staticStart;
-	memcpy(memStart, str->str, str->len + 1);
-	str->staticStart = staticStart;
-	return staticStart;
+struct ba_StaticAddr* 
+ba_AllocStrLitStatic(struct ba_Ctr* ctr, struct ba_Str* str) {
+	struct ba_Static* statObj = ba_MAlloc(sizeof(*statObj));
+	*statObj = (struct ba_Static)
+		{ .arr = ba_NewDynArr8(str->len + 1), .offset = 0, .isUsed = 1 };
+	
+	++ctr->statics->cnt;
+	(ctr->statics->cnt > ctr->statics->cap) && ba_ResizeDynArr64(ctr->statics);
+	ctr->statics->arr[ctr->statics->cnt - 1] = (u64)statObj;
+
+	struct ba_StaticAddr* staticAddr = ba_MAlloc(sizeof(*staticAddr));
+	*staticAddr = (struct ba_StaticAddr){ statObj, 0 };
+	statObj->arr->cnt = statObj->arr->cap;
+	memcpy(statObj->arr->arr, str->str, statObj->arr->cnt);
+	str->staticAddr = staticAddr;
+
+	return staticAddr;
 }
 
 void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem, 
@@ -517,7 +525,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	}
 	else if (srcItem->lexemeType == BA_TK_LITSTR) {
 		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_STATIC, 
-			ba_AllocStrLitStatic(ctr, (struct ba_Str*)srcItem->val));
+			(u64)ba_AllocStrLitStatic(ctr, (struct ba_Str*)srcItem->val));
 	}
 	else if (srcItem->lexemeType == BA_TK_IMSTACK) {
 		ba_AddIM(ctr, 5, BA_IM_LEA, defaultReg, BA_IM_ADRSUB, BA_IM_RBP, 

@@ -1,6 +1,7 @@
 // See LICENSE for copyright/license information
 
 #include "common.h"
+#include "../common/types.h"
 
 /* atom = lit_str { lit_str } | lit_int | lit_char | identifier 
  *      | "{" exp { "," exp } [ "," ] "}" */
@@ -17,8 +18,8 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	// lit_str { lit_str }
 	if (ba_PAccept(BA_TK_LITSTR, ctr)) {
 		u64 len = lexValLen;
-		char* str = ba_MAlloc(len + 1);
-		strcpy(str, lexVal);
+		char* chars = ba_MAlloc(len + 1);
+		strcpy(chars, lexVal);
 		
 		// do-while prevents 1 more str literal from being consumed than needed
 		do {
@@ -34,22 +35,23 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 					" too large to fit on the stack");
 			}
 
-			str = ba_Realloc(str, len+1);
-			strcpy(str+oldLen, ctr->lex->val);
-			str[len] = 0;
+			chars = ba_Realloc(chars, len+1);
+			strcpy(chars+oldLen, ctr->lex->val);
+			chars[len] = 0;
 		}
 		while (ba_PAccept(BA_TK_LITSTR, ctr));
 
-		struct ba_Str* pTkVal = ba_MAlloc(sizeof(*pTkVal));
-		pTkVal->str = str;
-		pTkVal->len = len;
+		struct ba_Str* str = ba_MAlloc(sizeof(*str));
+		*str = (struct ba_Str){ .str = chars, .len = len, .staticAddr = 0 };
+		str->str = chars;
+		str->len = len;
 
 		struct ba_ArrExtraInfo* extraInfo = ba_MAlloc(sizeof(*extraInfo));
 		extraInfo->type = (struct ba_Type){ BA_TYPE_U8, 0 };
 		extraInfo->cnt = len + 1;
 		struct ba_Type strType = { BA_TYPE_ARR, extraInfo };
 		
-		ba_PTkStkPush(ctr->pTkStk, (void*)pTkVal, strType, 
+		ba_PTkStkPush(ctr->pTkStk, (void*)str, strType, 
 			BA_TK_LITSTR, /* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// lit_int
@@ -109,9 +111,9 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		u64 cnt = 0;
 		bool isConst = 1;
 		
-		u64 staticStart = ctr->staticSeg->cnt;
-		u64 staticPos = staticStart;
-
+		struct ba_Static* statObj = ba_MAlloc(sizeof(*statObj));
+		*statObj = (struct ba_Static)
+			{ .arr = ba_NewDynArr8(0x1000), .offset = 0, .isUsed = 1 };
 		bool hasTruncationWarning = 0;
 
 		// Enter a new stack so that operators are not handled improperly
@@ -150,31 +152,54 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 				hasTruncationWarning = 1;
 			}
 
-			ctr->staticSeg->cnt += itemSz;
-			(ctr->staticSeg->cnt > ctr->staticSeg->cap) && 
-				ba_ResizeDynArr8(ctr->staticSeg);
-			u8* memStart = ctr->staticSeg->arr + staticPos;
+			u64 addr = statObj->arr->cnt;
+			u8* memStart = statObj->arr->arr + addr;
+			
+			++cnt;
+			statObj->arr->cnt += itemSz;
+			(statObj->arr->cnt > statObj->arr->cap) && ba_ResizeDynArr8(statObj->arr);
+			
 			if (stkItem->isConst) {
-				// Note: assumes int literal
-				memcpy(memStart, &stkItem->val, itemSz);
+				if (stkItem->lexemeType == BA_TK_LITINT) {
+					memcpy(memStart, &stkItem->val, itemSz);
+				}
+				else if (stkItem->lexemeType == BA_TK_LITSTR) {
+					struct ba_Str* str = stkItem->val;
+					str->staticAddr = ba_MAlloc(sizeof(*str->staticAddr));
+					*str->staticAddr = (struct ba_StaticAddr){ statObj, addr };
+					memcpy(memStart, str->str, str->len + 1);
+				}
+				else if (stkItem->lexemeType == BA_TK_IMSTATIC) {
+					// TODO: nesting arrays
+					exit(-1);
+				}
 			}
 			else {
+				// TODO: handle types that cannot be put in a register
 				isConst = 0;
 				memset(memStart, 0, itemSz);
-				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_STATIC, staticPos);
+				if (stkItem->lexemeType != BA_TK_IMREGISTER || 
+					(u64)stkItem->val != BA_IM_RAX) 
+				{
+					ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
+				}
+				struct ba_StaticAddr* staticAddr = ba_MAlloc(sizeof(*staticAddr));
+				*staticAddr = (struct ba_StaticAddr){ statObj, addr };
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RCX, BA_IM_STATIC, (u64)staticAddr);
 				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RCX, BA_IM_RAX);
 			}
 			
 			BA_LBL_PATOM_ARRLIT_LOOPEND:
-			++cnt;
-			staticPos += itemSz;
 			ctr->isPermitArrLit = 1; // Array literals can nest
 			if (!ba_PAccept(',', ctr)) {
 				break;
 			}
 		}
 		
+		++ctr->statics->cnt;
+		(ctr->statics->cnt > ctr->statics->cap) && ba_ResizeDynArr64(ctr->statics);
+		ctr->statics->arr[ctr->statics->cnt-1] = (u64)statObj;
+
 		// Restore original state
 		ba_DelStk(ctr->pOpStk);
 		ctr->pOpStk = oldPOpStk;
@@ -188,8 +213,10 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		}
 		ba_PExpect('}', ctr);
 
-		ba_PTkStkPush(ctr->pTkStk, (void*)staticStart, *coercedType, 
-			BA_TK_IMSTATIC, /* isLValue = */ 0, isConst);
+		struct ba_StaticAddr* staticAddr = ba_MAlloc(sizeof(*staticAddr));
+		*staticAddr = (struct ba_StaticAddr){ statObj, 0 };
+		ba_PTkStkPush(ctr->pTkStk, staticAddr, *coercedType, BA_TK_IMSTATIC, 
+				/* isLValue = */ 0, isConst);
 	}
 	// Other
 	else {
@@ -361,6 +388,7 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 	result->typeInfo.type = BA_TYPE_DPTR;
 	result->typeInfo.extraInfo = type.extraInfo;
 	result->isLValue = 1;
+	result->isConst = 0;
 	ba_StkPush(ctr->pTkStk, result);
 	
 	ctr->pOpStk = originalOpStk;

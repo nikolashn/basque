@@ -44,6 +44,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				arg->typeInfo.type = BA_TYPE_U64;
 				arg->lexemeType = BA_TK_LITINT;
 				arg->isLValue = 0;
+				arg->isConst = 1;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
@@ -66,6 +67,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				arg->typeInfo.type = BA_TYPE_U64;
 				arg->lexemeType = BA_TK_LITINT;
 				arg->isLValue = 0;
+				arg->isConst = 1;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
@@ -102,7 +104,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 				else if (arg->lexemeType == BA_TK_LITSTR) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_STATIC, 
-						ba_AllocStrLitStatic(ctr, (struct ba_Str*)arg->val));
+						(u64)ba_AllocStrLitStatic(ctr, (struct ba_Str*)arg->val));
 				}
 				// IMSTACK must be a DPTR
 				else if (arg->lexemeType == BA_TK_IMSTACK) {
@@ -114,6 +116,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 
 				arg->typeInfo.type = BA_TYPE_PTR;
 				arg->isLValue = 0;
+				arg->isConst = 0;
 				ba_StkPush(ctr->pTkStk, arg);
 				return 1;
 			}
