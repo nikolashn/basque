@@ -75,7 +75,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	// lit_char
 	else if (ba_PAccept(BA_TK_LITCHAR, ctr)) {
 		struct ba_Type type = { BA_TYPE_U8, 0 };
-		ba_PTkStkPush(ctr->pTkStk, (void*)(u64)lexVal[0], type, BA_TK_LITCHAR,
+		ba_PTkStkPush(ctr->pTkStk, (void*)(u64)lexVal[0], type, BA_TK_LITINT,
 			/* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// identifier
