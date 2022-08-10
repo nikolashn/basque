@@ -10,6 +10,7 @@ u64 ba_IMToCtrReg(u64 reg) {
 		case BA_IM_RAX: return BA_CTRREG_RAX;
 		case BA_IM_RCX: return BA_CTRREG_RCX;
 		case BA_IM_RDX: return BA_CTRREG_RDX;
+		case BA_IM_RBX: return BA_CTRREG_RBX;
 		case BA_IM_RSI: return BA_CTRREG_RSI;
 		case BA_IM_RDI: return BA_CTRREG_RDI;
 		case BA_IM_R8:  return BA_CTRREG_R8;
@@ -29,6 +30,7 @@ u64 ba_CtrRegToIM(u64 reg) {
 		case BA_CTRREG_RAX: return BA_IM_RAX;
 		case BA_CTRREG_RCX: return BA_IM_RCX;
 		case BA_CTRREG_RDX: return BA_IM_RDX;
+		case BA_CTRREG_RBX: return BA_IM_RBX;
 		case BA_CTRREG_RSI: return BA_IM_RSI;
 		case BA_CTRREG_RDI: return BA_IM_RDI;
 		case BA_CTRREG_R8:  return BA_IM_R8;
