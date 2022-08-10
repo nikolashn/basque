@@ -7,6 +7,7 @@
 
 struct ba_Ctr* ba_NewCtr() {
 	struct ba_Ctr* ctr = ba_MAlloc(sizeof(struct ba_Ctr));
+
 	ctr->startLex = ba_NewLexeme();
 	ctr->lex = ctr->startLex;
 	ctr->dir = 0;
@@ -40,7 +41,13 @@ struct ba_Ctr* ba_NewCtr() {
 	ctr->statics = ba_NewDynArr64(0x400);
 	ctr->labelCnt = 1; // Starts at 1 since label 0 means no label found
 	ctr->isPermitArrLit = 0;
+
 	ctr->paren = 0;
+	ctr->bracket = 0;
+
+	ctr->genImStk = ba_NewStk();
+	ctr->genImStk->count = 1;
+	ctr->genImStk->items[0] = (void*)1;
 
 	return ctr;
 }
@@ -78,6 +85,10 @@ void ba_DelCtr(struct ba_Ctr* ctr) {
 }
 
 void ba_AddIM(struct ba_Ctr* ctr, u64 count, ...) {
+	if (!ba_StkTop(ctr->genImStk)) {
+		return;
+	}
+
 	ctr->im->vals = ba_MAlloc(sizeof(u64) * count);
 	
 	va_list vals;

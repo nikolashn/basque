@@ -34,6 +34,8 @@ struct ba_Ctr { // Controller
 	struct ba_Stk* funcFrameStk; // Takes u64 (usedRegisters) as items
 	// For type coercion in array literals
 	struct ba_Stk* expCoercedTypeStk; // Takes struct ba_Type* as items
+	// For turning on and off intermediate instruction generation
+	struct ba_Stk* genImStk; // Takes u64 (bool) as items
 
 	// Code generation
 	struct ba_IM* startIM;
@@ -46,6 +48,7 @@ struct ba_Ctr { // Controller
 	struct ba_DynArr64* statics; // takes ba_Static* as elements
 	u64 labelCnt;
 	bool isPermitArrLit;
+	
 	// Counts expression parentheses etc. to make sure they are balanced
 	i64 paren;
 	i64 bracket;

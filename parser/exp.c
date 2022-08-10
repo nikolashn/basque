@@ -338,8 +338,10 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 					BA_IM_ADRADDREGMUL, deReg, pntdSz, effAddReg);
 			}
 			else {
-				fprintf(stderr, "Error: Dereferencing non-arrays with "
-					"nonstandard pntdSz not implemented yet\n");
+				// TODO: implement feature
+				fprintf(stderr, "Error: Dereferencing pointer to type of size %lld "
+					"not implemented yet\n", pntdSz);
+				exit(-1);
 			}
 
 			if (!addReg) {
@@ -423,7 +425,6 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 				ba_PAccept(BA_TK_KW_LENGTHOF, ctr) || 
 				ba_PAccept(BA_TK_INC, ctr) || ba_PAccept(BA_TK_DEC, ctr))
 			{
-				lastPraefix = lexType;
 				// Left grouping parenthesis / dereferencing bracket
 				// Enters a new expression frame (reset whether is cmp chain)
 				if (lexType == '(') {
@@ -435,12 +436,21 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 					if (lexType == '[') {
 						++ctr->bracket;
 						ba_StkPush(ctr->cmpRegStk, (void*)0);
+						(lastPraefix == '$') && ba_StkPush(ctr->genImStk, 0);
 						if (!ba_PDerefListMake(ctr, line, col)) {
 							return 0;
+						}
+						if (lastPraefix == '$') {
+							// Return to generating instructions and remove DPTR
+							ba_StkPop(ctr->genImStk);
+							struct ba_PTkStkItem* stkItem = ba_StkTop(ctr->pTkStk);
+							struct ba_Type dptrType = stkItem->typeInfo;
+							stkItem->typeInfo = *(struct ba_Type*)dptrType.extraInfo;
 						}
 						isAfterAtom = 1;
 					}
 				}
+				lastPraefix = lexType;
 				ba_POpStkPush(ctr->pOpStk, line, col, lexType, BA_OP_PREFIX);
 			}
 			// Note: ba_PAtom pushes the atom to pTkStk
