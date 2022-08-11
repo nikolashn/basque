@@ -760,19 +760,16 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					(rhs->val = (void*)(bool)rhs->val);
 
 				ba_POpMovArgToReg(ctr, rhs, realReg, isRhsLiteral);
-
 				u64 lhsSize = ba_GetSizeOfType(lhsType);
+				u64 lhsAdjReg = ba_AdjRegSize(realReg, lhsSize);
 
 				if (isRhsDptr) {
 					if (rhs->lexemeType == BA_TK_IMREGISTER) {
-						ba_AddIM(ctr, 4, BA_IM_MOV, 
-							ba_AdjRegSize(realReg, lhsSize),
-							BA_IM_ADR, (u64)rhs->val);
+						ba_AddIM(ctr, 4, BA_IM_MOV, lhsAdjReg, BA_IM_ADR, (u64)rhs->val);
 					}
 					else {
 						ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRSUB, BA_IM_RBP, 
-							ctr->currScope->dataSize + stackPos, 
-							ba_AdjRegSize(realReg, lhsSize));
+							ctr->currScope->dataSize + stackPos, lhsAdjReg);
 					}
 				}
 
@@ -830,8 +827,8 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				if (isConvToBool && (!isRhsLiteral || imOp)) {
-					ba_AddIM(ctr, 3, BA_IM_TEST, realReg, realReg);
-					ba_AddIM(ctr, 2, BA_IM_SETNZ, realReg-BA_IM_RAX+BA_IM_AL);
+					ba_AddIM(ctr, 3, BA_IM_TEST, lhsAdjReg, lhsAdjReg);
+					ba_AddIM(ctr, 2, BA_IM_SETNZ, realReg - BA_IM_RAX + BA_IM_AL);
 				}
 
 				if (lhs->lexemeType == BA_TK_IDENTIFIER) {
@@ -839,8 +836,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 					i64 offset = ba_CalcVarOffset(ctr, lhs->val, &isPopRbp);
 					ba_AddIM(ctr, 5, BA_IM_MOV, 
 						offset < 0 ? BA_IM_ADRSUB : BA_IM_ADRADD, BA_IM_RBP, 
-						offset < 0 ? -offset : offset, 
-						ba_AdjRegSize(realReg, lhsSize));
+						offset < 0 ? -offset : offset, lhsAdjReg);
 					if (isPopRbp) {
 						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RBP);
 					}
@@ -848,7 +844,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				// (DPTR)
 				else if (lhs->lexemeType == BA_TK_IMREGISTER) {
 					ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, 
-						(u64)lhs->val, ba_AdjRegSize(realReg, lhsSize));
+						(u64)lhs->val, lhsAdjReg);
 				}
 				else if (lhs->lexemeType == BA_TK_IMSTACK) {
 					u64 tmpReg = realReg == BA_IM_RAX ? BA_IM_RCX : BA_IM_RAX;
@@ -1146,18 +1142,16 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 
 							if (isConvToBool && !isLiteral) {
 								u64 realReg = reg ? reg : BA_IM_RAX;
-								ba_AddIM(ctr, 3, BA_IM_TEST, 
-									realReg, realReg);
-								ba_AddIM(ctr, 2, BA_IM_SETNZ, 
-									realReg - BA_IM_RAX + BA_IM_AL);
+								u64 adjReg = ba_AdjRegSize(reg, paramSize);
+								ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
+								ba_AddIM(ctr, 2, BA_IM_SETNZ, realReg - BA_IM_RAX + BA_IM_AL);
 							}
 
 							if (reg) {
 								ba_POpFuncCallPushArgReg(ctr, reg, paramSize);
 								if (paramSize < 8) {
 									ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADR, 
-										BA_IM_RSP, 
-										ba_AdjRegSize(reg, paramSize));
+										BA_IM_RSP, ba_AdjRegSize(reg, paramSize));
 								}
 								ctr->imStackSize += paramSize;
 								ctr->usedRegisters &= ~ba_IMToCtrReg(reg);

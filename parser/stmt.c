@@ -348,6 +348,9 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 					"from a function with non-numeric type", line, col, 
 					ctr->currPath);
 			}
+
+			u64 retValSize = ba_GetSizeOfType(func->retType);
+
 			if (ba_IsTypeInt(stkItem->typeInfo)) {
 				// Return value in rax
 				bool isLiteral = ba_IsLexemeLiteral(stkItem->lexemeType);
@@ -364,12 +367,12 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				}
 				
 				if (isConvToBool && !isLiteral) {
-					ba_AddIM(ctr, 3, BA_IM_TEST, BA_IM_RAX, BA_IM_RAX);
+					u64 adjRax = ba_AdjRegSize(BA_IM_RAX, retValSize);
+					ba_AddIM(ctr, 3, BA_IM_TEST, adjRax, adjRax);
 					ba_AddIM(ctr, 2, BA_IM_SETNZ, BA_IM_AL);
 				}
 			}
 			else if (stkItem->typeInfo.type == BA_TYPE_ARR) {
-				u64 retValSize = ba_GetSizeOfType(func->retType);
 				ba_AddIM(ctr, 5, BA_IM_LEA, BA_IM_RAX, BA_IM_ADRADD, BA_IM_RBP, 
 					func->contextSize + func->paramStackSize - retValSize);
 				struct ba_PTkStkItem* destItem = ba_MAlloc(sizeof(*destItem));
@@ -1043,13 +1046,13 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		}
 
 		if (!isGarbage) {
+			u64 adjReg = ba_AdjRegSize(reg, dataSize);
 			if (idVal->type.type == BA_TYPE_BOOL && !isExpLiteral) {
-				ba_AddIM(ctr, 3, BA_IM_TEST, reg, reg);
+				ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
 				ba_AddIM(ctr, 2, BA_IM_SETNZ, reg - BA_IM_RAX + BA_IM_AL);
 			}
 			if (dataSize < 8) {
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, 
-					ba_AdjRegSize(reg, dataSize));
+				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_ADR, BA_IM_RSP, adjReg);
 			}
 		}
 	}
