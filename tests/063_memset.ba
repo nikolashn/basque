@@ -1,0 +1,20 @@
+include "sys";
+
+i64[12] arr = garbage;
+MemSet(&arr, 9, $arr);
+
+"--- arr ---\n";
+
+u64 i = 0;
+while i < lengthof arr iter ++i {
+	write [arr,i]; "\n"; # 651061555542690057
+}
+
+"--- arr2 ---\n";
+
+u8[123] arr2 = garbage;
+MemSet(&arr2, 0x4c, $arr2);
+
+Write(&arr2, $arr2); # 'L'
+"\n";
+
