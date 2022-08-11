@@ -12,14 +12,14 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	char* lexVal = 0;
 	if (ctr->lex->val) {
 		lexVal = ba_MAlloc(lexValLen+1);
-		strcpy(lexVal, ctr->lex->val);
+		memcpy(lexVal, ctr->lex->val, lexValLen+1);
 	}
 
 	// lit_str { lit_str }
 	if (ba_PAccept(BA_TK_LITSTR, ctr)) {
 		u64 len = lexValLen;
 		char* chars = ba_MAlloc(len + 1);
-		strcpy(chars, lexVal);
+		memcpy(chars, lexVal, len + 1);
 		
 		// do-while prevents 1 more str literal from being consumed than needed
 		do {
@@ -36,7 +36,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			}
 
 			chars = ba_Realloc(chars, len+1);
-			strcpy(chars+oldLen, ctr->lex->val);
+			memcpy(chars+oldLen, ctr->lex->val, ctr->lex->valLen + 1);
 			chars[len] = 0;
 		}
 		while (ba_PAccept(BA_TK_LITSTR, ctr));
