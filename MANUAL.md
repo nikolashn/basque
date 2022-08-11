@@ -313,6 +313,12 @@ void MemCopy(void* dest, void* src, u64 size);
 ```
 Copies `size` bytes from `src` to `dest`. The memory regions specified must not overlap.
 
+### MemSet
+```
+void MemSet(void* ptr, u8 byte, u64 size);
+```
+Fills `size` bytes starting from the pointer `ptr` with the value `byte`.
+
 ## Built-in include files
 
 ### sys
