@@ -12,24 +12,25 @@ enum {
 	BA_BLTIN_U64ToStr    = 0,
 
 	BA_BLTIN_CoreMemCopy = 1,
+	BA_BLTIN_CoreMemSet  = 2,
 	
-	BA_BLTIN_Sys         = 2,
-	BA_BLTIN_SysRead     = 3,
-	BA_BLTIN_SysWrite    = 4,
-	BA_BLTIN_SysOpen     = 5,
-	BA_BLTIN_SysClose    = 6,
-	BA_BLTIN_SysStat     = 7,
-	BA_BLTIN_SysFStat    = 8,
-	BA_BLTIN_SysLStat    = 9,
-	BA_BLTIN_SysPoll     = 10,
-	BA_BLTIN_SysLSeek    = 11,
-	BA_BLTIN_SysMMap     = 12,
-	BA_BLTIN_SysMProtect = 13,
-	BA_BLTIN_SysMUnmap   = 14,
-	BA_BLTIN_SysBrk      = 15,
+	BA_BLTIN_Sys         = 3,
+	BA_BLTIN_SysRead     = 4,
+	BA_BLTIN_SysWrite    = 5,
+	BA_BLTIN_SysOpen     = 6,
+	BA_BLTIN_SysClose    = 7,
+	BA_BLTIN_SysStat     = 8,
+	BA_BLTIN_SysFStat    = 9,
+	BA_BLTIN_SysLStat    = 10,
+	BA_BLTIN_SysPoll     = 11,
+	BA_BLTIN_SysLSeek    = 12,
+	BA_BLTIN_SysMMap     = 13,
+	BA_BLTIN_SysMProtect = 14,
+	BA_BLTIN_SysMUnmap   = 15,
+	BA_BLTIN_SysBrk      = 16,
 	
-	BA_BLTIN__COUNT      = 16,
-	BA_BLTIN_FLAG_CNT    = 2, // ceil(BA_BLTIN__COUNT / 8.0)
+	BA_BLTIN__COUNT      = 17,
+	BA_BLTIN_FLAG_CNT    = 3, // ceil(BA_BLTIN__COUNT / 8.0)
 };
 
 void ba_BltinFlagsSet(u64 flag);
