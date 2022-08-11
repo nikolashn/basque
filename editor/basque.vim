@@ -23,6 +23,7 @@ syn match baNumber "\<-\?0b[01_]\+\(u\|U\)\?\>"
 syn keyword baNumber garbage
 
 syn region baString start='"' end='"' skip='\\"' contains=baEscape
+syn region baCharacter start='\'' end='\'' skip='\\\'' contains=baEscape
 syn match baEscape contained '\\\(["ntvfrb0\n\\]\|\'\|\(x\o\x\)\)'
 
 syn keyword baConditional if elif else
@@ -38,6 +39,7 @@ hi def link baMLComment Comment
 hi def link baNumber Number
 hi def link baEscape Special
 hi def link baString String
+hi def link baCharacter Character
 hi def link baConditional Conditional
 hi def link baRepeat Repeat
 hi def link baStatement Statement
