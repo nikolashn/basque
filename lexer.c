@@ -92,7 +92,6 @@ char ba_LexerEscSequence(struct ba_Ctr* ctr, FILE* srcFile, char* fileBuf,
 		ba_LexerSafeIncFileIter(&fileIter) &&
 			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 	}
-	// TODO: add more escape patterns
 	else {
 		ret = '\\';
 	}
