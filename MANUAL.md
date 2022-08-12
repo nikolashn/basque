@@ -80,7 +80,7 @@ An L-value (assignable expression) in Basque is an identifier or dereferencing e
 #### Notes about specific operators
 Func calls are a func followed by a comma-seperated list of expressions (arguments) enclosed in parentheses, which may be empty. If the func has default parameters, then some arguments may be omitted. The following are some syntactically valid func calls: `foo()`, `bar(a, b)`, `baz(5 * SIZE, )`, `fleure(f(), , g(,))`
 
-Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value. With pointers, the increment/decrement is by the size of the dereferenced pointer, instead of just 1.
+Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value.
 
 The `$` operation evaluates to the size of its operand in bytes. Its operand can be the name of a type rather than an expression.
 
