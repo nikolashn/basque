@@ -501,7 +501,7 @@ void ba_PAssignArr(struct ba_Ctr* ctr, struct ba_PTkStkItem* destItem,
 	}
 	else if (destItem->lexemeType == BA_TK_IMREGISTER) {
 		// (DPTR)
-		ba_AddIM(ctr, 4, BA_IM_MOV, defaultReg, BA_IM_ADR, (u64)destItem->val);
+		reg = (u64)destItem->val;
 	}
 	else if (destItem->lexemeType == BA_TK_IMSTACK) {
 		// (DPTR)
