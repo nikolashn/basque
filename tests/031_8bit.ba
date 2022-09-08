@@ -4,32 +4,20 @@
 	0,1,0,1,1,0
 	25,50,12
 	0,1,20,11,1
-}#
+#}
 
 u8 egg = 1;
 i8 ham = 256;
 
-write ham; ",";
-write !ham; ",";
-write !(256~u8); "\n";
+f"%i{ham},%i{!ham},%i{!(256~u8)}\n";
 
-write egg && ham; ",";
-write egg && egg; ",";
-write ham && ham; ",";
-write egg || ham; ",";
-write egg || egg; ",";
-write ham || ham; "\n";
+f"%i{egg && ham},%i{egg && egg},%i{ham && ham},";
+f"%i{egg || ham},%i{egg || egg},%i{ham || ham}\n";
 
 ham = 3*179;
-write ham; ",";
-write ham<<1; ",";
-write ham>>1; "\n";
+f"%i{ham},%i{ham<<1},%i{ham>>1}\n";
 
 ham = 255;
 ++ham;
-write ham; ",";
-write egg; ",";
-write (-5)~u8 // 12u; ",";
-write (-5)~u8 % 12u; ",";
-write (-5)~u8 < 500u; "\n";
+f"%i{ham},%i{egg},%i{(-5)~u8 // 12u},%i{(-5)~u8 % 12u},%i{(-5)~u8 < 500u}\n";
 

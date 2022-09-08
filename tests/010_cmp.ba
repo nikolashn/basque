@@ -1,34 +1,17 @@
 # Should give a warning about comparison of integers of different signedness
 #{
 	Expected output:
-	1,1,0,0,0,1
-	0,0,1,1,0,1
-	1,1,0,0,0,1
-	1,0,1,0,1
-	0,1
+	1 1 0 0 0 1
+	0 0 1 1 0 1
+	1 1 0 0 0 1
+	1 0 1 0 1
+	0 1
 	1
-}#
+#}
 
-write 1 < 2; ",";
-write 1 <= 2; ",";
-write 1 > 2; ",";
-write 1 >= 2; ",";
-write 1 == 2; ",";
-write 1 != 2; "\n";
-
-write 1 < -2; ",";
-write 1 <= -2; ",";
-write 1 > -2; ",";
-write 1 >= -2; ",";
-write 1 == -2; ",";
-write 1 != -2; "\n";
-
-write 1u < -2u; ",";
-write 1u <= -2u; ",";
-write 1u > -2u; ",";
-write 1u >= -2u; ",";
-write 1u == -2u; ",";
-write 1u != -2u; "\n";
+f"%i{1 < 2} %i{1 <= 2} %i{1 > 2} %i{1 >= 2} %i{1 == 2} %i{1 != 2}\n";
+f"%i{1 < -2} %i{1 <= -2} %i{1 > -2} %i{1 >= -2} %i{1 == -2} %i{1 != -2}\n";
+f"%i{1u < -2u} %i{1u <= -2u} %i{1u > -2u} %i{1u >= -2u} %i{1u == -2u} %i{1u != -2u}\n";
 
 i64 a = 1;
 i64 b = 71;
@@ -47,15 +30,15 @@ i64 n = -59;
 i64 o = -64;
 i64 p = 91;
 
-write c >= a - b != 0; ",";
-write c >= (a - b != 0)~i64; ",";
-write (c >= a - b)~i64 != 0; ",";
-write c < a < b && c >= (a - b == 0 || a == a == a)~i64; ",";
-write (a - b == 0 || a == a == a); "\n";
+f"%i{c >= a - b != 0} ";
+f"%i{c >= (a - b != 0)~i64} ";
+f"%i{(c >= a - b)~i64 != 0} ";
+f"%i{c < a < b && c >= (a - b == 0 || a == a == a)~i64} ";
+f"%i{(a - b == 0 || a == a == a)}\n";
 
-write (c + d) >= (a < b < c); ",";
-write (c + d)~u64 >= (a < b < c); "\n";
+f"%i{(c + d) >= (a < b < c)~i64} ";
+f"%i{(c + d)~u64 >= (a < b < c)}\n";
 
-write a || b < c <= d + e != (f = g) == (h > i >= j)~i64 != k || 
-	l < m && n == o != p; "\n";
+f"%i{a || b < c <= d + e != (f = g) == (h > i >= j)~i64 != k || 
+	l < m && n == o != p}\n";
 

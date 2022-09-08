@@ -9,19 +9,16 @@
 	37 != 101 != 202 != 67 != 68
 	11,13,17,19
 	11,13,17,19
-}#
+#}
 
 #{ These variables should be allocated on the stack 
    contiguously based on how the C Basque compiler 
    currently works, however this is not a specification of 
    the Basque programming language, so these tests are not 
-   guaranteed to work for future compilers }#
+   guaranteed to work for future compilers #}
 
-# Simulating an array, as they haven't been implemented 
-# at the time of making this test
-
-# Since memory addresses on the stack grow down, the 
-# variables are allocated backwards
+#{ Since memory addresses on the stack grow down, the 
+   variables are allocated backwards #}
 
 i64 c3=37; i64 c2=31; i64 c1=29; i64 c0=23;
 i64 b3=19; i64 b2=17; i64 b1=13; i64 b0=11;
@@ -33,38 +30,31 @@ i64* a = &a0;
 
 i64** arr = &a;
 
-write [arr]; " = ";
-write a; "\n";
-write [a]; " = ";
-write a0; "\n";
-write [a,1]; " = ";
-write a1; "\n";
-write [arr,2,1]; " = ";
-write [[arr,2],1]; " = ";
-write c1; "\n";
-write [arr,1]; " = ";
-write b; "\n";
+f"%x{[arr]} = %x{a}\n";
+f"%i{[a]} = %i{a0}\n";
+f"%i{[a,1]} = %i{a1}\n";
+f"%i{[arr,2,1]} = %i{[[arr,2],1]} = %i{c1}\n";
+f"%x{[arr,1]} = %x{b}\n";
 
-# write [b0]; # Error
-# write [2121]; # Error
+# [b0]; # Error
+# [2121]; # Error
 
-write a; " = ";
-write &[a]; "\n";
+f"%x{a} = %x{&[a]}\n";
 
-write [arr,2,3]; " != ";
+f"%i{[arr,2,3]} != ";
 [arr,2,3] = 101;
-write [arr,2,3]; " != ";
+f"%i{[arr,2,3]} != ";
 [arr,2,3] *= 2;
-write [arr,2,3]; " != ";
+f"%i{[arr,2,3]} != ";
 [arr,2,3] //= 3;
-write [arr,2,3]; " != ";
+f"%i{[arr,2,3]} != ";
 ++[arr,2,3];
-write [arr,2,3]; "\n";
+f"%i{[arr,2,3]}\n";
 
 u64 i = 0;
 while i < 4u {
 	# 11,13,17,19
-	write [b,i];
+	f"%i{[b,i]}";
 	if i < 3u, ",";
 	else, "\n";
 	++i;
@@ -73,9 +63,9 @@ while i < 4u {
 i64* ptr = b;
 while ptr < c {
 	# 11,13,17,19
-	write [ptr];
-	if c-ptr > $[ptr], ",";
+	f"%i{[ptr]}";
+	if c - ptr > $[ptr], ",";
 	else, "\n";
-	++ptr;
+	ptr += $[ptr];
 }
 

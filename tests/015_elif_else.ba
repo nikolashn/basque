@@ -2,16 +2,15 @@
 
 i64 x = 0;
 while x <= 20 {
-	write x;
-	"! = ";
+	f"%i{x}! = ";
 
-	if x == 0, write 1;
-	elif x == 1, write 1;
+	if x == 0, f"%i{1}";
+	elif x == 1, f"%i{1}";
 	else {
 		i64 fact = x;
 		i64 y = x;
 		while y > 2, fact *= --y;
-		write fact;
+		f"%i{fact}";
 	}
 	"\n";
 	++x;

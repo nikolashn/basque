@@ -4,6 +4,5 @@ i64[2] arr = garbage;
 i64[2]* arrPtr = garbage;
 arrPtr = &arr;
 
-write [arr,0]; " = ";
-write [arrPtr ~ i64*]; "\n";
+f"%i{[arr,0]} = %i{[arrPtr ~ i64*]}\n";
 

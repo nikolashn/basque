@@ -31,30 +31,30 @@ In the future there will be support for many other types: floating point numbers
 
 ## Syntax
 ### Comments
-Single-line comments use a `#` symbol; multi-line comments begin with `#{` and end with `}#`, and do not nest.
+Single-line comments use a `#` symbol; multi-line comments begin with `#{` and end with `#}`, and do not nest.
 ```
 # Single line comment
-write "b a s q u e\n"; # Another single line comment
+"b a s q u e\n"; # Another single line comment
 #{
 Multiline
 comment
-}#
+#}
 ```
 ### Atoms
 An atom is one of the following:
-- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape sequences (`\" \' \\ \n \t \v \f \r \b \0`, `\x??` where `??` is an ASCII hexadecimal code, and `\` followed by a line break which represents no character). String literals are null-terminated `u8` arrays.
+- A string literal beginning and ending with a `"` character. String literals can contain line breaks and escape sequences (`\" \' \\ \n \t \v \f \r \b \a \e \0`, `\x??` where `??` is an 8-bit hexadecimal code, and `\` followed by a line break which represents no character). String literals are zero-terminated `u8` arrays.
 - A series of string literals (which then combine together into 1 string).
 - An integer literal (default decimal, but also includes hexadecimal, octal and binary literals with the `0x`, `0o` and `0b` prefixes respectively). They may contain underscores after the first digit or prefix, which has no effect but can be used to make numbers more readable (Compare `3817193423` and `3_817_193_423`). The suffix `u` can be added to a literal to make it unsigned. Integer literals with no suffix are of type `i64` unless they represent a value larger than 2^63, in which case they are `u64`.
-- A character literal beginning and ending with a `'` character. The character literal consists of either a single character or an escape sequence.
-- An identifier (variable). `write <identifier>;` converts the identifier's data to a string and outputs it.
+- A character literal beginning and ending with a `'` character. The character literal contains a representation of a single byte, either an ASCII character or an escape sequence.
+- An identifier, which consists of an alphabetic character or underscore, followed by not more than 254 characters, each of which is either alphanumeric or an underscore.
 - An array literal (see below).
 
 #### Array literal
 Syntax: `{ <expression>` { `, <expression>` } [ `,` ] `}`
 
-For example, `{ 1 + 2 + 3, 4 + 5, 6 }`, `{ stop, drop, roll, }`, `{ INIT_NUM }` are all syntactically valid array literals.
+For example, `{ 1 + 2 + 3, 4 + 5, 6 }`, `{ stop + 1, drop(), [roll], }`, `{ INIT_NUM }` are all syntactically valid array literals.
 
-Array literals represent series of values combined into a block of data, to which arrays (and in future, structs) can be assigned to. They can only be used as the right hand side of an assignment or definition of a variable or default func parameter, as an argument of a func call, or as the expression of a return statement. They have no other operations (notably they cannot be casted). If the literal is smaller than the array it is being set to, then the remainder of the array will be filled with garbage.
+Array literals represent series of values combined into a block of data, to which arrays can be assigned to. They can only be used as the right hand side of an assignment or definition of a variable or default func parameter, as an argument of a func call, or as the expression of a return statement. They have no other operations (notably they cannot be casted). If the literal is smaller than the array it is being set to, then the remainder of the array will be filled with garbage.
 
 ### Expressions
 An expression consists of atoms and operators (or just an atom on its own).
@@ -82,7 +82,12 @@ Func calls are a func followed by a comma-seperated list of expressions (argumen
 
 Only prefix increment (`++`) and decrement (`--`) are available in Basque. The operand of such operations must be an L-value.
 
-The `$` operation evaluates to the size of its operand in bytes. Its operand can be the name of a type rather than an expression.
+The `$` operation evaluates to the size of its operand in bytes. Its operand can be the name of a type rather than an expression. The evaluation for each type are as follows, where `T` represets any type, and `N` represents a particular arbitrary number:
+- `bool`: 1
+- `u8`, `i8`: 1
+- `u64`, `i64`: 8
+- `void*`, `T*`: 8
+- `T[N]`: size of `T` multiplied by `N` (e.g. `u64[5]` has a size of 40)
 
 The `&` unary prefix evaluates to the address of an l-value, string literal or array literal. For values of array type it results in the the address of the start of the array.
 
@@ -94,26 +99,16 @@ Bit shifts are modulo 64, so `a << 65` is the same as `a << 1`. If a number is s
 
 Integer division gives the quotient from truncated division (`16 // 3 == 5 == -16 // -3`, `16 // -3 == -5 == -16 // 3`), whereas the modulo operator uses the remainder from floored division (`16 % 3 == 1`, `16 % -3 == -2`, `-16 % 3 == 2`, `-16 % -3 == -1`). This is inconsistent but the floored version of modulo is more usable than the truncated version.
 
-Addition `+` and subtraction `-` do not have pointer arithmetic as in C. Adding to a pointer will just cast it to an integer. Use `&[ptr,n]` instead of `ptr+n*$[ptr]` (which would be `ptr+n` with C pointer arithmetic).
+Addition `+` and subtraction `-` do not have pointer arithmetic as in C. Arithmetical operations on pointers treat them as any other integer. Use `&[ptr,n]` instead of `ptr+n*$[ptr]` (which would be `ptr+n` with C pointer arithmetic).
 
-The `&&` and `||` operators are short-circuiting and always result in type `bool`.
+The `&&` and `||` operators are short-circuiting everywhere and always result in type `bool`.
 
-Comparison operators are non-associative: instead they work by chaining, like in mathematical notation. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`. Comparison operators result in type `bool`.
+Comparison operators are non-associative: instead they work by chaining, like in mathematical notation or in Python. This means that `a <= b < c` is equivalent to `(a <= b) && (b < c)` (including short-circuiting), and not `(a <= b) < c` or `a <= (b < c)`. Comparison operators result in type `bool`.
 
-All assignment operators are right-associative. The left-hand side of an assignment must be an L-value. So `a = 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 = 1`, `"hi" = msg` and `(x = y) = z` are invalid.
+All assignment operators are right-associative. The left-hand side of an assignment must be an L-value. So `a &= 1`, `(msg) = "hi"` and `x = y = z` are valid, but `a + 1 &= 1`, `"hi" = msg` and `(x = y) = z` are invalid.
 
 ### Statements
 Statements are combinations of expressions that can be sequentially laid out to form a program.
-
-#### Write statements
-Syntax: `write <expression>;`
-
-Outputs an expression to standard output (converting numeric expressions to `u64` and then to decimal strings of numbers). These are temporary and will eventually be replaced with library functions.
-```
-write "Hello world!\n"; # Hello world!
-write 7*12; # 84
-write -1; # 18446744073709551615
-```
 
 #### Expression statements
 Syntax: `<expression>;`
@@ -122,6 +117,61 @@ Normally, just evaluates the expression. If the expression is made up of string 
 ```
 5+2; # Does nothing
 "yo\n"; # yo
+```
+
+#### Formatted string statements
+Syntax: `<f-string>` { `<f-string>` } `;`
+
+A formatted string (f-string) is a statement which allows expressions to be interpolated into a string for printing or writing to a file or buffer array. An f-string starts with `f` or `F` followed by `"`, then a series of characters, and terminated by another `"`. F-strings can also use the same escape sequences as string literals between the double quotes, and furthermore there are the following format specifiers and escape sequences, which are identified by starting with the character `%` and acting on expressions enclosed by braces `{` and `}`.
+
+Format specifiers:
+
+`%i{` expression `}`
+
+Formats the expression as a signed 64-bit decimal number (`i64`).
+
+`%u{` expression `}`
+
+Formats the expression as an unsigned 64-bit decimal number (`u64`).
+
+`%x{` expression `}`
+
+Formats the expression as an unsigned 64-bit hexadecimal number.
+
+`%o{` expression `}`
+
+Formats the expression as an unsigned 64-bit octal number.
+
+`%b{` expression `}`
+
+Formats the expression as an unsigned 64-bit binary number.
+
+`%c{` expression `}`
+
+Formats the expression as an ASCII character (`u8`).
+
+`%s{` expression `}{` expression `}`
+
+Formats the second expression a string, interpreting the first expression as the string's length, and the second as a `u8*` to the start of the string.
+
+Escape sequences:
+
+`%%` - character `%`
+`%{` - character `{`
+`%}` - character `}`
+
+Example:
+```
+u8[] str = "hello!";
+i64 num = -5;
+u8 char = 'X';
+u64 foo = 55;
+f"%s{$str}{&str} there are %i{num} little monkeys, %c{char} marks the "
+f"spot, both %u{45+foo}%% true facts\n";
+```
+Output of example:
+```
+hello! there are -5 little monkeys, X marks the spot, both 100% true facts
 ```
 
 #### Variable definition
@@ -143,7 +193,7 @@ u64 mysteriousNumber = garbage;
 #### Func definition/forward declaration
 Syntax: `<type> <identifier> (` [ { `<type>` [ `<identifier>` [ `= <expression>` ] ] `,` } `<type>` [ `<identifier>` [ `= <expression>` ] ] ] `)` ( `, <statement>` | `{` { `<statement>` } `}` | `;` )
 
-Defines a func. The first token is the return type of the func, which may be `void`. A func can be forward declared if only a semicolon rather than statements are provided after the parameters list. For forward declarations, the identifier of a parameter may be omitted, but this is not the case for full definitions. Also, default arguments may be given in the definition of a function if it is not a forward declaration.
+Defines a func. The first token is the return type of the func, which may be `void`, meaning that the func does not return a value. A func can be forward declared if only a semicolon rather than statements are provided after the parameters list. For forward declarations, the identifier of a parameter may be omitted, but this is not the case for full definitions. Also, default arguments may be given in the definition of a function if it is not a forward declaration.
 
 Examples of func definitions:
 ```
@@ -158,10 +208,10 @@ i64 Add(i64 a = 0, i64 b = 0), return a + b;
 
 void WriteI64(i64 num) {
 	if num < 0 {
-		write "-";
+		"-";
 		num = -num;
 	}
-	write num;
+	f"%u{num}";
 }
 ```
 Examples of forward declarations:
@@ -217,16 +267,15 @@ if x == 0 {
 	"zero\n";
 }
 elif x == 1 {
-	write 1;
-	" is the loneliest number\n";
+	f"%u{1} is the loneliest number\n";
 }
 else {
-	if x > 0, write x*(x-1);
+	if x > 0, f"%u{x*(x-1)}";
 	else {
 		if x % 2 {
-			write -x;
+			f"%u{-x}";
 		}
-		else, write -x-1;
+		else, f"%u{-x-1}";
 	}
 	"\n";
 }
@@ -252,7 +301,7 @@ while c {
 i64 i = 0;
 while i < 10 iter ++i {
 	if i != 0, ",";
-	write i;
+	f"%i{i}";
 }
 "\n";
 ```
@@ -269,10 +318,10 @@ u64 a = 500;
 	{
 		u64 c = 2;
 	}
-	# write c; # Error
+	# c = 4; # Error
 }
-write a; "\n";
-# write b; # Error
+f"%u{a}\n";
+# f"%u{b}\n"; # Error
 # c = 25; # Error
 ```
 
@@ -289,7 +338,7 @@ u64 i = 0;
 while 1 {
 	if i == 15u, break;
 	elif i % 2, goto lbl_LoopEnd;
-	write i; "\n";
+	f"%u{i}\n";
 	lbl_LoopEnd:
 	++i;
 }

@@ -6,7 +6,7 @@ i64 fd = Open(&"/tmp/test", 0o00001101, 0o644);
 	u8[] buf = "Hello world!\n";
 	Write(&buf, $buf-1u, fd);
 }
-LSeek(fd, 6, 0 #{ SEEK_SET }#);
+LSeek(fd, 6, 0 #{ SEEK_SET #});
 {
    u8[] buf = "basque\n";
    Write(&buf, $buf-1u, fd);

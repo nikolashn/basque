@@ -1,5 +1,5 @@
 i64** ptr = garbage;
 #{ Although this would certainly cause a segfault, since the theoretical size 
-   is known on compile time, there is no issue }#
-write $[ptr,[ptr,[ptr,[ptr]]],0]; "\n";
+   is known on compile time, there is no issue #}
+f"%u{ $[ptr,[ptr,[ptr,[ptr]]],0] }\n";
 

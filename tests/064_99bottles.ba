@@ -1,0 +1,6 @@
+i64 i = 100;
+while --i {
+  f"%i{i} bottles of beer on the wall\n%i{i} bottles of beer\nTake one down, ";
+  f"pass it around\n%i{i-1} bottles of beer on the wall\n\n";
+}
+

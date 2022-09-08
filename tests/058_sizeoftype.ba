@@ -1,13 +1,13 @@
 #{
 	Expected output:
 	8,8,1,1,40,15,8
-}#
+#}
 
-write $u64; ",";
-write $u8*; ",";
-write $i8; ",";
-write $bool; ",";
-write $u64[5]; ",";
-write $u8[3][5]; ",";
-write $i64*; "\n";
+f"%u{$u64},";
+f"%u{$u8*},";
+f"%u{$i8},";
+f"%u{$bool},";
+f"%u{$u64[5]},";
+f"%u{$u8[3][5]},";
+f"%u{$i64*}\n";
 

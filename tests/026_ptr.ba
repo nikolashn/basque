@@ -3,14 +3,14 @@ i64 y = 9000;
 i64* xPtr = &x;
 void* lel = &y;
 
-write xPtr; "\n";
-write lel; "\n";
+f"%x{xPtr}\n";
+f"%x{lel}\n";
 
 xPtr = lel;
 xPtr = &lel; # Gives warning: assigning int** -> int*
 xPtr = (&lel) ~ void*; # No warning
 lel = &lel;
 
-write xPtr; "\n";
-write lel; "\n";
+f"%x{xPtr}\n";
+f"%x{lel}\n";
 

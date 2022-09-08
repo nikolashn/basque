@@ -4,9 +4,8 @@
 #define BA__LEXER_H
 
 #include "common/common.h"
-#include "common/lexeme.h"
 #include "common/ctr.h"
 
-u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr);
+bool ba_Tokenize(struct ba_Ctr* ctr, FILE* srcFile);
 
 #endif

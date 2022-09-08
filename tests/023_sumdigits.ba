@@ -2,8 +2,8 @@ u64 SumDigits(u64 num) {
 	u64 sum = 0;
 	u64 rem = 0;
 	while num {
-		rem = num % 10;
-		num //= 10;
+		rem = num % 10u;
+		num //= 10u;
 		sum += rem;
 	}
 	return sum;

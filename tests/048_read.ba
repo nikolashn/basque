@@ -2,6 +2,6 @@ include "sys";
 u8[128] buf = garbage;
 
 u64 len = Read(&buf, lengthof buf, 0);
-"amount of chars read: "; write len; "\n";
-"value of first char: "; write [buf, 0]; "\n";
+f"amount of chars read: %u{len}\n";
+f"value of first char: %u{[buf, 0]} '%c{[buf, 0]}'\n";
 

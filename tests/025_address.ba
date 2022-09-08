@@ -1,10 +1,9 @@
 i64 x = 1;
 i64 y = 2;
 
-write &x; "\n";
-write &y; "\n";
+f"%x{&x}\n";
+f"%x{&y}\n";
 
 # 8,8
-write &x - &y; ",";
-write $&x; "\n";
+f"%i{&x - &y},%i{$&x}\n";
 

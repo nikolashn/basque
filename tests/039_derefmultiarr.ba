@@ -1,7 +1,7 @@
 # Expected output:
 #{
 3 6 9 12 15
-}#
+#}
 
 i64[5][3] srcArr = garbage;
 u64 i = 0;
@@ -17,7 +17,7 @@ while i < 3u {
 i64[5] destArr = [srcArr, 2];
 i = 0;
 while i < 5u {
-	write [destArr, i]; " ";
+	f"%i{[destArr, i]} ";
 	++i;
 }
 "\n";

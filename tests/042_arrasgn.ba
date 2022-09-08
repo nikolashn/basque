@@ -1,13 +1,13 @@
 i64[3] x = { 9, 10, 21 };
 i64 i = 0;
 while i < 3 {
-	write [x,i]; "\n";
+	f"%i{[x,i]}\n";
 	++i;
 }
 i = 0;
 x = { 5, 6, 7 };
 while i < 3 {
-	write [x,i]; "\n";
+	f"%i{[x,i]}\n";
 	++i;
 }
 

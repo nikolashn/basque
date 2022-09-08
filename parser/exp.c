@@ -7,12 +7,17 @@
  *      | "{" exp { "," exp } [ "," ] "}" */
 u8 ba_PAtom(struct ba_Ctr* ctr) {
 	u64 lexLine = ctr->lex->line;
-	u64 lexColStart = ctr->lex->colStart;
+	u64 lexCol = ctr->lex->col;
 	u64 lexValLen = ctr->lex->valLen;
 	char* lexVal = 0;
-	if (ctr->lex->val) {
+	bool isLexValStr = ctr->lex->type == BA_TK_LITSTR || 
+		ctr->lex->type == BA_TK_LITINT || ctr->lex->type == BA_TK_IDENTIFIER;
+	if (isLexValStr) {
 		lexVal = ba_MAlloc(lexValLen+1);
 		memcpy(lexVal, ctr->lex->val, lexValLen+1);
+	}
+	else {
+		lexVal = ctr->lex->val;
 	}
 
 	// lit_str { lit_str }
@@ -31,7 +36,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			
 			if (len > BA_STACK_SIZE) {
 				return ba_ExitMsg2(BA_EXIT_ERR, "string at", ctr->lex->line, 
-					ctr->lex->colStart, ctr->currPath, 
+					ctr->lex->col, ctr->currPath, 
 					" too large to fit on the stack");
 			}
 
@@ -61,10 +66,10 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		if (lexVal[lexValLen-1] == 'u') {
 			// ba_StrToU64 cannot parse the 'u' suffix so it must be removed
 			lexVal[--lexValLen] = 0;
-			num = ba_StrToU64(lexVal, lexLine, lexColStart, ctr->currPath);
+			num = ba_StrToU64(lexVal, lexLine, lexCol, ctr->currPath);
 		}
 		else {
-			num = ba_StrToU64(lexVal, lexLine, lexColStart, ctr->currPath);
+			num = ba_StrToU64(lexVal, lexLine, lexCol, ctr->currPath);
 			if (num < (1llu << 63)) {
 				type = (struct ba_Type){ BA_TYPE_I64, 0 };
 			}
@@ -75,7 +80,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	// lit_char
 	else if (ba_PAccept(BA_TK_LITCHAR, ctr)) {
 		struct ba_Type type = { BA_TYPE_U8, 0 };
-		ba_PTkStkPush(ctr->pTkStk, (void*)(u64)lexVal[0], type, BA_TK_LITINT,
+		ba_PTkStkPush(ctr->pTkStk, (void*)(u64)lexVal, type, BA_TK_LITINT,
 			/* isLValue = */ 0, /* isConst = */ 1);
 	}
 	// identifier
@@ -83,7 +88,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		struct ba_SymTable* stFoundIn = 0;
 		struct ba_STVal* id = ba_STParentFind(ctr->currScope, &stFoundIn, lexVal);
 		if (!id) {
-			return ba_ErrorIdUndef(lexVal, lexLine, lexColStart, ctr->currPath);
+			return ba_ErrorIdUndef(lexVal, lexLine, lexCol, ctr->currPath);
 		}
 		ba_PTkStkPush(ctr->pTkStk, (void*)id, id->type, BA_TK_IDENTIFIER, 
 			/* isLValue = */ 1, /* isConst = */ 0);
@@ -91,16 +96,16 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 	// "{" exp { "," exp } [ "," ] "}"
 	else if (ba_PAccept('{', ctr)) {
 		// TODO: add nesting arrays
-		!ctr->isPermitArrLit &&
+		ctr->isPermitArrLit ||
 			ba_ExitMsg(BA_EXIT_ERR, "used array literal in context where it is "
-				"not permitted", lexLine, lexColStart, ctr->currPath);
+				"not permitted", lexLine, lexCol, ctr->currPath);
 		
 		struct ba_Type* coercedType = ba_StkTop(ctr->expCoercedTypeStk);
 		
 		if (coercedType->type != BA_TYPE_ARR) {
 			fprintf(stderr, "Error: cannot coerce array literal to type '%s' "
 				"on line %llu:%llu in %s\n", ba_GetTypeStr(*coercedType), 
-				lexLine, lexColStart, ctr->currPath);
+				lexLine, lexCol, ctr->currPath);
 			exit(-1);
 		}
 	
@@ -136,7 +141,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 				 (!isArrNum && 
 				  !ba_AreTypesEqual(extraInfo->type, stkItem->typeInfo)))
 			{
-				ba_ErrorConvertTypes(lexLine, lexColStart, ctr->currPath, 
+				ba_ErrorConvertTypes(lexLine, lexCol, ctr->currPath, 
 					stkItem->typeInfo, extraInfo->type);
 			}
 
@@ -146,9 +151,8 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 
 			if (extraInfo->cnt && cnt > extraInfo->cnt) {
 				ba_ExitMsg2(BA_EXIT_WARN, "number of elements in array literal "
-					"is greater than of expected type on", lexLine, lexColStart,
-					ctr->currPath, 
-					ba_IsWarnsAsErrs() ? "" : ", array literal truncated");
+					"is greater than of expected type on", lexLine, lexCol,
+					ctr->currPath, ba_IsWarnsAsErrs() ? "" : ", array literal truncated");
 				hasTruncationWarning = 1;
 			}
 
@@ -156,12 +160,12 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			u8* memStart = statObj->arr->arr + addr;
 			
 			++cnt;
-			statObj->arr->cnt += itemSz;
+			statObj->arr->cnt += fundamentalSz;
 			(statObj->arr->cnt > statObj->arr->cap) && ba_ResizeDynArr8(statObj->arr);
 			
 			if (stkItem->isConst) {
 				if (stkItem->lexemeType == BA_TK_LITINT) {
-					memcpy(memStart, &stkItem->val, itemSz);
+					memcpy(memStart, &stkItem->val, fundamentalSz);
 				}
 				else if (stkItem->lexemeType == BA_TK_LITSTR) {
 					struct ba_Str* str = stkItem->val;
@@ -177,7 +181,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			else {
 				// TODO: handle types that cannot be put in a register
 				isConst = 0;
-				memset(memStart, 0, itemSz);
+				memset(memStart, 0, fundamentalSz);
 				if (stkItem->lexemeType != BA_TK_IMREGISTER || 
 					(u64)stkItem->val != BA_IM_RAX) 
 				{
@@ -206,10 +210,10 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		ctr->paren = oldParen;
 		ctr->bracket = oldBracket;
 
-		!extraInfo->cnt && (extraInfo->cnt = cnt); // Indefinite arrays
+		extraInfo->cnt || (extraInfo->cnt = cnt); // Indefinite arrays
 		if (!stkItem) {
 			return ba_ExitMsg(BA_EXIT_ERR, "expected expression on", lexLine, 
-				lexColStart, ctr->currPath);
+				lexCol, ctr->currPath);
 		}
 		ba_PExpect('}', ctr);
 
@@ -223,7 +227,9 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 		return 0;
 	}
 
-	free(lexVal);
+	if (isLexValStr) {
+		free(lexVal);
+	}
 	return 1;
 }
 
@@ -413,7 +419,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 	while (1) {
 		u64 lexType = ctr->lex->type;
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		// Start of an expression or after a binary operator
 		if (!isAfterAtom) {
@@ -691,7 +697,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 		}
 
 		line = ctr->lex->line;
-		col = ctr->lex->colStart;
+		col = ctr->lex->col;
 	}
 
 	BA_LBL_PEXP_END:;
@@ -708,8 +714,8 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 		}
 	}
 
-	!ba_PCorrectDPtr(ctr, ba_StkTop(ctr->pTkStk)) &&
-		ba_ErrorDerefInvalid(ctr->lex->line, ctr->lex->colStart, ctr->currPath);
+	ba_PCorrectDPtr(ctr, ba_StkTop(ctr->pTkStk)) || 
+		ba_ErrorDerefInvalid(ctr->lex->line, ctr->lex->col, ctr->currPath);
 
 	if (ctr->paren || ctr->bracket) {
 		return 1;

@@ -1,4 +1,2 @@
-write SumDigits(123); ",";
-write SumDigits(0); ",";
-write SumDigits(59291); "\n";
+f"%u{SumDigits(123)}, %u{SumDigits(0)}, %u{SumDigits(59291)}\n";
 

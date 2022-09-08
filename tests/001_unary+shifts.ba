@@ -2,46 +2,30 @@
 	Expected output:
 	17 21 17
 	12345678902357111317
-	18446744073709551595 12
+	-21 12
 	18446744073709551604 12 12
 	1 0 0
-	18446744073709551615 0 11
-	18446744073709551615 13
+	-1 0 11
+	-1 13
 	12 12 64 2
 	2 64 2 2
-}#
+#}
 
-write 2 + 5 * 3; " ";
-write (2 + 5) * 3; " ";
-write 2 + (5 * 3); "\n";
+f"%i{2 + 5 * 3} %i{(2 + 5) * 3} %i{2 + (5 * 3)}\n";
 
 i64 x = 12345678902357111317;
 i64 y = -21;
-write x; "\n";
-write y; " ";
+f"%i{x}\n%i{y} ";
 u64 z = 5 + 10 * 15 // 20;
 u64 a = -z;
-write z; "\n";
-write a; " ";
-write -a; " ";
-write - -z; "\n";
+f"%u{z}\n%u{a} %u{-a} %u{- -z}\n";
 
 i64 zero = 0;
 i64 one = !zero;
-write !zero; " ";
-write !!zero; " ";
-write !one; "\n";
-write -!zero; " ";
-write !!zero; " ";
-write ~a; "\n";
-write ~zero; " ";
-write +-~z; "\n";
+f"%i{!zero} %i{!!zero} %i{!one}\n"
+f"%i{-!zero} %i{!!zero} %i{~a}\n";
+f"%i{~zero} %i{+-~z}\n";
 
-write 6 << one; " ";
-write 6 << - -one; " ";
-write one << 6; " ";
-write one << one; "\n";
-write one << - -one; " ";
-write - -one << 6; " ";
-write - -one << one; " ";
-write - -one << - -one; "\n";
+f"%i{6 << one} %i{6 << - -one} %i{one << 6} %i{one << one}\n";
+f"%i{one << - -one} %i{- -one << 6} %i{- -one << one} %i{- -one << - -one}\n";
+

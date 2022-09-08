@@ -1,5 +1,5 @@
 u64 Double(u64 num) {
-	return num * 2;
+	return num * 2u;
 }
 
 "Helper file included.\n";

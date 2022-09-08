@@ -394,6 +394,8 @@ u8 ba_PCorrectDPtr(struct ba_Ctr* ctr, struct ba_PTkStkItem* item) {
 	return 1;
 }
 
+/* TODO: add a flag to remove checks for pointer arithmetic assignment, or pass
+ * the type of assignment to the function */
 u8 ba_POpAssignChecks(struct ba_Ctr* ctr, struct ba_Type lhsType, 
 	struct ba_PTkStkItem* rhs, u64 line, u64 col) 
 {

@@ -36,26 +36,28 @@ enum {
 	BA_TK_LITINT      = 0x201,
 	BA_TK_LITCHAR     = 0x202,
 	BA_TK_IDENTIFIER  = 0x203,
+	BA_TK_FSTRING     = 0x204,
 
-	BA_TK_KW_WRITE    = 0x300,
-	BA_TK_KW_U64      = 0x301,
-	BA_TK_KW_I64      = 0x302,
-	BA_TK_KW_IF       = 0x303,
-	BA_TK_KW_ELIF     = 0x304,
-	BA_TK_KW_ELSE     = 0x305,
-	BA_TK_KW_WHILE    = 0x306,
-	BA_TK_KW_BREAK    = 0x307,
-	BA_TK_KW_GOTO     = 0x308,
-	BA_TK_KW_RETURN   = 0x309,
-	BA_TK_KW_VOID     = 0x30a,
-	BA_TK_KW_INCLUDE  = 0x30b,
-	BA_TK_KW_EXIT     = 0x30c,
-	BA_TK_KW_U8       = 0x30d,
-	BA_TK_KW_I8       = 0x30e,
-	BA_TK_KW_GARBAGE  = 0x30f,
-	BA_TK_KW_LENGTHOF = 0x310,
-	BA_TK_KW_ITER     = 0x311,
-	BA_TK_KW_BOOL     = 0x312,
+	BA_TK_KW_FWRITE   = 0x300,
+	BA_TK_KW_SWRITE   = 0x301,
+	BA_TK_KW_U64      = 0x302,
+	BA_TK_KW_I64      = 0x303,
+	BA_TK_KW_IF       = 0x304,
+	BA_TK_KW_ELIF     = 0x305,
+	BA_TK_KW_ELSE     = 0x306,
+	BA_TK_KW_WHILE    = 0x307,
+	BA_TK_KW_BREAK    = 0x308,
+	BA_TK_KW_GOTO     = 0x309,
+	BA_TK_KW_RETURN   = 0x310,
+	BA_TK_KW_VOID     = 0x31a,
+	BA_TK_KW_INCLUDE  = 0x31b,
+	BA_TK_KW_EXIT     = 0x31c,
+	BA_TK_KW_U8       = 0x31d,
+	BA_TK_KW_I8       = 0x31e,
+	BA_TK_KW_GARBAGE  = 0x31f,
+	BA_TK_KW_LENGTHOF = 0x311,
+	BA_TK_KW_ITER     = 0x312,
+	BA_TK_KW_BOOL     = 0x313,
 
 	// Used to change ctr->currPath
 	BA_TK_FILECHANGE = 0xfff,
@@ -69,7 +71,8 @@ enum {
 
 struct ba_Lexeme {
 	u64 type;
-	u64 line, colStart;
+	u64 line;
+	u64 col;
 	char* val;
 	u64 valLen;
 	struct ba_Lexeme* next;

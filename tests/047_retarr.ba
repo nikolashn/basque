@@ -7,7 +7,7 @@ u64[] x = F();
 u64 i = 0;
 while i < lengthof x {
 	if i, ", ";
-	write [x,i];
+	f"%u{[x,i]}";
 	++i;
 }
 "\n";

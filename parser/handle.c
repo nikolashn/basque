@@ -190,8 +190,6 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				u64 imOp = op->lexemeType == BA_TK_INC ? BA_IM_INC : BA_IM_DEC;
-				u64 ptrImOp = 
-					op->lexemeType == BA_TK_INC ? BA_IM_ADD : BA_IM_SUB;
 
 				u64 argReg = 0;
 				u64 stackPos = 0;
@@ -271,9 +269,9 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 			if (op->lexemeType != '=' &&
 				!ba_IsLexemeCompoundAssign(op->lexemeType))
 			{
-				!ba_PCorrectDPtr(ctr, lhs) &&
+				ba_PCorrectDPtr(ctr, lhs) ||
 					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
-				!ba_PCorrectDPtr(ctr, rhs) &&
+				ba_PCorrectDPtr(ctr, rhs) ||
 					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 			}
 
@@ -950,7 +948,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 				}
 
 				u64 movReg = (u64)ba_StkTop(ctr->cmpRegStk);
-				!movReg && (movReg = realRegL);
+				movReg || (movReg = realRegL);
 
 				ba_AddIM(ctr, 3, BA_IM_CMP, realRegL, realRegR);
 				ba_AddIM(ctr, 2, imOpSet, movReg - BA_IM_RAX + BA_IM_AL);
@@ -1311,7 +1309,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 			}
 			else if (op->lexemeType == '~') {
 				struct ba_PTkStkItem* castedExp = ba_StkPop(ctr->pTkStk);
-				!ba_PCorrectDPtr(ctr, castedExp) && 
+				ba_PCorrectDPtr(ctr, castedExp) || 
 					ba_ErrorDerefInvalid(op->line, op->col, ctr->currPath);
 				if (!castedExp) {
 					return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", 

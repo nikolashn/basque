@@ -13,7 +13,7 @@
 #include "../common/lexeme.h"
 #include "../common/parser.h"
 #include "../common/reg.h"
-#include "../common/u64tostr.h"
+#include "../common/format.h"
 #include "../bltin/bltin.h"
 
 u8 ba_PAccept(u64 type, struct ba_Ctr* ctr);

@@ -27,7 +27,7 @@ u8 ba_Parse(struct ba_Ctr* ctr) {
 					ba_GetLexemeStr(ctr->lex->type));
 			}
 			return ba_ExitMsg(BA_EXIT_ERR, msg, ctr->lex->line, 
-				ctr->lex->colStart, ctr->currPath);
+				ctr->lex->col, ctr->currPath);
 		}
 	}
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSP, BA_IM_RBP);

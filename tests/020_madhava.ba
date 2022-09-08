@@ -10,14 +10,14 @@
 	6115680/2027025
 	112074660/34459425
 	1991580840/654729075
-}#
+#}
 
 # Generates the Madhava-Leibniz approximations for pi
-void Madhava(u64 x) {
-	u64 num = 1;
-	u64 denom = 1;
+void Madhava(i64 x) {
+	i64 num = 1;
+	i64 denom = 1;
 	while x {
-		u64 term = 2 * x + 1;
+		i64 term = 2 * x + 1;
 		num *= term;
 		if x % 2, num -= denom;
 		else, num += denom;
@@ -25,8 +25,7 @@ void Madhava(u64 x) {
 		--x;
 	}
 	num *= 4;
-	write num; "/";
-	write denom; "\n";
+	f"%u{num}/%u{denom}\n";
 }
 
 u64 i = 0;
