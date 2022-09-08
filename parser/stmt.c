@@ -1,9 +1,54 @@
 // See LICENSE for copyright/license information
 
 #include "common.h"
+#include "fstr.h"
 
-/* stmt = "write" exp ";" 
- *      | "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
+void PrintStr(struct ba_Ctr* ctr, u64 len, char* str) {
+	// Round up to nearest 0x08
+	u64 memLen = (len + 0x7) & ~0x7;
+	if (!memLen) {
+		memLen = 0x8;
+	}
+	
+	// Allocate stack memory
+	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
+
+	u64 val = 0;
+	u64 strIter = 0;
+	u64 adrAdd = 0;
+	
+	// Store the string on the stack
+	while (1) {
+		if ((strIter && !(strIter & 7)) || (strIter >= len)) {
+			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
+			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
+				adrAdd, BA_IM_RAX);
+			
+			if (!(strIter & 7)) {
+				adrAdd += 8;
+				val = 0;
+			}
+			if (strIter >= len) {
+				break;
+			}
+		}
+		val |= (u64)(u8)str[strIter] << ((strIter & 7) << 3);
+		++strIter;
+	}
+	
+	// write
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
+	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+	
+	// deallocate stack memory
+	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
+}
+
+
+/* stmt = "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
  *        [ "else" ( commaStmt | scope ) ]
  *      | "while" exp [ "iter" exp ] ( commaStmt | scope )
  *      | "break" ";"
@@ -18,12 +63,13 @@
  *        base_type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
  *      | base_type identifier "=" exp ";"
  *      | identifier ":"
- *      | exp ";"
+ *      | fstring { fstring } ";"
+ *      | exp [ ( "swrite" | "fwrite" ) ( exp | fstring { fstring } ) ] ";"
  *      | ";" 
  */
 u8 ba_PStmt(struct ba_Ctr* ctr) {
 	u64 firstLine = ctr->lex->line;
-	u64 firstCol = ctr->lex->colStart;
+	u64 firstCol = ctr->lex->col;
 
 	// <file change>
 	if (ctr->lex->type == BA_TK_FILECHANGE) {
@@ -31,95 +77,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		strcpy(ctr->currPath, ctr->lex->val);
 		return ba_PAccept(BA_TK_FILECHANGE, ctr);
 	}
-	// "write" ...
-	else if (ba_PAccept(BA_TK_KW_WRITE, ctr)) {
-		/* TODO: this should eventually be replaced with a function
-		 * and a lone string literal statement */
-	
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
-
-		// ... exp ...
-		if (!ba_PExp(ctr)) {
-			return 0;
-		}
-
-		char* str;
-		u64 len;
-		
-		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
-		if (!stkItem) {
-			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col, 
-				ctr->currPath);
-		}
-
-		if (stkItem->lexemeType == BA_TK_LITSTR) {
-			str = ((struct ba_Str*)stkItem->val)->str;
-			len = ((struct ba_Str*)stkItem->val)->len;
-		}
-		// Everything is printed as unsigned, this will be removed in the 
-		// future anyway so i don't care about adding signed representation
-		else if (ba_IsTypeInt(stkItem->typeInfo)) {
-			u64 size = ba_GetSizeOfType(stkItem->typeInfo);
-			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				if (size < 8) {
-					stkItem->val = (void*)((u64)stkItem->val & ((1llu<<(size*8))-1));
-				}
-				str = ba_U64ToStr((u64)stkItem->val);
-				len = strlen(str);
-			}
-			else {
-				// U64ToStr is needed
-				if (!ba_BltinFlagsTest(BA_BLTIN_U64ToStr)) {
-					ba_BltinU64ToStr(ctr);
-				}
-
-				ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
-				if (stkItem->lexemeType == BA_TK_IMREGISTER && 
-					(u64)stkItem->val != BA_IM_RAX) 
-				{
-					ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, (u64)stkItem->val);
-				}
-				// Note: stkItem->lexemeType won't ever be BA_TK_IMSTACK
-				
-				ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
-
-				ba_AddIM(ctr, 2, BA_IM_LABELCALL, ba_BltinLblGet(BA_BLTIN_U64ToStr));
-
-				// write
-				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-				ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-				ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-				ba_AddIM(ctr, 1, BA_IM_SYSCALL);
-
-				// deallocate stack memory
-				ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x38);
-
-				// ... ';'
-				ba_PExpect(';', ctr);
-
-				return 1;
-			}
-		}
-		else {
-			return ba_ExitMsg(BA_EXIT_ERR, "expression of incorrect type "
-				"used with 'write' keyword on", line, col, ctr->currPath);
-		}
-
-		// ... ";"
-		// Generates IM code
-		if (ba_PExpect(';', ctr)) {
-			ba_PStmtWrite(ctr, len, str);
-			free(str);
-			free(stkItem);
-			return 1;
-		}
-	}
 	// "if" ...
 	else if (ba_PAccept(BA_TK_KW_IF, ctr)) {
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		bool hasReachedElse = 0;
 
@@ -198,7 +159,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	// "while" ...
 	else if (ba_PAccept(BA_TK_KW_WHILE, ctr)) {
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		u64 startLblId = ctr->labelCnt++;
 		ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RBP);
@@ -326,7 +287,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		ba_StkPush(ctr->expCoercedTypeStk, &func->retType);
 		ctr->isPermitArrLit = 1;
@@ -432,7 +393,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
 			return 0;
@@ -476,8 +437,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			
 			if (len > BA_STACK_SIZE) {
 				return ba_ExitMsg2(BA_EXIT_ERR, "string at", ctr->lex->line, 
-					ctr->lex->colStart, ctr->currPath, 
-					" too large to fit on the stack");
+					ctr->lex->col, ctr->currPath, " too large to fit on the stack");
 			}
 
 			fileName = ba_Realloc(fileName, len+1);
@@ -527,18 +487,18 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			ctr->inclInodes->arr[ctr->inclInodes->cnt-1] = inclFileStat.st_ino;
 
 			u64 line = ctr->lex->line;
-			u64 col = ctr->lex->colStart;
+			u64 col = ctr->lex->col;
 
 			struct ba_Lexeme* oldNextLex = ctr->lex;
 			ctr->lex = ba_NewLexeme();
-			ba_Tokenize(includeFile, ctr);
+			ba_Tokenize(ctr, includeFile);
 			struct ba_Lexeme* nextLex = ctr->lex;
 			while (nextLex->next) {
 				nextLex = nextLex->next;
 			}
 			nextLex->type = BA_TK_FILECHANGE;
 			nextLex->line = line;
-			nextLex->colStart = col;
+			nextLex->col = col;
 
 			nextLex->valLen = strlen(ctr->currPath);
 			nextLex->val = ba_MAlloc(nextLex->valLen+1);
@@ -570,7 +530,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
 			return 0;
@@ -598,7 +558,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 
 		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->colStart;
+		u64 col = ctr->lex->col;
 
 		ba_PExpect(BA_TK_IDENTIFIER, ctr);
 		ba_PExpect(':', ctr);
@@ -615,14 +575,206 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 		return 1;
 	}
-	// exp ";"
-	else if (ba_PExp(ctr)) {
+	// fstring { fstring } ";"
+	else if (ba_PFStr(ctr)) {
+		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
+		struct ba_FStr* fstr = stkItem->val;
+		free(stkItem);
+		while (fstr) {
+			if (!fstr->formatType) {
+				if (fstr->len) {
+					PrintStr(ctr, fstr->len, fstr->val);
+				}
+			}
+			else {
+				bool isFormatNum = fstr->formatType != BA_FTYPE_CHAR && 
+					fstr->formatType != BA_FTYPE_STR;
+
+				struct ba_Lexeme* lex = ctr->lex;
+				if (fstr->formatType == BA_FTYPE_STR) {
+					ctr->lex = (void*)fstr->len;
+					ctr->usedRegisters |= BA_CTRREG_RDX | BA_CTRREG_RSI;
+				}
+				else {
+					ctr->lex = fstr->val;
+				}
+
+				u64 line = ctr->lex->line;
+				u64 col = ctr->lex->col;
+				ba_PExp(ctr);
+				ctr->lex = lex;
+				stkItem = ba_StkPop(ctr->pTkStk);
+				
+				u64 val = (u64)stkItem->val;
+				u64 size = ba_GetSizeOfType(stkItem->typeInfo);
+				bool isLiteral = ba_IsLexemeLiteral(stkItem->lexemeType);
+				char* str = 0;
+				u64 len = 0;
+
+				if (!ba_IsTypeNum(stkItem->typeInfo)) {
+					return ba_ErrorConvertTypes(line, col, ctr->currPath,
+						ba_GetFStrType(fstr->formatType), stkItem->typeInfo);
+				}
+				
+				if (isFormatNum && isLiteral && size < 8) {
+					val = val & ((1llu<<(size*8))-1);
+				}
+
+				if (!isLiteral && isFormatNum) {
+					ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 
+						fstr->formatType == BA_FTYPE_BIN ? 0x40 : 0x18);
+					ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
+					if (stkItem->lexemeType == BA_TK_IMREGISTER && val != BA_IM_RAX) {
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, val);
+					}
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+				}
+
+				switch (fstr->formatType) {
+					case BA_FTYPE_I64:
+						if (!isLiteral) {
+							if (!ba_BltinFlagsTest(BA_BLTIN_FormatI64ToStr)) {
+								ba_BltinI64ToStr(ctr);
+							}
+							ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
+								ba_BltinLblGet(BA_BLTIN_FormatI64ToStr));
+							break;
+						}
+						str = ba_I64ToStr(val, &len);
+						break;
+
+					case BA_FTYPE_U64:
+						if (!isLiteral) {
+							if (!ba_BltinFlagsTest(BA_BLTIN_FormatU64ToStr)) {
+								ba_BltinU64ToStr(ctr);
+							}
+							ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
+								ba_BltinLblGet(BA_BLTIN_FormatU64ToStr));
+							break;
+						}
+						str = ba_U64ToStr(val, &len);
+						break;
+
+					case BA_FTYPE_HEX:
+						if (!isLiteral) {
+							if (!ba_BltinFlagsTest(BA_BLTIN_FormatHexToStr)) {
+								ba_BltinHexToStr(ctr);
+							}
+							ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
+								ba_BltinLblGet(BA_BLTIN_FormatHexToStr));
+							break;
+						}
+						str = ba_HexToStr(val, &len);
+						break;
+
+					case BA_FTYPE_OCT:
+						if (!isLiteral) {
+							if (!ba_BltinFlagsTest(BA_BLTIN_FormatOctToStr)) {
+								ba_BltinOctToStr(ctr);
+							}
+							ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
+								ba_BltinLblGet(BA_BLTIN_FormatOctToStr));
+							break;
+						}
+						str = ba_OctToStr(val, &len);
+						break;
+
+					case BA_FTYPE_BIN:
+						if (!isLiteral) {
+							if (!ba_BltinFlagsTest(BA_BLTIN_FormatBinToStr)) {
+								ba_BltinBinToStr(ctr);
+							}
+							ba_AddIM(ctr, 2, BA_IM_LABELCALL, 
+								ba_BltinLblGet(BA_BLTIN_FormatBinToStr));
+							break;
+						}
+						str = ba_BinToStr(val, &len);
+						break;
+
+					case BA_FTYPE_CHAR:
+						if (isLiteral) {
+							ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_AL, BA_IM_IMM, val);
+						}
+						else {
+							ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
+							if (stkItem->lexemeType == BA_TK_IMREGISTER && val != BA_IM_RAX) {
+								ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, val);
+							}
+						}
+						ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RAX);
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
+						ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+						ba_AddIM(ctr, 2, BA_IM_POP, BA_IM_RAX);
+						break;
+
+					case BA_FTYPE_STR:
+						// Size in rdx for the syscall
+						ba_POpMovArgToReg(ctr, stkItem, BA_IM_RDX, isLiteral);
+						if (stkItem->lexemeType == BA_TK_IMREGISTER && val != BA_IM_RDX) {
+							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDX, val);
+						}
+						
+						/* The "length" argument has been parsed already, 
+						 * now parse the pointer to the string */
+						lex = ctr->lex;
+						ctr->lex = fstr->val;
+						ba_PExp(ctr);
+						ctr->lex = lex;
+						stkItem = ba_StkPop(ctr->pTkStk);
+						
+						val = (u64)stkItem->val;
+						size = ba_GetSizeOfType(stkItem->typeInfo);
+						isLiteral = ba_IsLexemeLiteral(stkItem->lexemeType);
+						
+						// Pointer in rsi for the syscall
+						ba_POpMovArgToReg(ctr, stkItem, BA_IM_RSI, isLiteral);
+						if (stkItem->lexemeType == BA_TK_IMREGISTER && val != BA_IM_RSI) {
+							ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, val);
+						}
+
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+						break;
+
+					default:
+						fprintf(stderr, "invalid format type 0x%llx\n", fstr->formatType);
+						exit(-1);
+				}
+
+				if (isFormatNum) {
+					if (isLiteral) {
+						PrintStr(ctr, len, str);
+						free(str);
+					}
+					else {
+						ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x8);
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
+						ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+						ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 
+							fstr->formatType == BA_FTYPE_BIN ? 0x40 : 0x18);
+					}
+				}
+			}
+			free(fstr);
+			fstr = fstr->next;
+		}
+		return ba_PExpect(';', ctr);
+	}
+	// exp [ ( "swrite" | "fwrite" ) ( exp | fstring { fstring } ) ] ";"
+	else if (ba_PExp(ctr)) { // TODO: update
 		struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 
 		// String literals by themselves in statements are written to standard output
 		if (expItem->lexemeType == BA_TK_LITSTR) {
 			char* str = ((struct ba_Str*)expItem->val)->str;
-			ba_PStmtWrite(ctr, ((struct ba_Str*)expItem->val)->len, str);
+			PrintStr(ctr, ((struct ba_Str*)expItem->val)->len, str);
 			free(str);
 			free(expItem);
 		}
@@ -736,7 +888,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 				}
 
 				line = ctr->lex->line;
-				col = ctr->lex->colStart;
+				col = ctr->lex->col;
 
 				// ... identifier ...
 				if (!ba_PAccept(BA_TK_IDENTIFIER, ctr)) {
@@ -781,7 +933,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 				// ... "=" exp ...
 				line = ctr->lex->line;
-				col = ctr->lex->colStart;
+				col = ctr->lex->col;
 
 				ba_StkPush(ctr->expCoercedTypeStk, &param->type);
 
@@ -964,7 +1116,7 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
 	line = ctr->lex->line;
-	col = ctr->lex->colStart;
+	col = ctr->lex->col;
 
 	ba_PExpect('=', ctr);
 
@@ -1072,50 +1224,6 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	}
 	
 	return 1;
-}
-
-void ba_PStmtWrite(struct ba_Ctr* ctr, u64 len, char* str) {
-	// Round up to nearest 0x08
-	u64 memLen = (len + 0x7) & ~0x7;
-	if (!memLen) {
-		memLen = 0x8;
-	}
-	
-	// Allocate stack memory
-	ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, memLen);
-
-	u64 val = 0;
-	u64 strIter = 0;
-	u64 adrAdd = 0;
-	
-	// Store the string on the stack
-	while (1) {
-		if ((strIter && !(strIter & 7)) || (strIter >= len)) {
-			ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, val);
-			ba_AddIM(ctr, 5, BA_IM_MOV, BA_IM_ADRADD, BA_IM_RSP, 
-				adrAdd, BA_IM_RAX);
-			
-			if (!(strIter & 7)) {
-				adrAdd += 8;
-				val = 0;
-			}
-			if (strIter >= len) {
-				break;
-			}
-		}
-		val |= (u64)str[strIter] << ((strIter & 7) << 3);
-		++strIter;
-	}
-	
-	// write
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
-	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
-	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
-	
-	// deallocate stack memory
-	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
 }
 
 // commaStmt = "," stmt

@@ -4,19 +4,17 @@
 #include "exitmsg.h"
 
 struct ba_Lexeme* ba_NewLexeme() {
-	struct ba_Lexeme* lex = ba_MAlloc(sizeof(struct ba_Lexeme));
-	lex->type = BA_TK_EOF;
-	lex->line = 0;
-	lex->colStart = 0;
-	lex->val = 0;
-	lex->valLen = 0;
-	lex->next = 0;
+	struct ba_Lexeme* lex = ba_CAlloc(1, sizeof(struct ba_Lexeme));
 	return lex;
 }
 
 struct ba_Lexeme* ba_DelLexeme(struct ba_Lexeme* lex) {
 	struct ba_Lexeme* next = lex->next;
-	free(lex->val);
+	if (lex->type == BA_TK_LITSTR || lex->type == BA_TK_LITINT || 
+		lex->type == BA_TK_IDENTIFIER)
+	{
+		free(lex->val);
+	}
 	free(lex);
 	return next;
 }
@@ -100,9 +98,11 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_LITINT:      return "integer literal";
 		case BA_TK_LITCHAR:     return "character literal";
 		case BA_TK_IDENTIFIER:  return "identifier";
+		case BA_TK_FSTRING:     return "formatted string";
 		case BA_TK_KW_U64:      return "keyword 'u64'";
 		case BA_TK_KW_I64:      return "keyword 'i64'";
-		case BA_TK_KW_WRITE:    return "keyword 'write'";
+		case BA_TK_KW_FWRITE:   return "keyword 'fwrite'";
+		case BA_TK_KW_SWRITE:   return "keyword 'swrite'";
 		case BA_TK_KW_IF:       return "keyword 'if'";
 		case BA_TK_KW_ELIF:     return "keyword 'elif'";
 		case BA_TK_KW_ELSE:     return "keyword 'else'";

@@ -19,7 +19,7 @@ u8 ba_PExpect(u64 type, struct ba_Ctr* ctr) {
 		}
 		else {
 			fprintf(stderr, "Error: expected %s at line %llu:%llu in %s\n",
-				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->colStart,
+				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->col,
 				ctr->currPath);
 		}
 		exit(-1);
@@ -68,9 +68,9 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 			struct ba_Stk* oldOpStk = ctr->pOpStk;
 			ctr->pOpStk = ba_NewStk();
 			if (ba_PAccept(']', ctr)) {
-				(!isInclIndefArr) &&
+				isInclIndefArr ||
 					ba_ExitMsg(BA_EXIT_ERR, "invalid usage of indefinite size "
-						"array on", ctr->lex->line, ctr->lex->colStart, 
+						"array on", ctr->lex->line, ctr->lex->col, 
 						ctr->currPath);
 				extraInfo->cnt = 0;
 			}
@@ -78,7 +78,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 				struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 				if (!ba_IsTypeInt(expItem->typeInfo) || !expItem->isConst) {
 					return ba_ExitMsg2(BA_EXIT_ERR, "invalid array size on", 
-						ctr->lex->line, ctr->lex->colStart, ctr->currPath, 
+						ctr->lex->line, ctr->lex->col, ctr->currPath, 
 						", must be a constant integer");
 				}
 				extraInfo->cnt = (u64)expItem->val;
@@ -104,7 +104,7 @@ u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr) {
 
 	if (isVoid && !isInclVoid) {
 		return ba_ExitMsg(BA_EXIT_ERR, "invalid use of void type on", 
-			ctr->lex->line, ctr->lex->colStart, ctr->currPath);
+			ctr->lex->line, ctr->lex->col, ctr->currPath);
 	}
 
 	ba_PTkStkPush(ctr->pTkStk, /* val = */ 0, type, /* lexType = */ 0, 

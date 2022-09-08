@@ -1,691 +1,749 @@
 // See LICENSE for copyright/license information
 
 #include "lexer.h"
+#include "common/lexeme.h"
+#include "common/exitmsg.h"
+#include "common/format.h"
 
-u64 ba_LexerSafeIncFileIter(u64* fileIterPtr) {
-	u64 fileIter = *fileIterPtr;
-	++fileIter;
-	if (fileIter >= BA_FILE_BUF_SIZE) {
-		fileIter = 0;
+/* Returns 0 if unable to read more */
+bool IncFile(u64* jPtr, char* f, FILE* srcFile) {
+	if (++*jPtr >= BA_FILE_BUF_SIZE) {
+		*jPtr = 0;
+		return fread(f, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
 	}
-	*fileIterPtr = fileIter;
-	return fileIter;
+	return 1;
 }
 
-char ba_LexerEscSequence(struct ba_Ctr* ctr, FILE* srcFile, char* fileBuf, 
-	u64* colPtr, u64* linePtr, u64* fileIterPtr) 
-{
-	char ret = 0;
-
-	u64 col = *colPtr;
-	u64 line = *linePtr;
-	u64 fileIter = *fileIterPtr;
-
-	char c = fileBuf[fileIter];
-	++col;
-
+/* Returns -1 for invalid escape or escape that cannot be handled alone */
+u8 CharEscape(char c) {
 	switch (c) {
-		case '"':  ret = '"';  break;
-		case '\'': ret = '\''; break;
-		case '\\': ret = '\\'; break;
-		case 'n':  ret = '\n'; break;
-		case 't':  ret = '\t'; break;
-		case 'v':  ret = '\v'; break;
-		case 'f':  ret = '\f'; break;
-		case 'r':  ret = '\r'; break;
-		case 'b':  ret = '\b'; break;
+		case '"': case '\'': case '\\':
+			return c;
+		case 'n': return '\n';
+		case 't': return '\t';
+		case 'v': return '\v';
+		case 'f': return '\f';
+		case 'b': return '\b';
+		case 'a': return '\a';
+		case 'e': return '\x1b';
+		case '0': return '\0';
 	}
-
-	if (ret) {
-		++col;
-		ba_LexerSafeIncFileIter(&fileIter) &&
-			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-	}
-	else if (c == '0') {
-		ret = 0;
-		++col;
-		ba_LexerSafeIncFileIter(&fileIter) &&
-			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-	}
-	else if (c == 'x') {
-		u8 val = 0;
-		// Note: Currently only works with 7-bit ascii
-		
-		// Add the first number
-		ba_LexerSafeIncFileIter(&fileIter) &&
-			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-		c = fileBuf[fileIter];
-		++col;
-		if ((c < '0') || (c > '7')) {
-			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-				line, col, ctr->currPath);
-		}
-		val += c - '0';
-		val <<= 4;
-
-		if ((c == EOF) || (c == 0)) {
-			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-				line, col, ctr->currPath);
-		}
-
-		// Add the second number
-		ba_LexerSafeIncFileIter(&fileIter) &&
-			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-		c = fileBuf[fileIter];
-		++col;
-		if ((c >= '0') && (c <= '9')) {
-			val += c - '0';
-		}
-		else if ((c >= 'a') && (c <= 'f')) {
-			val += c - 'a' + 10;
-		}
-		else if ((c >= 'A') && (c <= 'F')) {
-			val += c - 'A' + 10;
-		}
-		else {
-			return ba_ExitMsg(BA_EXIT_ERR, "invalid escape sequence at", 
-				line, col, ctr->currPath);
-		}
-
-		ret = val;
-		++col;
-		ba_LexerSafeIncFileIter(&fileIter) &&
-			fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-	}
-	else {
-		ret = '\\';
-	}
-
-	*colPtr = col;
-	*linePtr = line;
-	*fileIterPtr = fileIter;
-	return ret;
+	return -1;
 }
 
-u8 ba_Tokenize(FILE* srcFile, struct ba_Ctr* ctr) {
-	enum {
-		ST_NONE = 0,
-		ST_CMNT,
-		ST_CMNT_SG,
-		ST_CMNT_ML,
-		ST_CMNT_MLBRAC,
-		ST_ID,
-		ST_STR,
-		ST_NUM_DEC,
-		ST_NUM_HEX,
-		ST_NUM_OCT,
-		ST_NUM_BIN,
+u8 ErrorEOF() {
+	fprintf(stderr, "Error: unexpected end of file\n");
+	exit(-1);
+	return 0;
+}
+
+u8 HexCharToNum(char c, u64 line, u64 col, char* path) {
+	if ('0' <= c && c <= '9') {
+		return c - '0';
 	}
-	state = 0;
+	if ('a' <= c && c <= 'f') {
+		return c - 'a';
+	}
+	if ('A' <= c && c <= 'F') {
+		return c - 'A';
+	}
+	return ba_ExitMsg(BA_EXIT_ERR, "unexpected character in hexadecimal integer "
+			"on", line, col, path);
+}
 
-	char fileBuf[BA_FILE_BUF_SIZE] = {0};
-	char litBuf[BA_LITERAL_SIZE+1] = {0};
-	char idBuf[BA_IDENTIFIER_SIZE+1] = {0};
-	u64 fileIter = 0, litIter = 0, idIter = 0, line = 1, col = 1, colStart = 1;
-	struct ba_Lexeme* nextLex = ctr->lex;
-	
-	while (fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile)) {
-		fileIter = 0;
-		while (fileIter < BA_FILE_BUF_SIZE) {
-			char c = fileBuf[fileIter];
+u8 TryKeyword(char* buf, char* keyword, u64 lexType, struct ba_Lexeme* lex) {
+	if (!strcmp(buf, keyword)) {
+		lex->type = lexType;
+		return 1;
+	}
+	return 0;
+}
 
-			if ((c == EOF) || (c == 0)) {
-				break;
+bool TokenizeWithState(struct ba_Ctr* ctr, FILE* srcFile, char* f, u64* jPtr, 
+		u64* linePtr, u64* colPtr, struct ba_Lexeme* lex, bool isInFString)
+{
+	u64 j = *jPtr;
+	u64 line = *linePtr;
+	u64 col = *colPtr;
+
+	bool willInc = 1;
+	bool willCont = 1;
+
+	while (!willInc || IncFile(&j, f, srcFile)) {
+		char c = f[j];
+		lex->line = line;
+		lex->col = col;
+		lex->val = 0;
+		willInc = 1;
+		
+		if (!c) {
+			break;
+		}
+		else if (isInFString && c == '}') {
+			*jPtr = ++j;
+			*linePtr = line;
+			*colPtr = ++col;
+			return 1;
+		}
+		else if (c == ' ' || c == '\t' || c == '\v' || c == '\f' || c == '\r') {
+			++col;
+			goto BA_LBL_LEXSKIP;
+		}
+		else if (c == '\n') {
+			++line;
+			col = 1;
+			goto BA_LBL_LEXSKIP;
+		}
+		else if (c == '#') {
+			IncFile(&j, f, srcFile) || ErrorEOF();
+			++col;
+			bool isMultiLine = 0;
+			if (f[j] == '{') {
+				isMultiLine = 1;
+				++col;
+			}
+			else {
+				willInc = 0;
 			}
 
-			// Starts of lexemes
-			if (!state) {
-				// Comments
-				if (c == '#') {
-					state = ST_CMNT;
-					goto BA_LBL_LEX_LOOPITER;
+			while (!willInc || IncFile(&j, f, srcFile)) {
+				willInc = 1;
+				if (f[j] == '\n') {
+					++line;
+					col = 1;
 				}
-
-				// Identifiers
-				else if ((c == '_') || ((c >= 'a') && (c <= 'z')) || 
-					((c >= 'A') && (c <= 'Z')))
-				{
-					state = ST_ID;
-					colStart = col;
-					goto BA_LBL_LEX_LOOPEND;
-				}
-				// String literals
-				else if (c == '"') {
-					state = ST_STR;
-					colStart = col;
-					goto BA_LBL_LEX_LOOPITER;
-				}
-				// Char literals
-				else if (c == '\'') {
-					colStart = col++;
-					char charVal = 0;
-
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					c = fileBuf[fileIter];
-					if (c == '\n') {
-						++line;
-						col = 1;
-						charVal = c;
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-								BA_FILE_BUF_SIZE, srcFile);
-					}
-					else if (c == '\\') {
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-								BA_FILE_BUF_SIZE, srcFile);
-						charVal = ba_LexerEscSequence(ctr, srcFile, fileBuf, 
-							&col, &line, &fileIter);
-					}
-					else {
-						charVal = c;
+				if (f[j] == '#' && isMultiLine) {
+					IncFile(&j, f, srcFile) || ErrorEOF();
+					++col;
+					if (f[j] == '}') {
 						++col;
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-								BA_FILE_BUF_SIZE, srcFile);
+						goto BA_LBL_LEXSKIP;
 					}
-
-					c = fileBuf[fileIter];
-					if (c != '\'') {
-						return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid "
-							"character literal at", line, col, ctr->currPath);
-					}
-
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					nextLex->val = ba_MAlloc(1);
-					nextLex->valLen = 1;
-					*nextLex->val = charVal;
-					nextLex->type = BA_TK_LITCHAR;
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-					litIter = 0;
+					willInc = 0;
 				}
-				// Number literals
-				else if (c == '0') {
-					colStart = col++;
-					litBuf[litIter++] = c;
-
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					c = fileBuf[fileIter];
-
-					while (c == '_') {
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-							BA_FILE_BUF_SIZE, srcFile);
-						c = fileBuf[fileIter];
-					}
-
-					if ((c == EOF) || (c == 0)) {
-						break;
-					}
-
-					if ((c == 'x') || (c == 'X')) {
-						litBuf[litIter++] = c;
-						state = ST_NUM_HEX;
-						goto BA_LBL_LEX_LOOPITER;
-					}
-					else if ((c == 'o') || (c == 'O')) {
-						litBuf[litIter++] = c;
-						state = ST_NUM_OCT;
-						goto BA_LBL_LEX_LOOPITER;
-					}
-					else if ((c == 'b') || (c == 'B')) {
-						litBuf[litIter++] = c;
-						state = ST_NUM_BIN;
-						goto BA_LBL_LEX_LOOPITER;
-					}
-					else if ((c >= '0') && (c <= '9')) {
-						state = ST_NUM_DEC;
-						goto BA_LBL_LEX_LOOPEND;
-					}
-					else {
-						if ((c == 'u') || (c == 'U')) {
-							litBuf[litIter++] = 'u';
-						}
-
-						litBuf[litIter] = 0;
-
-						nextLex->line = line;
-						nextLex->colStart = colStart;
-						nextLex->val = ba_MAlloc(BA_LITERAL_SIZE+1);
-						nextLex->valLen = litIter;
-						strcpy(nextLex->val, litBuf);
-						nextLex->type = BA_TK_LITINT;
-
-						nextLex->next = ba_NewLexeme();
-						nextLex = nextLex->next;
-						
-						litIter = 0;
-
-						if (!((c == 'u') || (c == 'U'))) {
-							goto BA_LBL_LEX_LOOPEND;
-						}
-					}
+				else if (f[j] == '\n' && !isMultiLine) {
+					goto BA_LBL_LEXSKIP;
 				}
-				else if ((c >= '1') && (c <= '9')) {
-					state = ST_NUM_DEC;
-					colStart = col;
-					goto BA_LBL_LEX_LOOPEND;
+				else {
+					++col;
 				}
-				// Other characters
-				else if (!((c == ' ') || (c == '\t') || (c == '\v') || 
-					(c == '\f') || (c == '\r')))
-				{
-					bool needsToIterate = 1;
-
-					if (c == '\n') {
-						++line;
-						col = 1;
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-								BA_FILE_BUF_SIZE, srcFile);
-						goto BA_LBL_LEX_LOOPEND;
-					}
-					else if (c == ';' || c == ':' || c == '~' || c == '$' || 
-						c == '(' || c == ')' || c == '{' || c == '}' || 
-						c == '[' || c == ']' || c == ',') 
-					{
-						nextLex->type = c;
-					}
-					else {
-						char oldC = c;
-						colStart = col++;
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-								BA_FILE_BUF_SIZE, srcFile);
-						c = fileBuf[fileIter];
-
-						if (oldC == '=') {
-							((c == '=') && (nextLex->type = BA_TK_DBEQUAL)) || 
-							((nextLex->type = '=') && (needsToIterate = 0));
+			}
+			// Didn't finish
+			ErrorEOF();
+		}
+		else if (c == '>') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '>' && willCont) {
+				willCont = IncFile(&j, f, srcFile);
+				++col;
+				if (f[j] == '=') {
+					lex->type = BA_TK_RSHIFTEQ;
+					++col;
+				}
+				else {
+					lex->type = BA_TK_RSHIFT;
+					willInc = 0;
+				}
+			}
+			else if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_GTE;
+				++col;
+			}
+			else {
+				lex->type = '>';
+				willInc = 0;
+			}
+		}
+		else if (c == '<') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '<' && willCont) {
+				willCont = IncFile(&j, f, srcFile);
+				++col;
+				if (f[j] == '=') {
+					lex->type = BA_TK_LSHIFTEQ;
+					++col;
+				}
+				else {
+					lex->type = BA_TK_LSHIFT;
+					willInc = 0;
+				}
+			}
+			else if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_LTE;
+				++col;
+			}
+			else {
+				lex->type = '<';
+				willInc = 0;
+			}
+		}
+		else if (c == '/') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '/' && willCont) {
+				willCont = IncFile(&j, f, srcFile);
+				++col;
+				if (f[j] == '=' && willCont) {
+					lex->type = BA_TK_IDIVEQ;
+					++col;
+				}
+				else {
+					lex->type = BA_TK_IDIV;
+					willInc = 0;
+				}
+			}
+			else if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_FDIVEQ;
+				++col;
+			}
+			else {
+				lex->type = '/';
+				willInc = 0;
+			}
+		}
+		else if (c == '&') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '&' && willCont) {
+				lex->type = BA_TK_LOGAND;
+				++col;
+			}
+			else if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_BITANDEQ;
+				++col;
+			}
+			else {
+				lex->type = '&';
+				willInc = 0;
+			}
+		}
+		else if (c == '^') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_BITXOREQ;
+				++col;
+			}
+			else {
+				lex->type = '^';
+				willInc = 0;
+			}
+		}
+		else if (c == '|') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '|' && willCont) {
+				lex->type = BA_TK_LOGOR;
+				++col;
+			}
+			else if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_BITOREQ;
+				++col;
+			}
+			else {
+				lex->type = '|';
+				willInc = 0;
+			}
+		}
+		else if (c == '=') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_DBEQUAL;
+				++col;
+			}
+			else {
+				lex->type = '=';
+				willInc = 0;
+			}
+		}
+		else if (c == '!') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_NEQUAL;
+				++col;
+			}
+			else {
+				lex->type = '!';
+				willInc = 0;
+			}
+		}
+		else if (c == '+') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if ((f[j] == '=' || f[j] == '+') && willCont) {
+				lex->type = (f[j] == '=') ? BA_TK_ADDEQ : BA_TK_INC;
+				++col;
+			}
+			else {
+				lex->type = '+';
+				willInc = 0;
+			}
+		}
+		else if (c == '-') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if ((f[j] == '=' || f[j] == '-') && willCont) {
+				lex->type = (f[j] == '=') ? BA_TK_SUBEQ : BA_TK_DEC;
+				++col;
+			}
+			else {
+				lex->type = '-';
+				willInc = 0;
+			}
+		}
+		else if (c == '*') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_MULEQ;
+				++col;
+			}
+			else {
+				lex->type = '*';
+				willInc = 0;
+			}
+		}
+		else if (c == '%') {
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			if (f[j] == '=' && willCont) {
+				lex->type = BA_TK_MODEQ;
+				++col;
+			}
+			else {
+				lex->type = '%';
+				willInc = 0;
+			}
+		}
+		else if (c == ';' || c == '~' || c == '$' || c == '(' || c == ')' || 
+			c == '[' || c == ']' || c == '{' || c == '}' || c == ',' || c == '.' ||
+			c == ':') 
+		{
+			lex->type = c;
+			++col;
+		}
+		else if (c == '"') {
+			char* buf = ba_CAlloc(BA_LITERAL_SIZE + 1, sizeof(char));
+			char* bufCurr = buf;
+			++col;
+			while (!willInc || IncFile(&j, f, srcFile)) {
+				c = f[j];
+				willInc = 1;
+				if (c == '"') {
+					++col;
+					break;
+				}
+				if (c == '\\') {
+					IncFile(&j, f, srcFile) || ErrorEOF();
+					++col;
+					c = CharEscape(f[j]);
+					if (c == -1) {
+						if (f[j] == '\n') {
+							++line;
+							col = 1;
+							goto BA_LBL_STRSKIP;
 						}
-						else if (oldC == '!') {
-							((c == '=') && (nextLex->type = BA_TK_NEQUAL)) || 
-							((nextLex->type = '!') && (needsToIterate = 0));
-						}
-						else if (oldC == '+') {
-							((c == '=') && (nextLex->type = BA_TK_ADDEQ)) || 
-							((c == '+') && (nextLex->type = BA_TK_INC)) || 
-							((nextLex->type = '+') && (needsToIterate = 0));
-						}
-						else if (oldC == '-') {
-							((c == '=') && (nextLex->type = BA_TK_SUBEQ)) || 
-							((c == '-') && (nextLex->type = BA_TK_DEC)) || 
-							((nextLex->type = '-') && (needsToIterate = 0));
-						}
-						else if (oldC == '*') {
-							((c == '=') && (nextLex->type = BA_TK_MULEQ)) || 
-							((nextLex->type = '*') && (needsToIterate = 0));
-						}
-						else if (oldC == '%') {
-							((c == '=') && (nextLex->type = BA_TK_MODEQ)) || 
-							((nextLex->type = '%') && (needsToIterate = 0));
-						}
-						else if (oldC == '^') {
-							((c == '=') && (nextLex->type = BA_TK_BITXOREQ)) || 
-							((nextLex->type = '^') && (needsToIterate = 0));
-						}
-						else if (oldC == '&') {
-							((c == '=') && (nextLex->type = BA_TK_BITANDEQ)) || 
-							((c == '&') && (nextLex->type = BA_TK_LOGAND)) || 
-							((nextLex->type = '&') && (needsToIterate = 0));
-						}
-						else if (oldC == '|') {
-							((c == '=') && (nextLex->type = BA_TK_BITOREQ)) || 
-							((c == '|') && (nextLex->type = BA_TK_LOGOR)) || 
-							((nextLex->type = '|') && (needsToIterate = 0));
-						}
-						else if (oldC == '>') {
-							if (c == '=') {
-								nextLex->type = BA_TK_GTE;
-							}
-							else if (c == '>') {
-								colStart = col++;
-								ba_LexerSafeIncFileIter(&fileIter) &&
-									fread(fileBuf, sizeof(char), 
-										BA_FILE_BUF_SIZE, srcFile);
-								c = fileBuf[fileIter];
-								
-								if (c == '=') {
-									nextLex->type = BA_TK_RSHIFTEQ;
-								}
-								else {
-									nextLex->type = BA_TK_RSHIFT;
-									needsToIterate = 0;
-								}
-							}
-							else {
-								nextLex->type = '>';
-								needsToIterate = 0;
-							}
-						}
-						else if (oldC == '<') {
-							if (c == '=') {
-								nextLex->type = BA_TK_LTE;
-							}
-							else if (c == '<') {
-								colStart = col++;
-								ba_LexerSafeIncFileIter(&fileIter) &&
-									fread(fileBuf, sizeof(char), 
-										BA_FILE_BUF_SIZE, srcFile);
-								c = fileBuf[fileIter];
-								
-								if (c == '=') {
-									nextLex->type = BA_TK_LSHIFTEQ;
-								}
-								else {
-									nextLex->type = BA_TK_LSHIFT;
-									needsToIterate = 0;
-								}
-							}
-							else {
-								nextLex->type = '<';
-								needsToIterate = 0;
-							}
-						}
-						else if (oldC == '/') {
-							if (c == '=') {
-								nextLex->type = BA_TK_FDIVEQ;
-							}
-							else if (c == '/') {
-								colStart = col++;
-								ba_LexerSafeIncFileIter(&fileIter) &&
-									fread(fileBuf, sizeof(char), 
-										BA_FILE_BUF_SIZE, srcFile);
-								c = fileBuf[fileIter];
-								
-								if (c == '=') {
-									nextLex->type = BA_TK_IDIVEQ;
-								}
-								else {
-									nextLex->type = BA_TK_IDIV;
-									needsToIterate = 0;
-								}
-							}
-							else {
-								nextLex->type = '/';
-								needsToIterate = 0;
-							}
+						else if (f[j] == 'x') {
+							IncFile(&j, f, srcFile) || ErrorEOF();
+							++col;
+							c = HexCharToNum(f[j], line, col, ctr->currPath) << 4;
+							IncFile(&j, f, srcFile) || ErrorEOF();
+							++col;
+							c += HexCharToNum(f[j], line, col, ctr->currPath);
 						}
 						else {
-							return ba_ExitMsg(BA_EXIT_ERR, "encountered invalid "
-								"character at", line, col, ctr->currPath);
+							c = '\\';
+							willInc = 0;
 						}
 					}
-
-					nextLex->line = line;
-					nextLex->colStart = col;
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-
-					if ((c == EOF) || (c == 0)) {
-						break;
-					}
-
-					if (needsToIterate) {
-						goto BA_LBL_LEX_LOOPITER;
-					}
-
-					goto BA_LBL_LEX_LOOPEND;
-				}
-			}
-			// Comments
-			else if (state == ST_CMNT) {
-				if (c == '{') {
-					state = ST_CMNT_ML;
-				}
-				else {
-					state = ST_CMNT_SG;
-					goto BA_LBL_LEX_LOOPEND;
-				}
-			}
-			else if (state == ST_CMNT_SG) {
-				if (c == '\n') {
-					++line;
-					col = 1;
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					state = 0;
-					goto BA_LBL_LEX_LOOPEND;
-				}
-			}
-			else if (state == ST_CMNT_ML) {
-				if (c == '\n') {
-					++line;
-					col = 1;
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					goto BA_LBL_LEX_LOOPEND;
-				}
-				else if (c == '}') {
-					state = ST_CMNT_MLBRAC;
-				}
-			}
-			else if (state == ST_CMNT_MLBRAC) {
-				if (c == '\n') {
-					++line;
-					col = 1;
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					state = ST_CMNT_ML;
-					goto BA_LBL_LEX_LOOPEND;
-				}
-				else if (c == '#') {
-					state = 0;
-				}
-				else if (c == '}') {
-					state = ST_CMNT_MLBRAC;
-				}
-				else {
-					state = ST_CMNT_ML;
-				}
-			}
-			// Identifiers
-			else if (state == ST_ID) {
-				if ((c == '_') || ((c >= 'a') && (c <= 'z')) || 
-					((c >= 'A') && (c <= 'Z')) ||
-					((c >= '0') && (c <= '9')))
-				{
-					if (idIter > BA_IDENTIFIER_SIZE) {
-						return ba_ErrorTknOverflow("identifier", line, 
-							colStart, ctr->currPath, BA_IDENTIFIER_SIZE);
-					}
-					idBuf[idIter++] = c;
-					goto BA_LBL_LEX_LOOPITER;
-				}
-				if (idIter > 0) {
-					idBuf[idIter] = 0;
-					
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					
-					if (!strcmp(idBuf, "bool")) {
-						nextLex->type = BA_TK_KW_BOOL;
-					}
-					else if (!strcmp(idBuf, "break")) {
-						nextLex->type = BA_TK_KW_BREAK;
-					}
-					else if (!strcmp(idBuf, "elif")) {
-						nextLex->type = BA_TK_KW_ELIF;
-					}
-					else if (!strcmp(idBuf, "else")) {
-						nextLex->type = BA_TK_KW_ELSE;
-					}
-					else if (!strcmp(idBuf, "exit")) {
-						nextLex->type = BA_TK_KW_EXIT;
-					}
-					else if (!strcmp(idBuf, "garbage")) {
-						nextLex->type = BA_TK_KW_GARBAGE;
-					}
-					else if (!strcmp(idBuf, "goto")) {
-						nextLex->type = BA_TK_KW_GOTO;
-					}
-					else if (!strcmp(idBuf, "i64")) {
-						nextLex->type = BA_TK_KW_I64;
-					}
-					else if (!strcmp(idBuf, "i8")) {
-						nextLex->type = BA_TK_KW_I8;
-					}
-					else if (!strcmp(idBuf, "if")) {
-						nextLex->type = BA_TK_KW_IF;
-					}
-					else if (!strcmp(idBuf, "include")) {
-						nextLex->type = BA_TK_KW_INCLUDE;
-					}
-					else if (!strcmp(idBuf, "iter")) {
-						nextLex->type = BA_TK_KW_ITER;
-					}
-					else if (!strcmp(idBuf, "lengthof")) {
-						nextLex->type = BA_TK_KW_LENGTHOF;
-					}
-					else if (!strcmp(idBuf, "return")) {
-						nextLex->type = BA_TK_KW_RETURN;
-					}
-					else if (!strcmp(idBuf, "u64")) {
-						nextLex->type = BA_TK_KW_U64;
-					}
-					else if (!strcmp(idBuf, "u8")) {
-						nextLex->type = BA_TK_KW_U8;
-					}
-					else if (!strcmp(idBuf, "void")) {
-						nextLex->type = BA_TK_KW_VOID;
-					}
-					else if (!strcmp(idBuf, "while")) {
-						nextLex->type = BA_TK_KW_WHILE;
-					}
-					else if (!strcmp(idBuf, "write")) {
-						nextLex->type = BA_TK_KW_WRITE;
-					}
 					else {
-						nextLex->val = ba_MAlloc(BA_LITERAL_SIZE+1);
-						strcpy(nextLex->val, idBuf);
-						nextLex->valLen = idIter;
-						nextLex->type = BA_TK_IDENTIFIER;
+						++col;
 					}
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-					idIter = 0;
-					state = 0;
-					goto BA_LBL_LEX_LOOPEND;
-				}
-			}
-			// String literals
-			else if (state == ST_STR) {
-				if (litIter > BA_LITERAL_SIZE) {
-					return ba_ErrorTknOverflow("string literal", line, 
-						colStart, ctr->currPath, BA_LITERAL_SIZE);
-				}
-				
-				if (c == '"') {
-					litBuf[litIter] = 0;
-					
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					
-					nextLex->val = ba_MAlloc(BA_LITERAL_SIZE+1);
-					// memcpy, not strcpy because there could be zeros
-					memcpy(nextLex->val, litBuf, litIter+1);
-					nextLex->valLen = litIter;
-					nextLex->type = BA_TK_LITSTR;
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-
-					litIter = 0;
-					state = 0;
 				}
 				else if (c == '\n') {
-					litBuf[litIter++] = c;
 					++line;
 					col = 1;
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					goto BA_LBL_LEX_LOOPEND;
-				}
-				else if (c == '\\') {
-					ba_LexerSafeIncFileIter(&fileIter) &&
-						fread(fileBuf, sizeof(char), BA_FILE_BUF_SIZE, srcFile);
-					if (fileBuf[fileIter] == '\n') {
-						++line;
-						col = 1;
-						ba_LexerSafeIncFileIter(&fileIter) &&
-							fread(fileBuf, sizeof(char), 
-								BA_FILE_BUF_SIZE, srcFile);
-						goto BA_LBL_LEX_LOOPEND;
-					}
-
-					litBuf[litIter++] = ba_LexerEscSequence(ctr, srcFile, 
-						fileBuf, &col, &line, &fileIter);
-
-					goto BA_LBL_LEX_LOOPEND;
 				}
 				else {
-					litBuf[litIter++] = c;
+					++col;
 				}
+				*bufCurr = c;
+				++bufCurr;
+				if (bufCurr - buf > BA_LITERAL_SIZE) {
+					return ba_ErrorTknOverflow("string literal", line, col, 
+							ctr->currPath, BA_LITERAL_SIZE);
+				}
+				BA_LBL_STRSKIP:;
 			}
-			// Number literals
-			else if (state == ST_NUM_HEX || state == ST_NUM_DEC || 
-				state == ST_NUM_OCT || state == ST_NUM_BIN) 
-			{
-				if ((state == ST_NUM_HEX && 
-					((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || 
-					(c >= 'A' && c <= 'F'))) || 
-					(state == ST_NUM_DEC && c >= '0' && c <= '9') ||
-					(state == ST_NUM_OCT && c >= '0' && c <= '7') ||
-					(state == ST_NUM_BIN && c >= '0' && c <= '1'))
-				{
-					if (litIter > BA_LITERAL_SIZE) {
-						return ba_ErrorTknOverflow("string literal", line, 
-							colStart, ctr->currPath, BA_LITERAL_SIZE);
-					}
-					litBuf[litIter++] = c;
-				}
-				else if (c == '_') {
-					// Ignore
+			lex->type = BA_TK_LITSTR;
+			lex->val = buf;
+			lex->valLen = bufCurr - buf;
+		}
+		else if (c >= '0' && c <= '9') {
+			char* buf = ba_CAlloc(BA_LITERAL_SIZE + 1, sizeof(char));
+			char* bufCurr = buf;
+			u64 base = 10;
+
+			willCont = IncFile(&j, f, srcFile);
+			col += 2;
+			*bufCurr = c;
+			++bufCurr;
+
+			if (f[j] == 'x' && willCont) {
+				base = 16;
+				*bufCurr = f[j];
+				++bufCurr;
+			}
+			else if (f[j] == 'o' && willCont) {
+				base = 8;
+				*bufCurr = f[j];
+				++bufCurr;
+			}
+			else if (f[j] == 'b' && willCont) {
+				base = 2;
+				*bufCurr = f[j];
+				++bufCurr;
+			}
+			else {
+				if (f[j] >= '0' && f[j] <= '9' && willCont) {
+					*bufCurr = f[j];
+					++bufCurr;
 				}
 				else {
-					if ((c == 'u') || (c == 'U')) {
-						litBuf[litIter++] = 'u';
-					}
-					litBuf[litIter] = 0;
-
-					nextLex->line = line;
-					nextLex->colStart = colStart;
-					nextLex->val = ba_MAlloc(litIter+1);
-					nextLex->valLen = litIter;
-					strcpy(nextLex->val, litBuf);
-					nextLex->type = BA_TK_LITINT;
-
-					nextLex->next = ba_NewLexeme();
-					nextLex = nextLex->next;
-
-					litIter = 0;
-					state = 0;
-
-					if (!((c == 'u') || (c == 'U'))) {
-						goto BA_LBL_LEX_LOOPEND;
-					}
+					--col;
+					willInc = 0;
 				}
 			}
 			
-			BA_LBL_LEX_LOOPITER:
+			while (!willInc || IncFile(&j, f, srcFile)) {
+				c = f[j];
+				willInc = 1;
+				++col;
+				if (c == '_') {
+					goto BA_LBL_INTSKIP;
+				}
+				else if ((c >= '2' && c <= '7' && base < 8) ||
+					(c >= '8' && c == '9' && base < 10) ||
+					(c >= 'a' && c <= 'f' && base < 16) ||
+					(c >= 'A' && c <= 'F' && base < 16) || 
+					(buf == bufCurr && (c == 'u' || c == 'U'))) 
+				{
+					return ba_ErrorIntLitChar(line, col, ctr->currPath);
+				}
+				else if (c == 'u' || c == 'U') {
+					*bufCurr = 'u';
+					++bufCurr;
+					break;
+				}
+				else if (!(c >= '0' && c <= '9') && !(c >= 'a' && c <= 'f') && 
+					!(c >= 'A' && c <= 'F')) 
+				{
+					--col;
+					willInc = 0;
+					break;
+				}
+				*bufCurr = c;
+				++bufCurr;
+				if (bufCurr - buf > BA_LITERAL_SIZE) {
+					return ba_ErrorTknOverflow("integer literal", line, col, 
+							ctr->currPath, BA_LITERAL_SIZE);
+				}
+				BA_LBL_INTSKIP:;
+			}
+			lex->type = BA_TK_LITINT;
+			lex->val = buf;
+			lex->valLen = bufCurr - buf;
+		}
+		else if (c == '\'') {
+			IncFile(&j, f, srcFile) || ErrorEOF();
 			++col;
-			++fileIter;
+			c = f[j];
+			(c == '\'') && ba_ErrorCharLit(line, col, ctr->currPath);
+			if (c == '\\') {
+				IncFile(&j, f, srcFile) || ErrorEOF();
+				++col;
+				c = CharEscape(f[j]);
+				if (c == -1) {
+					if (f[j] == '\n') {
+						ba_ErrorCharLit(line, col, ctr->currPath);
+					}
+					else if (f[j] == 'x') {
+						IncFile(&j, f, srcFile) || ErrorEOF();
+						++col;
+						c = HexCharToNum(f[j], line, col, ctr->currPath);
+						IncFile(&j, f, srcFile) || ErrorEOF();
+						++col;
+						c += HexCharToNum(f[j], line, col, ctr->currPath) << 4;
+					}
+					else {
+						c = '\\';
+						willInc = 0;
+					}
+				}
+				else {
+					++col;
+				}
+			}
+			else if (c == '\n') {
+				++line;
+				col = 1;
+			}
+			else {
+				++col;
+			}
+			IncFile(&j, f, srcFile) || ErrorEOF();
+			(f[j] != '\'') && ba_ErrorCharLit(line, col, ctr->currPath);
+			++col;
+			lex->type = BA_TK_LITCHAR;
+			lex->val = (void*)(u64)c;
+		}
+		else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
+			char* buf = ba_CAlloc(BA_IDENTIFIER_SIZE + 1, sizeof(char));
+			char* bufCurr = buf;
+			willCont = IncFile(&j, f, srcFile);
+			++col;
+			
+			if ((c == 'f' || c == 'F') && f[j] == '"' && willCont) {
+				// Formatted strings
+				free(buf);
+				++col;
 
-			BA_LBL_LEX_LOOPEND:;
+				struct ba_FStr* fstrFirst = ba_MAlloc(sizeof(*fstrFirst));
+				struct ba_FStr* fstr = fstrFirst;
+				char autoBuf[BA_LITERAL_SIZE] = {0};
+				bufCurr = autoBuf;
+
+				while (!willInc || IncFile(&j, f, srcFile)) {
+					c = f[j];
+					willInc = 1;
+					if (c == '"') {
+						++col;
+						*bufCurr = 0;
+						*fstr = (struct ba_FStr){ .val = ba_MAlloc(bufCurr - autoBuf), 
+							.len = bufCurr - autoBuf, .next = 0, .formatType = 0 };
+						memcpy(fstr->val, autoBuf, fstr->len);
+						fstrFirst->last = fstr;
+						break;
+					}
+					if (c == '\\') {
+						IncFile(&j, f, srcFile) || ErrorEOF();
+						++col;
+						c = CharEscape(f[j]);
+						if (c == -1) {
+							if (f[j] == '\n') {
+								++line;
+								col = 1;
+								goto BA_LBL_FSTRSKIP;
+							}
+							else if (f[j] == 'x') {
+								IncFile(&j, f, srcFile) || ErrorEOF();
+								++col;
+								c = HexCharToNum(f[j], line, col, ctr->currPath);
+								IncFile(&j, f, srcFile) || ErrorEOF();
+								++col;
+								c += HexCharToNum(f[j], line, col, ctr->currPath) << 4;
+							}
+							else {
+								c = '\\';
+								willInc = 0;
+							}
+						}
+						else {
+							++col;
+						}
+					}
+					else if (c == '%') {
+						if (bufCurr != autoBuf) {
+							*bufCurr = 0;
+							*fstr = (struct ba_FStr){ .val = ba_MAlloc(bufCurr - autoBuf), 
+								.len = bufCurr - autoBuf, .formatType = 0, 
+								.next = ba_MAlloc(sizeof(*fstr->next)), };
+							memcpy(fstr->val, autoBuf, fstr->len);
+							fstr = fstr->next;
+						}
+						IncFile(&j, f, srcFile) || ErrorEOF();
+						col += 2;
+						if (f[j] == '%') {
+							c = '%';
+						}
+						else if (f[j] == '{') {
+							c = '{';
+						}
+						else if (f[j] == '}') {
+							c = '}';
+						}
+						else {
+							switch (f[j]) {
+								case 'i': fstr->formatType = BA_FTYPE_I64;
+								          break;
+								case 'u': fstr->formatType = BA_FTYPE_U64;
+								          break;
+								case 'x': fstr->formatType = BA_FTYPE_HEX;
+								          break;
+								case 'o': fstr->formatType = BA_FTYPE_OCT;
+								          break;
+								case 'b': fstr->formatType = BA_FTYPE_BIN;
+								          break;
+								case 'c': fstr->formatType = BA_FTYPE_CHAR;
+								          break;
+								case 's': fstr->formatType = BA_FTYPE_STR;
+								          break;
+								default:  c = '%';
+								          --col;
+								          willInc = 0;
+													goto BA_LBL_FSTREPILOGUE;
+							}
+							IncFile(&j, f, srcFile) || ErrorEOF();
+							col += 2;
+							(f[j] != '{') &&
+								ba_ErrorFString(line, col, ctr->currPath, ", expected '{'");
+
+							if (fstr->formatType == BA_FTYPE_STR) {
+								struct ba_Lexeme* fstrLen = ba_MAlloc(sizeof(*fstrLen));
+								if (!TokenizeWithState(ctr, srcFile, f, &j, &line, &col, 
+									fstrLen, /* isInFString = */ 1))
+								{
+									return 0;
+								}
+								fstr->len = (u64)fstrLen;
+								(f[j] != '{') &&
+									ba_ErrorFString(line, col, ctr->currPath, ", expected '{'");
+							}
+							
+							fstr->val = ba_MAlloc(sizeof(struct ba_Lexeme));
+							if (!TokenizeWithState(ctr, srcFile, f, &j, &line, &col, 
+								fstr->val, /* isInFString = */ 1))
+							{
+								return 0;
+							}
+
+							bufCurr = autoBuf;
+							fstr->next = ba_MAlloc(sizeof(*fstr->next));
+							fstr = fstr->next;
+							willInc = 0;
+							goto BA_LBL_FSTRSKIP;
+						}
+					}
+					else if (c == '\n') {
+						++line;
+						col = 1;
+					}
+					else {
+						++col;
+					}
+					BA_LBL_FSTREPILOGUE:
+					*bufCurr = c;
+					++bufCurr;
+					if (bufCurr - autoBuf > BA_LITERAL_SIZE) {
+						fstr->val = ba_MAlloc(BA_LITERAL_SIZE);
+						fstr->len = BA_LITERAL_SIZE;
+						fstr->next = ba_MAlloc(sizeof(*fstr->next));
+						fstr->formatType = 0;
+						memcpy(fstr->val, autoBuf, BA_LITERAL_SIZE);
+						bufCurr = autoBuf;
+						fstr = fstr->next;
+					}
+					BA_LBL_FSTRSKIP:;
+				}
+
+				lex->type = BA_TK_FSTRING;
+				lex->val = (void*)fstrFirst;
+				lex->next = ba_NewLexeme();
+				lex = lex->next;
+				goto BA_LBL_LEXSKIP;
+			}
+			
+			++col;
+			*bufCurr = c;
+			++bufCurr;
+
+			if (((f[j] >= 'a' && f[j] <= 'z') || (f[j] >= 'A' && f[j] <= 'Z') || 
+				(f[j] >= '0' && f[j] <= '9') || f[j] == '_') && willCont)
+			{
+				*bufCurr = f[j];
+				++bufCurr;
+			}
+			else {
+				willInc = 0;
+			}
+
+			// Identifiers and keywords
+			while (!willInc || IncFile(&j, f, srcFile)) {
+				willInc = 1;
+				if (!(f[j] >= 'a' && f[j] <= 'z') && !(f[j] >= 'A' && f[j] <= 'Z') && 
+					!(f[j] >= '0' && f[j] <= '9') && f[j] != '_')
+				{
+					willInc = 0;
+					break;
+				}
+				++col;
+				*bufCurr = f[j];
+				++bufCurr;
+				if (bufCurr - buf > BA_IDENTIFIER_SIZE) {
+					return ba_ErrorTknOverflow("identifier", line, col, 
+							ctr->currPath, BA_IDENTIFIER_SIZE);
+				}
+			}
+
+			bool isKeyword = 
+				TryKeyword(buf, "if", BA_TK_KW_IF, lex) || 
+				TryKeyword(buf, "i8", BA_TK_KW_I8, lex) || 
+				TryKeyword(buf, "u8", BA_TK_KW_U8, lex) || 
+				TryKeyword(buf, "i64", BA_TK_KW_I64, lex) || 
+				TryKeyword(buf, "u64", BA_TK_KW_U64, lex) || 
+				TryKeyword(buf, "bool", BA_TK_KW_BOOL, lex) ||
+				TryKeyword(buf, "elif", BA_TK_KW_ELIF, lex) || 
+				TryKeyword(buf, "else", BA_TK_KW_ELSE, lex) || 
+				TryKeyword(buf, "exit", BA_TK_KW_EXIT, lex) || 
+				TryKeyword(buf, "iter", BA_TK_KW_ITER, lex) || 
+				TryKeyword(buf, "goto", BA_TK_KW_GOTO, lex) || 
+				TryKeyword(buf, "void", BA_TK_KW_VOID, lex) ||
+				TryKeyword(buf, "while", BA_TK_KW_WHILE, lex) || 
+				TryKeyword(buf, "break", BA_TK_KW_BREAK, lex) || 
+				TryKeyword(buf, "fwrite", BA_TK_KW_FWRITE, lex) || 
+				TryKeyword(buf, "return", BA_TK_KW_RETURN, lex) || 
+				TryKeyword(buf, "swrite", BA_TK_KW_SWRITE, lex) || 
+				TryKeyword(buf, "include", BA_TK_KW_INCLUDE, lex) || 
+				TryKeyword(buf, "garbage", BA_TK_KW_GARBAGE, lex) || 
+				TryKeyword(buf, "lengthof", BA_TK_KW_LENGTHOF, lex);
+
+			if (isKeyword) {
+				free(buf);
+			}
+			else {
+				lex->type = BA_TK_IDENTIFIER;
+				lex->val = buf;
+				lex->valLen = bufCurr - buf;
+			}
+		}
+		else {
+			ba_ExitMsg(BA_EXIT_ERR, "invalid character on", line, col, ctr->currPath);
+		}
+
+		lex->next = ba_NewLexeme();
+		lex = lex->next;
+		
+		BA_LBL_LEXSKIP:
+
+		if (!willCont) {
+			break;
 		}
 	}
+	return !isInFString;
+}
 
-	if (state) {
-		fprintf(stderr, "Error: unexpected end of input\n");
-		return 0;
-	}
-	
-	return 1;
+/* Returns 0 on error and 1 on success. */
+bool ba_Tokenize(struct ba_Ctr* ctr, FILE* srcFile) {
+	char f[BA_FILE_BUF_SIZE] = {0}; // File buffer
+	u64 j = BA_FILE_BUF_SIZE - 1; // File buffer iterator
+	u64 line = 1;
+	u64 col = 1;
+	struct ba_Lexeme* lex = ctr->lex;
+	return TokenizeWithState(ctr, srcFile, f, &j, &line, &col, lex, 
+		/* isInFString = */ 0);
 }
 

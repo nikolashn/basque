@@ -45,10 +45,13 @@ u8 ba_ExitMsg2(u8 type, char* preMsg, u64 line, u64 col, char* path,
 	return 0;
 }
 
-// ----- Errors based on the basic function -----
-
 u8 ba_ExitMsg(u8 type, char* msg, u64 line, u64 col, char* path) {
 	return ba_ExitMsg2(type, msg, line, col, path, "");
+}
+
+u8 ba_ErrorCharLit(u64 line, u64 col, char* path) {
+	return ba_ExitMsg(BA_EXIT_ERR, "invalid character literal on", 
+		line, col, path);
 }
 
 u8 ba_ErrorIntLitChar(u64 line, u64 col, char* path) {
@@ -61,7 +64,10 @@ u8 ba_ErrorIntLitTooLong(u64 line, u64 col, char* path) {
 		" too long to be parsed");
 }
 
-// ----- Independent errors ------
+u8 ba_ErrorFString(u64 line, u64 col, char* path, char* endMsg) {
+	return ba_ExitMsg2(BA_EXIT_ERR, "invalid format specifier on", 
+		line, col, path, endMsg);
+}
 
 u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, char* path, u64 max) {
 	fprintf(stderr, "Error: encountered %s at %llu:%llu in %s greater than "

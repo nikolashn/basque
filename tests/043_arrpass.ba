@@ -2,7 +2,7 @@ void PrintArr4(u64[4] arr = { 4, 3, 2, 1 }) {
 	u64 i = 0;
 	while i < 4u {
 		if i > 0u, ", ";
-		write [arr,i];
+		f"%i{[arr,i]}";
 		++i;
 	}
 	"\n";

@@ -1,20 +1,10 @@
 #{
 	Expected output:
 	1,4,16
-}#
+#}
 
-# Temporary fake arrays while arrays don't exist
-u8 c7 = 128;
-u8 c6 = 64;
-u8 c5 = 32;
-u8 c4 = 16;
-u8 c3 = 8;
-u8 c2 = 4;
-u8 c1 = 2;
-u8 c0 = 1;
-u8* str = &c0;
+u8[] c = { 1, 2, 4, 8, 16, 32, 64, 128 };
+u8* str = &c;
 
-write [str]; ",";
-write [str,2]; ",";
-write [&str,0,4]; "\n";
+f"%i{[str]},%i{[str,2]},%i{[&str,0,4]}\n";
 

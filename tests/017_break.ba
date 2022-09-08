@@ -5,10 +5,8 @@ u64 num1 = 1;
 u64 ii = 0;
 
 while 1 {
-	"Fibonacci no. ";
-	write ii; " = ";
-	write num0; "\n";
-
+	f"Fibonacci no. %u{ii} = %u{num0}\n";
+	
 	if ii >= 10u, break;
 	++ii;
 

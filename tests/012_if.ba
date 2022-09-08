@@ -1,4 +1,4 @@
-i64 x = 1; # Try using different values of x
+i64 x = -2; # Try using different values of x
 
 if x == 1 || x == -1, "x is +/- 1\n";
 
@@ -11,10 +11,9 @@ if x > 1 {
 }
 
 "value of x: ";
-if x >= 0, write x;
+if x >= 0, f"%i{x}";
 if x < 0 {
-	"-";
-	write -x;
+	f"-%i{-x}";
 }
 "\n";
 

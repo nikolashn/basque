@@ -11,7 +11,6 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	struct ba_Type retType);
 u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col, 
 	struct ba_Type type);
-void ba_PStmtWrite(struct ba_Ctr* ctr, u64 len, char* str);
 u8 ba_PCommaStmt(struct ba_Ctr* ctr, struct ba_SymTable* scope);
 u8 ba_PScope(struct ba_Ctr* ctr, struct ba_SymTable* scope);
 

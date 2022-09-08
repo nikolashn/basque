@@ -10,7 +10,7 @@ while i {
 
 i64[10] destArr = srcArr;
 while i < 10 {
-	write [destArr,i]; " ";
+	f"%i{[destArr,i]} ";
 	++i;
 }
 

@@ -4,6 +4,6 @@ MemCopy(&y, &x, $x);
 
 u64 i = 0;
 while (i < lengthof x) iter ++i {
-	write [y,i]; "\n";
+	f"%u{[y,i]}\n";
 }
 

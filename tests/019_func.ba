@@ -8,10 +8,10 @@
 	-120
 	9 * 10 = 90
 	-120 * -120 * -120 = -1728000
-}#
+#}
 
 void Hello() {
-	write "Hello world!\n";
+	"Hello world!\n";
 }
 
 Hello();
@@ -19,10 +19,10 @@ Hello();
 
 void WriteI64(i64 x = 0) {
 	if x < 0 {
-		write "-";
+		"-";
 		x = -x;
 	}
-	write x;
+	f"%i{x}";
 }
 
 WriteI64(); "\n";
@@ -38,8 +38,7 @@ i64 Mul(i64 x, i64 y) {
 }
 
 # 9 * 10 = 90
-"9 * 10 = ";
-write Mul(9, 10); "\n";
+f"9 * 10 = %i{Mul(9, 10)}\n";
 
 # -120 * -120 * -120 = -1728000
 WriteI64(n); " * ";

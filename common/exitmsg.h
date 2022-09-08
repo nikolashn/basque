@@ -19,9 +19,11 @@ void ba_SetWarnsAsErrs();
 u8 ba_ExitMsg2(u8 type, char* preMsg, u64 line, u64 col, char* path, 
 	char* postMsg);
 u8 ba_ExitMsg(u8 type, char* msg, u64 line, u64 col, char* path);
+u8 ba_ErrorCharLit(u64 line, u64 col, char* path);
 u8 ba_ErrorIntLitChar(u64 line, u64 col, char* path);
 u8 ba_ErrorIntLitTooLong(u64 line, u64 col, char* path);
 u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, char* path, u64 max);
+u8 ba_ErrorFString(u64 line, u64 col, char* path, char* endMsg);
 u8 ba_ErrorIdUndef(char* var, u64 line, u64 col, char* path);
 u8 ba_ErrorVarRedef(char* var, u64 line, u64 col, char* path);
 u8 ba_ErrorVarVoid(u64 line, u64 col, char* path);

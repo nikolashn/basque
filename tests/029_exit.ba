@@ -1,16 +1,14 @@
 #{
 	Expected output:
-	7
-	2
-	33
-	2
+	7 2
+	33 2
 	Error: division by zero
-}#
+#}
 
 i64 Div(i64 n, i64 d, i64* r = 0) {
 	if !d {
 		"Error: division by zero\n";
-		exit -1;
+		exit 136;
 	}
 	if r {
 		[r] = n % d;
@@ -22,16 +20,14 @@ i64 a = 51;
 i64 b = 7;
 i64 rem = 0;
 i64 c = Div(a, b, &rem);
-write c; "\n";
-write rem; "\n";
+f"%i{c} %i{rem}\n";
 
 a = 100;
 b = 3;
 c = Div(a, b);
-write c; "\n";
-write rem; "\n";
+f"%i{c} %i{rem}\n";
 
 b = 0;
 c = Div(a, b);
-write c; "\n";
-write rem; "\n";
+f"%i{c} %i{rem}\n";
+

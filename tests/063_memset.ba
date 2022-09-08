@@ -7,7 +7,7 @@ MemSet(&arr, 9, $arr);
 
 u64 i = 0;
 while i < lengthof arr iter ++i {
-	write [arr,i]; "\n"; # 651061555542690057
+	f"%u{[arr,i]}\n"; # 651061555542690057
 }
 
 "--- arr2 ---\n";

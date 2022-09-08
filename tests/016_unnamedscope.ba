@@ -4,29 +4,29 @@
 	5
 	2,1,0
 	25
-}#
+#}
 
 u64 a = 500;
-write a; "\n";
+f"%i{a}\n";
 
 {
 	u64 b = 5;
-	write b; "\n";
+	f"%i{b}\n";
 	a = 25;
 
 	{
 		u64 c = 2;
 		while c {
-			write c; ",";
+			f"%i{c},";
 			--c;
 		}
-		write c; "\n";
+		f"%i{c}\n";
 	}
 
-	# write c; # Error
+	# f"%i{c}\n"; # Error
 }
 
-write a; "\n";
-# write b; # Error
+f"%i{a}\n";
+# "%i{b}\n"; # Error
 # c = 25; # Error
 

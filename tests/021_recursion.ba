@@ -11,18 +11,18 @@
 	256
 	512
 	1024
-}#
+#}
 
 u64 Pow(u64 x, u64 y) {
 	if y == 0u, return 1;
 	if y == 1u, return x;
-	if y & 1, return x * Pow(x * x, (y - 1) // 2);
-	return Pow(x * x, y // 2);
+	if y & 1, return x * Pow(x * x, (y - 1u) // 2u);
+	return Pow(x * x, y // 2u);
 }
 
 u64 i = 0;
 while i <= 10u {
-	write Pow(2, i); "\n";
+	f"%i{Pow(2, i)}\n";
 	++i;
 }
 

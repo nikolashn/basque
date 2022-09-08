@@ -159,7 +159,7 @@ int main(int argc, char* argv[]) {
 	strcpy(ctr->dir, srcFileName);
 	ctr->dir = dirname(ctr->dir);
 
-	if (!ba_Tokenize(srcFile, ctr)) {
+	if (!ba_Tokenize(ctr, srcFile)) {
 		return -1;
 	}
 	fclose(srcFile);

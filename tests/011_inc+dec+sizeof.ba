@@ -1,38 +1,34 @@
 #{
 	Expected output:
-	9,10,12,11,23,12
-	18446744073709551615,0,2,1
-	8,40,1,1
-}#
+	9 10 12 11 23 12
+	-1 0 2 1
+	8 40 1 1
+#}
 
-#{--- Increment and decrement ---}#
+#{--- Increment and decrement ---#}
 
-i64 a = 9;
+u64 a = 9;
 
-write a; ",";
-write ++a; ",";
+f"%i{a} %i{++a} ";
 ++a;
 ++a;
-write a; ",";
-# write --++a; ","; # Error
-write --a; ",";
-# write --(a + 1); # Error
-write 11 + ++a; ",";
-write a; "\n";
+f"%i{a} ";
+# --++a; ","; # Error
+f"%i{--a} ";
+# --(a + 1); # Error
+f"%i{11u + ++a} %i{a}\n";
 
 a = -1;
-write a; ",";
-write ++a; ",";
+f"%i{a} %i{++a} ";
 ++a;
-write ++a; ",";
+f"%i{++a} ";
 a = --a;
-write a; "\n";
+f"%i{a}\n";
 
-#{--- $ (sizeof) operator ---}#
+#{--- $ (sizeof) operator ---#}
 
-write $123; ",";
-write 5 * $a; ",";
-# write $"test"; # Error
-write 9 - $$($a + a); ",";
-write $(a && 1); "\n";
+f"%i{$123} ";
+f"%i{5u * $a} ";
+f"%i{9u - $$($a + a)} ";
+f"%i{$(a && 1)}\n";
 

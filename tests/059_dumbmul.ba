@@ -1,7 +1,7 @@
 #{ 
 	Dumb multiplication algorithm as a basic demonstration of closures
 	Expected output: 139797
-}#
+#}
 
 u64 DumbMul(u64 a, u64 b) {
 	u64 SmartAdd(u64 a, u64 b) {
@@ -14,5 +14,5 @@ u64 DumbMul(u64 a, u64 b) {
 	return product;
 }
 
-write DumbMul(951, 147); "\n";
+f"%u{DumbMul(951, 147)}\n";
 

@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Basque
 " Maintainer: nikolashn
-" Latest Revision: 2022 Aug 12
+" Latest Revision: 2022 Aug 13
 " Usage instructions:
 
 " Put this file in .vim/syntax/basque.vim,
@@ -13,7 +13,7 @@ if exists("b:current_syntax")
 endif
 
 syn keyword baTodo contained TODO FIXME XXX NOTE
-syn region baMLComment start="#{" end="}#" contains=baTodo
+syn region baMLComment start="#{" end="#}" contains=baTodo
 syn match baComment "#\([^{].*\)\?$" contains=baTodo
 
 syn match baNumber "\<-\?[0-9_]\+\(u\|U\)\?\>"
@@ -28,7 +28,7 @@ syn match baEscape contained '\\\(["ntvfrb0\n\\]\|\'\|\(x\o\x\)\)'
 
 syn keyword baConditional if elif else
 syn keyword baRepeat while iter
-syn keyword baStatement write break goto return include exit
+syn keyword baStatement fwrite swrite break goto return include exit
 syn keyword baType u64 i64 u8 i8 bool void
 syn keyword baOperator lengthof
 

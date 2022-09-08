@@ -544,7 +544,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 					else if ((BA_IM_AL <= im->vals[4]) && (BA_IM_R15B >= im->vals[4])) {
 						u8 reg1 = im->vals[4] - BA_IM_AL;
 						u8 byte0 = 0x40 | (reg0 >= 8) | ((reg1 >= 8) << 2);
-						bool hasByte0 = (reg0 >= 4) | (reg1 >= 4);
+						bool hasByte0 = (reg0 >= 8) | (reg1 >= 4);
 
 						bool isOffsetOneByte = offset < 0x80;
 						if (offset >= (1llu << 31)) {
@@ -865,6 +865,22 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						(hasByte0) && (code->arr[code->cnt-3] = byte0);
 						code->arr[code->cnt-2] = byte1Offset;
 						code->arr[code->cnt-1] = byte2;
+					}
+					// GPRb, IMM
+					else if (im->vals[2] == BA_IM_IMM) {
+						if (im->count < 4) {
+							return ba_ErrorIMArgCount(4, im);
+						}
+						u8 reg = im->vals[1] - BA_IM_AL;
+						code->cnt += 2 + (bool)reg + (reg >= 4);
+						(code->cnt > code->cap) && ba_ResizeDynArr8(code);
+						
+						u8 penultByte = 0x4 + byte1Offset + 0xc0 * (bool)reg + (reg & 7);
+
+						(reg >= 4) && (code->arr[code->cnt-4] = 0x40 + (reg > 7));
+						reg && (code->arr[code->cnt-3] = 0x80);
+						code->arr[code->cnt-2] = penultByte;
+						code->arr[code->cnt-1] = im->vals[3] & 0xff;
 					}
 
 					else {
@@ -1855,6 +1871,19 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 				if ((BA_IM_RAX <= im->vals[4]) && (BA_IM_R15 >= im->vals[4])) {
 					u8 reg0 = im->vals[1] - BA_IM_RAX;
 					return 4 + 3 * (im->vals[3] >= 0x80) + ((reg0 & 7) == 4);
+				}
+			}
+			else if ((BA_IM_AL <= im->vals[1]) && (BA_IM_R15B >= im->vals[1])) {
+				if ((BA_IM_AL <= im->vals[2]) && (BA_IM_R15B >= im->vals[2])) {
+					return 2 + ((BA_IM_SPL <= im->vals[1]) | (BA_IM_SPL <= im->vals[2]));
+				}
+				// GPRb, IMM
+				else if (im->vals[2] == BA_IM_IMM) {
+					return 2 + (im->vals[1] == BA_IM_AL) + (im->vals[1] >= BA_IM_DL);
+				}
+
+				else {
+					return ba_ErrorIMArgInvalid(im);
 				}
 			}
 

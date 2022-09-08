@@ -8,13 +8,7 @@ i64 m = 0;
 while m <= 4 {
 	i64 n = 0;
 	while n < 6 - m {
-		"A(";
-		write m;
-		", ";
-		write n;
-		") = ";
-		write A(m, n);
-		"\n";
+		f"A(%i{m}, %i{n}) = %i{A(m, n)}\n";
 		++n;
 	}
 	++m;
