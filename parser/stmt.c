@@ -64,7 +64,7 @@ void PrintStr(struct ba_Ctr* ctr, u64 len, char* str) {
  *      | base_type identifier "=" exp ";"
  *      | identifier ":"
  *      | fstring { fstring } ";"
- *      | exp [ ( "swrite" | "fwrite" ) ( exp | fstring { fstring } ) ] ";"
+ *      | exp ";"
  *      | ";" 
  */
 u8 ba_PStmt(struct ba_Ctr* ctr) {
@@ -767,8 +767,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		return ba_PExpect(';', ctr);
 	}
-	// exp [ ( "swrite" | "fwrite" ) ( exp | fstring { fstring } ) ] ";"
-	else if (ba_PExp(ctr)) { // TODO: update
+	// exp ";"
+	else if (ba_PExp(ctr)) {
 		struct ba_PTkStkItem* expItem = ba_StkPop(ctr->pTkStk);
 
 		// String literals by themselves in statements are written to standard output

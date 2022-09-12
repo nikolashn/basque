@@ -101,8 +101,6 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_FSTRING:     return "formatted string";
 		case BA_TK_KW_U64:      return "keyword 'u64'";
 		case BA_TK_KW_I64:      return "keyword 'i64'";
-		case BA_TK_KW_FWRITE:   return "keyword 'fwrite'";
-		case BA_TK_KW_SWRITE:   return "keyword 'swrite'";
 		case BA_TK_KW_IF:       return "keyword 'if'";
 		case BA_TK_KW_ELIF:     return "keyword 'elif'";
 		case BA_TK_KW_ELSE:     return "keyword 'else'";

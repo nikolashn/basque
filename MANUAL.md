@@ -128,23 +128,23 @@ Format specifiers:
 
 `%i{` expression `}`
 
-Formats the expression as a signed 64-bit decimal number (`i64`).
+Formats the expression as a signed 64-bit decimal integer (`i64`).
 
 `%u{` expression `}`
 
-Formats the expression as an unsigned 64-bit decimal number (`u64`).
+Formats the expression as an unsigned 64-bit decimal integer (`u64`).
 
 `%x{` expression `}`
 
-Formats the expression as an unsigned 64-bit hexadecimal number.
+Formats the expression as an unsigned 64-bit hexadecimal integer.
 
 `%o{` expression `}`
 
-Formats the expression as an unsigned 64-bit octal number.
+Formats the expression as an unsigned 64-bit octal integer.
 
 `%b{` expression `}`
 
-Formats the expression as an unsigned 64-bit binary number.
+Formats the expression as an unsigned 64-bit binary integer.
 
 `%c{` expression `}`
 
