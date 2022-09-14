@@ -623,6 +623,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				if (!isLiteral && isFormatNum) {
 					ba_AddIM(ctr, 4, BA_IM_SUB, BA_IM_RSP, BA_IM_IMM, 
 						fstr->formatType == BA_FTYPE_BIN ? 0x40 : 0x18);
+					ba_AddIM(ctr, 2, BA_IM_PUSH, BA_IM_RSP);
 					ba_POpMovArgToReg(ctr, stkItem, BA_IM_RAX, /* isLiteral = */ 0);
 					if (stkItem->lexemeType == BA_TK_IMREGISTER && val != BA_IM_RAX) {
 						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RAX, val);
@@ -751,7 +752,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 						free(str);
 					}
 					else {
-						ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x8);
+						ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, 0x10);
 						ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RDX, BA_IM_RAX);
 						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
 						ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
