@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "fstr.h"
+#include "../common/options.h"
 
 void PrintStr(struct ba_Ctr* ctr, u64 len, char* str) {
 	// Round up to nearest 0x08
@@ -423,8 +424,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	// "include" lit_str { lit_str } ";"
 	else if (ba_PAccept(BA_TK_KW_INCLUDE, ctr)) {
 		u64 len = ctr->lex->valLen;
-		char* fileName = ba_MAlloc(len + 1);
-		strcpy(fileName, ctr->lex->val);
+		char* originalFileName = ba_MAlloc(len+1);
+		memcpy(originalFileName, ctr->lex->val, len+1);
+		char* fileName = ba_MAlloc(len+1);
+		memcpy(fileName, ctr->lex->val, len+1);
 		ba_PExpect(BA_TK_LITSTR, ctr);
 
 		// do-while prevents 1 more str literal from being consumed than needed
@@ -441,7 +444,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			}
 
 			fileName = ba_Realloc(fileName, len+1);
-			strcpy(fileName+oldLen, ctr->lex->val);
+			memcpy(fileName+oldLen, ctr->lex->val, ctr->lex->valLen);
 			fileName[len] = 0;
 		}
 		while (ba_PAccept(BA_TK_LITSTR, ctr));
@@ -463,14 +466,42 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				fileName = relFileName;
 			}
 
-			// TODO: specifying paths to search as a command line flag
 			FILE* includeFile = fopen(fileName, "r");
+			char* includePath = ba_GetIncludePath();
+			if (!includeFile && includePath) {
+				// Search the include paths passed to the compiler
+				char buf[BA_PATH_BUF_SIZE];
+				u64 bufLen = 0;
+				while (*includePath && !includeFile) {
+					buf[bufLen] = *includePath;
+					++bufLen;
+					++includePath;
+					if (!*includePath || *includePath == ':') {
+						*includePath && ++includePath;
+						if (bufLen >= BA_PATH_BUF_SIZE) {
+							fprintf(stderr, "Include path may not be longer than %lld "
+								"characters\n", (u64)BA_PATH_BUF_SIZE);
+							exit(-1);
+						}
+						char* relFileName = ba_MAlloc(bufLen + len + 2);
+						memcpy(relFileName, buf, bufLen);
+						relFileName[bufLen] = '/';
+						relFileName[bufLen+1] = 0;
+						strcat(relFileName, originalFileName);
+						free(fileName);
+						fileName = relFileName;
+						includeFile = fopen(fileName, "r");
+						bufLen = 0;
+					}
+				}
+			}
 			if (!includeFile) {
 				fprintf(stderr, "Error: cannot find file '%s' included on "
-					"line %llu:%llu in %s\n", fileName, firstLine, firstCol, 
+					"line %llu:%llu in %s\n", originalFileName, firstLine, firstCol, 
 					ctr->currPath);
 				exit(-1);
 			}
+			free(originalFileName);
 			
 			struct stat inclFileStat;
 			fstat(fileno(includeFile), &inclFileStat);
@@ -502,7 +533,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 			nextLex->valLen = strlen(ctr->currPath);
 			nextLex->val = ba_MAlloc(nextLex->valLen+1);
-			strcpy(nextLex->val, ctr->currPath);
+			memcpy(nextLex->val, ctr->currPath, nextLex->valLen+1);
 
 			nextLex->next = oldNextLex;
 			ctr->currPath = fileName;

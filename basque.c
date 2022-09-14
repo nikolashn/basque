@@ -15,6 +15,7 @@ char usageStr[] =
 	"  -r,--run                Run the compiled code after compilation.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
 	"  -W,--warnings-as-errors Treat warnings as errors.\n"
+	"  --include-path <PATH>   Set paths for searching for included files.\n"
 	"  --page-size <SIZE>      Size in bytes of memory pages.\n"
 ;
 
@@ -98,11 +99,18 @@ int main(int argc, char* argv[]) {
 		}
 		else if (!strcmp(argv[i], "--page-size")) {
 			if (++i == argc) {
-				fprintf(stderr, "Error: no page size provided after "
-					"--page-size\n");
+				fprintf(stderr, "Error: no page size provided after --page-size\n");
 				return -1;
 			}
 			ba_SetPageSize(atoll(argv[i]));
+			goto BA_LBL_MAIN_ARGSLOOPEND;
+		}
+		else if (!strcmp(argv[i], "--include-path")) {
+			if (++i == argc) {
+				fprintf(stderr, "Error: no path provided after --include-path\n");
+				return -1;
+			}
+			ba_SetIncludePath(argv[i], /* isOverrideDefaults = */ 0);
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
@@ -201,11 +209,13 @@ int main(int argc, char* argv[]) {
 		if (access(outFileName, R_OK|X_OK)) {
 			fprintf(stderr, "Error: cannot read or cannot execute "
 				"written binary file\n");
-			exit(-1);
+			return -1;
 		}
 		char* args[] = { runFileName, NULL };
 		execvp(runFileName, args);
 	}
+
+	free(ba_GetIncludePath());
 	
 	return 0;
 }

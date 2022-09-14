@@ -38,6 +38,13 @@ Silence all compiler warnings.
 .BR \-W ", " \-\-warnings-as-errors
 Treat warnings as errors (terminate compilation on warnings).
 .TP
+.BR \-\-include\-path " path"
+Set paths for searching for included files. When an include statement is
+processed, the C Basque compiler will first search in the same directory as the
+file where the statement was written, then will search in include paths passed
+to the compiler, in order from the start to the end of the string passed. Paths 
+are separated by colons.
+.TP
 .BR \-\-page\-size " size"
 Set the size of memory pages in bytes. Setting the page size to 0 will leave it as default.
 .SH COPYRIGHT

@@ -1,7 +1,7 @@
 # See LICENSE for copyright/license information
 
 include config.mk
-CFILES = basque.c bltin/bltin.c bltin/core.c bltin/sys.c bltin/format.c common/stack.c common/reg.c common/format.c common/types.c common/hashtable.c common/im.c common/parser.c common/elf.c common/dynarr.c common/lexeme.c common/exitmsg.c common/symtable.c common/ctr.c common/func.c elf64.c lexer.c parser/common.c parser/exp.c parser/parse.c parser/handle.c parser/op.c parser/stmt.c parser/fstr.c common/common.c
+CFILES = basque.c bltin/bltin.c bltin/core.c bltin/sys.c bltin/format.c common/stack.c common/reg.c common/format.c common/types.c common/hashtable.c common/im.c common/parser.c common/options.c common/dynarr.c common/lexeme.c common/exitmsg.c common/symtable.c common/ctr.c common/func.c elf64.c lexer.c parser/common.c parser/exp.c parser/parse.c parser/handle.c parser/op.c parser/stmt.c parser/fstr.c common/common.c
 
 all:
 	${CC} ${CFILES} -o basque ${CFLAGS}
