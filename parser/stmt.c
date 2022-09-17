@@ -794,8 +794,9 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 					}
 				}
 			}
-			free(fstr);
+			struct ba_FStr* fstrOriginal = fstr;
 			fstr = fstr->next;
+			free(fstrOriginal);
 		}
 		return ba_PExpect(';', ctr);
 	}
