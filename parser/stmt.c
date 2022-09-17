@@ -836,6 +836,15 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	{
 		return ba_ErrorVarRedef(funcName, line, col, ctr->currPath);
 	}
+	if (!prevFuncIdVal) {
+		prevFuncIdVal = ba_STParentFind(ctr->currScope, 
+			/* stFoundInPtr = */ 0, funcName);
+		if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
+			prevFuncIdVal->isInited))
+		{
+			ba_ErrorShadow(funcName, line, col, ctr->currPath);
+		}
+	}
 
 	if (retType.type == BA_TYPE_ARR && 
 		!((struct ba_ArrExtraInfo*)retType.extraInfo)->cnt) 
@@ -935,6 +944,11 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 				if (ba_HTGet(func->childScope->ht, paramName)) {
 					return ba_ErrorVarRedef(paramName, line, col, ctr->currPath);
+				}
+				if (ba_STParentFind(ctr->currScope, 
+					/* stFoundInPtr = */ 0, paramName)) 
+				{
+					ba_ErrorShadow(paramName, line, col, ctr->currPath);
 				}
 
 				param->stVal = ba_MAlloc(sizeof(struct ba_STVal));
@@ -1127,15 +1141,8 @@ u8 ba_PVarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 		return ba_ErrorVarRedef(idName, line, col, ctr->currPath);
 	}
 
-	struct ba_SymTable* foundIn = 0;
-	if (ba_STParentFind(ctr->currScope, &foundIn, idName)) {
-		if (!ba_IsSilenceWarns()) {
-			fprintf(stderr, "Warning: shadowing variable '%s' on "
-				"line %llu:%llu in %s\n", idName, line, col, ctr->currPath);
-		}
-		if (ba_IsWarnsAsErrs()) {
-			exit(-1);
-		}
+	if (ba_STParentFind(ctr->currScope, /* stFoundInPtr = */ 0, idName)) {
+		ba_ErrorShadow(idName, line, col, ctr->currPath);
 	}
 
 	struct ba_STVal* idVal = ba_MAlloc(sizeof(struct ba_STVal));

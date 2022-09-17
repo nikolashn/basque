@@ -50,7 +50,9 @@ struct ba_STVal* ba_STParentFind(struct ba_SymTable* st,
 	while (st) {
 		struct ba_STVal* get = ba_HTGet(st->ht, key);
 		if (get) {
-			*stFoundInPtr = st;
+			if (stFoundInPtr) {
+				*stFoundInPtr = st;
+			}
 			return get;
 		}
 		st = st->parent;

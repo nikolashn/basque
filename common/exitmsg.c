@@ -143,3 +143,10 @@ u8 ba_ErrorGoto(u64 line, u64 col, char* path) {
 		"scope or an outer scope", line, col, path);
 }
 
+u8 ba_ErrorShadow(char* idName, u64 line, u64 col, char* path) {
+	fprintf(stderr, "Error: shadowing variable '%s' on line %llu:%llu in %s\n",
+		idName, line, col, path);
+	exit(-1);
+	return 0;
+}
+
