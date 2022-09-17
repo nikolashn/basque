@@ -19,7 +19,7 @@ make vim
 ```
 
 ## Command-line options
-Run `basque -h` for a list of command-line options. The makefile will also install a man page.
+Run `basque -h` for a list of command-line options. The makefile will also install a man page with further details about these options.
 
 ## License
 Basque is licensed under the GNU General Public License v3.0.
