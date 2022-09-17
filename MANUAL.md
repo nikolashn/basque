@@ -17,9 +17,9 @@ In the future the following integer types will also exist: `i32`, `u32`, `i16`, 
 ### Arrays
 Arrays in Basque are composed of a dimension on another type. This can be written as a rule `type[dimension]`. The type can be any valid data type, and each additional dimension with size *N* represents a repetition of a block of data of the fundamental type *N* times in series. Arrays in Basque are also different to those in C in some other ways, the main differences being:
 - The syntax for declaring a variable as an array is different: Basque `i8[15] x;` vs C `signed char x[15];`, Basque `i64[6][7] arr;` vs C `long long arr[7][6];`, Basque `u8[99]* users;` vs C `unsigned char* users[99];`.
-- Arrays cannot be cast to pointers in Basque. To get the address of an array, you will have to make a reference to it like any other variable.
+- Arrays cannot be casted to pointers in Basque. To get the address of an array, you will have to make a reference to it like any other variable.
 - For the above reason, arrays are passed by value to functions and are value copied in assignments.
-- Arrays can be casted to other array types of the same size, e.g. `u64[3]` can be casted to `i8[24]`.
+- Arrays can be casted and assigned to other array types of the same size, e.g. `u64[3]` can be casted to `i8[24]`.
 
 ### Functions
 Func (function) is a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++, and they may be defined in any scope.
