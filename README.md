@@ -1,5 +1,5 @@
 # Basque
-Basque is a general-purpose, statically-typed, weakly-typed, procedural, C-like programming language. The C Basque compiler currently only statically compiles for Linux x86\_64 ELF, ahead of time. This will serve as a bootstrap compiler for a self-hosting Basque compiler, which will hopefully be more portable and complete.
+Basque is a general-purpose, statically-typed, procedural, C-like programming language. The C Basque compiler currently only statically compiles for Linux x86\_64 ELF, ahead of time. This will serve as a bootstrap compiler for a self-hosting Basque compiler, which will hopefully be more portable and complete.
 
 ## Installation
 You will need a C compiler and GNU make. Edit config.mk to set compiler and other compilation options.

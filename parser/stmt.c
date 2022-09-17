@@ -842,7 +842,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 		if (prevFuncIdVal && (prevFuncIdVal->type.type != BA_TYPE_FUNC || 
 			prevFuncIdVal->isInited))
 		{
-			ba_ErrorShadow(funcName, line, col, ctr->currPath);
+			return ba_ErrorShadow(funcName, line, col, ctr->currPath);
 		}
 	}
 
@@ -1125,6 +1125,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 	if (stmtType == TP_FULLDEC && retType.type != BA_TYPE_VOID && 
 		!func->doesReturn) 
 	{
+		// TODO: check all branches
 		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu in %s "
 			"with return type %s) does not return a value\n", funcName, line, 
 			col, ctr->currPath, ba_GetTypeStr(retType));
