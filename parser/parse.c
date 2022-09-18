@@ -13,8 +13,8 @@ u8 ba_Parse(struct ba_Ctr* ctr) {
 			// this is just a decent buffer size
 			char msg[BA_LITERAL_SIZE+1];
 			if (ctr->lex->type == BA_TK_FILECHANGE) {
-				sprintf(msg, "unexpected end of file %s, included on", 
-					ctr->currPath);
+				snprintf(msg, BA_LITERAL_SIZE+1, 
+					"unexpected end of file %s, included on", ctr->currPath);
 				ctr->currPath = ctr->lex->val;
 			}
 			else if (ctr->lex->type == BA_TK_EOF) {
@@ -23,7 +23,7 @@ u8 ba_Parse(struct ba_Ctr* ctr) {
 				exit(1);
 			}
 			else {
-				sprintf(msg, "unexpected %s at", 
+				snprintf(msg, BA_LITERAL_SIZE+1, "unexpected %s at", 
 					ba_GetLexemeStr(ctr->lex->type));
 			}
 			return ba_ExitMsg(BA_EXIT_ERR, msg, ctr->lex->line, 

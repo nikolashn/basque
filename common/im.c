@@ -124,7 +124,8 @@ char* ba_IMItemToStr(u64 val) {
 }
 
 char* ba_IMToStr(struct ba_IM* im) {
-	char* str = ba_MAlloc(255);
+	char* str = ba_MAlloc(256);
+	u64 len = 0;
 	*str = 0;
 
 	bool isImm = 0;
@@ -134,7 +135,7 @@ char* ba_IMToStr(struct ba_IM* im) {
 		u64 val = im->vals[i];
 	
 		if (isImm) {
-			sprintf(str+strlen(str), "%#llx ", val);
+			len += snprintf(str + len, 256 - len, "%#llx ", val);
 			isImm = 0;
 			goto BA_LBL_IMTOSTR_LOOPEND;
 		}
@@ -147,7 +148,7 @@ char* ba_IMToStr(struct ba_IM* im) {
 			strcat(str, valStr);
 		}
 		else {
-			sprintf(str+strlen(str), "%llu ", val);
+			snprintf(str + len, 256 - len, "%llu ", val);
 		}
 		switch (val) {
 			case BA_IM_IMM: case BA_IM_LABEL: case BA_IM_ADRADDREGMUL:

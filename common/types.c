@@ -132,7 +132,7 @@ char* ba_GetTypeStr(struct ba_Type type) {
 			struct ba_ArrExtraInfo* info = type.extraInfo;
 			char* pntdTypeStr = ba_GetTypeStr(info->type);
 			char sizeStr[20];
-			sprintf(sizeStr, "%lld", info->cnt);
+			snprintf(sizeStr, 20, "%lld", info->cnt);
 			u64 pntdTypeStrLen = strlen(pntdTypeStr);
 			u64 sizeStrLen = strlen(sizeStr);
 			u64 typeStrSize = pntdTypeStrLen+sizeStrLen+3;
@@ -170,8 +170,9 @@ char* ba_GetTypeStr(struct ba_Type type) {
 				param = param->next;
 			}
 			
-			char* typeStr = ba_MAlloc(strlen(retTypeStr)+paramsStrLen+8);
-			sprintf(typeStr, "func %s(%s)", retTypeStr, paramsStr);
+			u64 bufSize = strlen(retTypeStr)+paramsStrLen+8;
+			char* typeStr = ba_MAlloc(bufSize);
+			snprintf(typeStr, bufSize, "func %s(%s)", retTypeStr, paramsStr);
 			return typeStr;
 		}
 	}
