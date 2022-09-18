@@ -147,6 +147,11 @@ bool ba_POpMovArgToReg(struct ba_Ctr* ctr, struct ba_PTkStkItem* arg, u64 reg,
 			BA_IM_RBP, ctr->currScope->dataSize + (u64)arg->val);
 		return 1;
 	}
+	if (arg->lexemeType == BA_TK_LITSTR) {
+		ba_AddIM(ctr, 4, BA_IM_MOV, reg, BA_IM_STATIC, 
+			(u64)ba_AllocStrLitStatic(ctr, (struct ba_Str*)arg->val));
+		return 1;
+	}
 	if (isLiteral) {
 		if (isArr) {
 			return 0;
