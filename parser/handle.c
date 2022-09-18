@@ -131,7 +131,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 						ba_GetLexemeStr(op->lexemeType), 
 						op->lexemeType == '~' ? "integral" : "numeric", 
 						op->line, op->col, ctr->currPath);
-					exit(-1);
+					exit(1);
 				}
 
 				u64 imOp;
@@ -1096,7 +1096,7 @@ u8 ba_POpHandle(struct ba_Ctr* ctr, struct ba_POpStkItem* handler) {
 								ctr->currPath,
 								ba_GetTypeStr(funcArg->typeInfo), 
 								ba_GetTypeStr(param->type));
-							exit(-1);
+							exit(1);
 						}
 						
 						if (isParamNum) {

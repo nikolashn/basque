@@ -33,7 +33,7 @@ u8 CharEscape(char c) {
 
 u8 ErrorEOF() {
 	fprintf(stderr, "Error: unexpected end of file\n");
-	exit(-1);
+	exit(1);
 	return 0;
 }
 

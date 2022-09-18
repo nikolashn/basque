@@ -534,7 +534,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 						if (bufLen >= BA_PATH_BUF_SIZE) {
 							fprintf(stderr, "Include path may not be longer than %lld "
 								"characters\n", (u64)BA_PATH_BUF_SIZE);
-							exit(-1);
+							exit(1);
 						}
 						char* relFileName = ba_MAlloc(bufLen + len + 2);
 						memcpy(relFileName, buf, bufLen);
@@ -552,7 +552,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 				fprintf(stderr, "Error: cannot find file '%s' included on "
 					"line %llu:%llu in %s\n", originalFileName, firstLine, firstCol, 
 					ctr->currPath);
-				exit(-1);
+				exit(1);
 			}
 			free(originalFileName);
 			
@@ -827,7 +827,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 					default:
 						fprintf(stderr, "invalid format type 0x%llx\n", fstr->formatType);
-						exit(-1);
+						exit(1);
 				}
 
 				if (isFormatNum) {
@@ -1157,7 +1157,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 		fprintf(stderr, "Error: parameters of func %s declared on line "
 			"%llu:%llu in %s incompatible with previously forward declared "
 			"definition\n", funcName, line, col, ctr->currPath);
-		exit(-1);
+		exit(1);
 		free(prevFuncIdVal);
 	}
 	
@@ -1182,7 +1182,7 @@ u8 ba_PFuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 		fprintf(stderr, "Error: func '%s' (defined on line %llu:%llu in %s "
 			"with return type %s) does not return a value\n", funcName, line, 
 			col, ctr->currPath, ba_GetTypeStr(retType));
-		exit(-1);
+		exit(1);
 	}
 
 	return 1;

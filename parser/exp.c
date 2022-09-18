@@ -106,7 +106,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 			fprintf(stderr, "Error: cannot coerce array literal to type '%s' "
 				"on line %llu:%llu in %s\n", ba_GetTypeStr(*coercedType), 
 				lexLine, lexCol, ctr->currPath);
-			exit(-1);
+			exit(1);
 		}
 	
 		struct ba_ArrExtraInfo* extraInfo = coercedType->extraInfo;
@@ -175,7 +175,7 @@ u8 ba_PAtom(struct ba_Ctr* ctr) {
 				}
 				else if (stkItem->lexemeType == BA_TK_IMSTATIC) {
 					// TODO: nesting arrays
-					exit(-1);
+					exit(1);
 				}
 			}
 			else {
@@ -347,7 +347,7 @@ u8 ba_PDerefListMake(struct ba_Ctr* ctr, u64 line, u64 col) {
 				// TODO: implement feature
 				fprintf(stderr, "Error: Dereferencing pointer to type of size %lld "
 					"not implemented yet\n", pntdSz);
-				exit(-1);
+				exit(1);
 			}
 
 			if (!addReg) {
@@ -565,7 +565,7 @@ u8 ba_PExp(struct ba_Ctr* ctr) {
 							op->line, op->col, ctr->currPath, func->paramCnt, 
 							func->paramCnt == 1 ? "" : "s", 
 							funcArgsCnt, funcArgsCnt == 1 ? " was" : "s were");
-						exit(-1);
+						exit(1);
 					}
 				}
 				

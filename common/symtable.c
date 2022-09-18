@@ -73,7 +73,7 @@ i64 ba_CalcVarOffset(struct ba_Ctr* ctr, struct ba_STVal* id, bool* isPushRbp) {
 		if (!scope) {
 			fprintf(stderr, "Error: identifier used in scope that is not a "
 				"descendant of its own scope\n");
-			exit(-1);
+			exit(1);
 		}
 
 		if (!lastScope->func || lastScope != lastScope->func->childScope) {

@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
 		if (!strcmp(argv[i], "-o")) {
 			if (++i == argc) {
 				fprintf(stderr, "Error: no file name provided after -o\n");
-				return -1;
+				return 1;
 			}
 			outFileName = argv[i];
 			goto BA_LBL_MAIN_ARGSLOOPEND;
@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
 						default:
 							fprintf(stderr, "Error: Command line option %s "
 								"not found\n", argv[i]);
-							return -1;
+							return 1;
 					}
 				}
 			}
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
 		else if (!strcmp(argv[i], "--page-size")) {
 			if (++i == argc) {
 				fprintf(stderr, "Error: no page size provided after --page-size\n");
-				return -1;
+				return 1;
 			}
 			ba_SetPageSize(atoll(argv[i]));
 			goto BA_LBL_MAIN_ARGSLOOPEND;
@@ -113,14 +113,14 @@ int main(int argc, char* argv[]) {
 		else if (!strcmp(argv[i], "--include-path")) {
 			if (++i == argc) {
 				fprintf(stderr, "Error: no path provided after --include-path\n");
-				return -1;
+				return 1;
 			}
 			ba_SetIncludePath(argv[i], /* isOverrideDefaults = */ 0);
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (len > 1 && argv[i][0] == '-' && argv[i][1] == '-') {
 			fprintf(stderr, "Error: Command line option %s not found\n", argv[i]);
-			return -1;
+			return 1;
 		}
 		else if (!srcFile) {
 			if (!strcmp(argv[i], "-")) {
@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
 			}
 			if (!srcFile) {
 				fprintf(stderr, "Error: Cannot find %s: no such file\n", argv[i]);
-				return -1;
+				return 1;
 			}
 			if (!outFileName) {
 				if ((len > 3) && !strcmp(argv[i]+len-3, ".ba")) {
@@ -150,14 +150,14 @@ int main(int argc, char* argv[]) {
 		}
 		else {
 			fprintf(stderr, "Error: only one input file may be specified\n");
-			return -1;
+			return 1;
 		}
 		BA_LBL_MAIN_ARGSLOOPEND:;
 	}
 	if (ba_IsWarnsAsErrs() && ba_IsSilenceWarns()) {
 		fprintf(stderr, "Error: cannot both silence warnings and have warnings "
 			"as errors\n");
-		return -1;
+		return 1;
 	}
 	if (!srcFile) {
 		fprintf(stderr, "%s", usageStr);
@@ -173,7 +173,7 @@ int main(int argc, char* argv[]) {
 	ctr->dir = dirname(ctr->dir);
 
 	if (!ba_Tokenize(ctr, srcFile)) {
-		return -1;
+		return 1;
 	}
 	fclose(srcFile);
 	
@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
 	*/
 
 	if (!ba_Parse(ctr)) {
-		return -1;
+		return 1;
 	}
 
 	// ----- Optimization -----
@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) {
 	// ----- Binary generation -----
 	
 	if (!ba_WriteBinary(outFileName, ctr)) {
-		return -1;
+		return 1;
 	}
 
 	if (isRunCode) {
@@ -214,7 +214,7 @@ int main(int argc, char* argv[]) {
 		if (access(outFileName, R_OK|X_OK)) {
 			fprintf(stderr, "Error: cannot read or cannot execute "
 				"written binary file\n");
-			return -1;
+			return 1;
 		}
 		char* args[] = { runFileName, NULL };
 		execvp(runFileName, args);

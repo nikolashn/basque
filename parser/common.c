@@ -22,7 +22,7 @@ u8 ba_PExpect(u64 type, struct ba_Ctr* ctr) {
 				ba_GetLexemeStr(type), ctr->lex->line, ctr->lex->col,
 				ctr->currPath);
 		}
-		exit(-1);
+		exit(1);
 		return 0;
 	}
 	return 1;

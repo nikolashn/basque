@@ -22,7 +22,7 @@ u64 ba_AdjRegSize(u64 reg, u64 size) {
 		return reg - BA_IM_RAX + BA_IM_AL;
 	}
 	fprintf(stderr, "Error: invalid register size %llu\n", size);
-	exit(-1);
+	exit(1);
 }
 
 char* ba_IMItemToStr(u64 val) {

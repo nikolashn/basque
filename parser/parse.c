@@ -20,7 +20,7 @@ u8 ba_Parse(struct ba_Ctr* ctr) {
 			else if (ctr->lex->type == BA_TK_EOF) {
 				fprintf(stderr, "Error: unexpected end of file in %s\n",
 					ctr->currPath);
-				exit(-1);
+				exit(1);
 			}
 			else {
 				sprintf(msg, "unexpected %s at", 

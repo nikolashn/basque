@@ -85,7 +85,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				if (labelID >= ctr->labelCnt || lbl->isFound) {
 					fprintf(stderr, "Error: cannot generate intermediate "
 						"label %lld\n", labelID);
-					exit(-1);
+					exit(1);
 				}
 
 				lbl->addr = code->cnt;
@@ -514,7 +514,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset in "
 								"instruction %s\n", ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						sub && (offset = -offset);
@@ -551,7 +551,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset in "
 								"instruction %s\n", ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						sub && (offset = -offset);
@@ -583,7 +583,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						if (adrAddDestSize == 0xff) {
 							fprintf(stderr, "Error: no size specified for MOV "
 								"in instruction %s\n", ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						if (im->count < 6) {
@@ -598,7 +598,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset " 
 								"in instruction %s\n", ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						u8 byte2 = (0x40 << !isOffsetOneByte) | (reg0 & 7);
@@ -809,7 +809,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 							fprintf(stderr, "Error: Cannot %s more than 31 bits "
 								"to a register in instruction %s\n", 
 								instrName, ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						code->cnt += 4 + (imm >= 0x80) * 
@@ -900,7 +900,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 						fprintf(stderr, "Error: first argument for "
 							"ADRADD/ADRSUB must be a general purpose register "
 							"in instruction %s\n", ba_IMToStr(im));
-						exit(-1);
+						exit(1);
 					}
 					
 					// From GPR
@@ -917,7 +917,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 							fprintf(stderr, "Error: Effective address cannot "
 								"have a more than 32 bit offset in "
 								"instruction %s\n", ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						u8 instrSz = 4 + 3 * (!isOffsetOneByte) + 
@@ -1109,7 +1109,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 							fprintf(stderr, "Error: Cannot SHL a register by "
 								"more than 6 bits in instruction %s\n", 
 								ba_IMToStr(im));
-							exit(-1);
+							exit(1);
 						}
 
 						u64 instrSize = 3 + (imm != 1);
@@ -1305,7 +1305,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 				if (labelID >= ctr->labelCnt) {
 					fprintf(stderr, "Error: cannot find intermediate label "
 						"%lld in instruction %s\n", labelID, ba_IMToStr(im));
-					exit(-1);
+					exit(1);
 				}
 
 				// Label appears before jmp
@@ -1542,7 +1542,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 			default:
 				fprintf(stderr, "Error: unrecognized intermediate "
 					"instruction: %#llx\n", im->vals[0]);
-				exit(-1);
+				exit(1);
 		}
 
 		im = ba_DelIM(im);
@@ -1678,7 +1678,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		if (!file) {
 			fprintf(stderr, "Error: Could not open file '%s' for writing\n", 
 				fileName);
-			exit(-1);
+			exit(1);
 		}
 		fclose(file);
 
@@ -1687,7 +1687,7 @@ u8 ba_WriteBinary(char* fileName, struct ba_Ctr* ctr) {
 		if (!file) {
 			fprintf(stderr, "Error: Could not open file '%s' for writing\n", 
 				fileName);
-			exit(-1);
+			exit(1);
 		}
 	}
 	
@@ -1997,7 +1997,7 @@ u8 ba_PessimalInstrSize(struct ba_IM* im) {
 		default:
 			fprintf(stderr, "Error: unrecognized intermediate "
 				"instruction: %#llx\n", im->vals[0]);
-			exit(-1);
+			exit(1);
 	}
 
 	// Maximum x86_64 instruction size

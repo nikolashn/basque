@@ -81,7 +81,7 @@ u8 ba_POpPrecedence(struct ba_POpStkItem* op) {
 	
 	fprintf(stderr, "Error: unknown operator with lexeme type 0x%llx, "
 		"syntax type %u\n", op->lexemeType, op->syntax);
-	exit(-1);
+	exit(1);
 	return 255;
 }
 
@@ -217,7 +217,7 @@ void ba_POpNonLitUnary(u64 opLexType, struct ba_PTkStkItem* arg,
 	if (!imOp) {
 		fprintf(stderr, "Error: Unary lexeme type %llx passed to "
 			"ba_POpNonLitUnary not recognized\n", opLexType);
-		exit(-1);
+		exit(1);
 	}
 
 	u64 stackPos = 0;
