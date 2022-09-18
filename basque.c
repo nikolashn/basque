@@ -15,6 +15,7 @@ char usageStr[] =
 	"  -r,--run                Run the compiled code after compilation.\n"
 	"  -s,--silence-warnings   Silence warnings.\n"
 	"  -W,--warnings-as-errors Treat warnings as errors.\n"
+	"  --disable-assertions    Disable compiling code for \"assert\" statements.\n"
 	"  --include-path <PATH>   Set paths for searching for included files.\n"
 	"  --page-size <SIZE>      Size in bytes of memory pages.\n"
 ;
@@ -103,6 +104,10 @@ int main(int argc, char* argv[]) {
 				return -1;
 			}
 			ba_SetPageSize(atoll(argv[i]));
+			goto BA_LBL_MAIN_ARGSLOOPEND;
+		}
+		else if (!strcmp(argv[i], "--disable-assertions")) {
+			ba_SetAssertions(0);
 			goto BA_LBL_MAIN_ARGSLOOPEND;
 		}
 		else if (!strcmp(argv[i], "--include-path")) {

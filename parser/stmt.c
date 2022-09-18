@@ -168,6 +168,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		ba_PExpect(';', ctr);
 
+		if (!ba_HasAssertions()) {
+			return 1;
+		}
+
 		u64 lblId = ctr->labelCnt++;
 		u64 reg = BA_IM_RAX;
 

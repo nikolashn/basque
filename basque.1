@@ -12,12 +12,19 @@ basque \- the C Basque compiler
 .B \-v
 ]
 .SH DESCRIPTION
-Basque intends to be a general-purpose statically-typed procedural programming language, similar to C, but with some improvements.
-The C Basque compiler currently statically compiles for Linux x86_64 ELF, ahead of time, and takes ASCII input.
+Basque intends to be a general-purpose statically-typed procedural programming
+language, similar to C, but with some improvements.
+The C Basque compiler currently statically compiles for Linux x86_64 ELF, ahead
+of time, and takes ASCII input.
 .PP
-When the C Basque compiler is invoked with an source file argument, it will compile and assemble the source code into an executable file (there is no linker or preprocessor).
+When the C Basque compiler is invoked with an source file argument, it will
+compile and assemble the source code into an executable file (there is no linker
+or preprocessor).
 .PP
-A single dash "\-" can be used as the source file argument to read source code from standard input.
+A single dash
+.B \-
+can be used as the source file argument to read source code
+from standard input.
 .SH OPTIONS
 .TP
 .BR \-h ", " \-\-help
@@ -27,7 +34,17 @@ Write a list of options to standard output, then exit.
 Write the current version of the C Basque compiler to standard output, then exit.
 .TP
 .BR \-o " file"
-Output compiled code into an executable file at the specified path. To write to standard output, use a dash "\-" as the "file" argument. If this argument is not provided, and the input file name is "filename.ba", the output file will be "filename". Otherwise, the output file will be called "out".
+Output compiled code into an executable file at the specified path. To write to
+standard output, use a dash
+.B \-
+as the
+.B file
+argument. If this argument is not provided, and the input file name is
+.BR filename.ba ","
+the output file will be
+.BR filename "."
+Otherwise, the output file will be called
+.BR out "."
 .TP
 .BR \-r ", " \-\-run
 Run the compiled code after compilation. This will still generate an output file.
@@ -37,6 +54,11 @@ Silence all compiler warnings.
 .TP
 .BR \-W ", " \-\-warnings-as-errors
 Treat warnings as errors (terminate compilation on warnings).
+.TP
+.BR \-\-disable\-assertions
+Disable compiling code for
+.B assert
+statements.
 .TP
 .BR \-\-include\-path " path"
 Set paths for searching for included files. When an include statement is

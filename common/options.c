@@ -4,6 +4,7 @@
 
 u64 pageSize = 0;
 char* includePath = 0;
+bool hasAssertions = 1;
 
 void ba_SetPageSize(u64 sz) {
 	pageSize = sz;
@@ -21,5 +22,13 @@ void ba_SetIncludePath(char* path, bool isOverrideDefaults) {
 
 char* ba_GetIncludePath() {
 	return includePath;
+}
+
+void ba_SetAssertions(bool has) {
+	hasAssertions = has;
+}
+
+bool ba_HasAssertions() {
+	return hasAssertions;
 }
 
