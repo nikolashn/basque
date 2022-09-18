@@ -281,6 +281,26 @@ else {
 }
 ```
 
+#### Assertions
+Syntax: `assert <expression>;`
+
+Will throw an error if the condition (the expression provided) is false. Non-numeric expressions are not permitted, as they cannot be converted to a boolean value.
+
+```
+i64 Pow(i64 a, i64 b) {
+	assert b >= 0;
+	i64 result = 1;
+	while b iter --b {
+		result *= a;
+	}
+	return result;
+}
+
+Pow(5, 2);
+Pow(-5, 2);
+Pow(2, -5); # Exits with an assertion error
+```
+
 #### While loops
 Syntax: `while <expression>` \[ `iter <expression>` \] ( `"," <statement>` | `{` { `<statement>` } `}` )
 
