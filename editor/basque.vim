@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language: Basque
 " Maintainer: nikolashn
-" Latest Revision: 2022 Aug 13
+" Latest Revision: 2022 Sep 18
 " Usage instructions:
 
 " Put this file in .vim/syntax/basque.vim,
@@ -28,7 +28,7 @@ syn match baEscape contained '\\\(["ntvfrb0\n\\]\|\'\|\(x\o\x\)\)'
 
 syn keyword baConditional if elif else
 syn keyword baRepeat while iter
-syn keyword baStatement fwrite swrite break goto return include exit
+syn keyword baStatement fwrite swrite break goto return include exit assert
 syn keyword baType u64 i64 u8 i8 bool void
 syn keyword baOperator lengthof
 

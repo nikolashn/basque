@@ -4,7 +4,7 @@
 #include "fstr.h"
 #include "../common/options.h"
 
-void PrintStr(struct ba_Ctr* ctr, u64 len, char* str) {
+void WriteStr(struct ba_Ctr* ctr, u64 len, char* str, i64 fd) {
 	// Round up to nearest 0x08
 	u64 memLen = (len + 0x7) & ~0x7;
 	if (!memLen) {
@@ -39,7 +39,7 @@ void PrintStr(struct ba_Ctr* ctr, u64 len, char* str) {
 	
 	// write
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 1);
-	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, 1);
+	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDI, BA_IM_IMM, fd);
 	ba_AddIM(ctr, 3, BA_IM_MOV, BA_IM_RSI, BA_IM_RSP);
 	ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RDX, BA_IM_IMM, len);
 	ba_AddIM(ctr, 1, BA_IM_SYSCALL);
@@ -47,10 +47,10 @@ void PrintStr(struct ba_Ctr* ctr, u64 len, char* str) {
 	// deallocate stack memory
 	ba_AddIM(ctr, 4, BA_IM_ADD, BA_IM_RSP, BA_IM_IMM, memLen);
 }
-
-
+	
 /* stmt = "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
  *        [ "else" ( commaStmt | scope ) ]
+ *      | "assert" exp ";"
  *      | "while" exp [ "iter" exp ] ( commaStmt | scope )
  *      | "break" ";"
  *      | "return" [ exp ] ";"
@@ -82,10 +82,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 	else if (ba_PAccept(BA_TK_KW_IF, ctr)) {
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->col;
-
-		bool hasReachedElse = 0;
-
 		u64 endLblId = ctr->labelCnt++;
+		bool hasReachedElse = 0;
 
 		while (ba_PExp(ctr)) {
 			struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
@@ -97,12 +95,10 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			u64 lblId = ctr->labelCnt++;
 			u64 reg = BA_IM_RAX;
 
-			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
-				if (!ba_IsTypeNum(stkItem->typeInfo)) {
-					return ba_ExitMsg(BA_EXIT_ERR, "cannot use non-numeric "
-						"literal as condition on", line, col, ctr->currPath);
-				}
+			!ba_IsTypeNum(stkItem->typeInfo) &&
+				ba_ErrorNonNumCondition(line, col, ctr->currPath);
 
+			if (ba_IsLexemeLiteral(stkItem->lexemeType)) {
 				if (stkItem->val) {
 					ba_ExitMsg(BA_EXIT_WARN, "condition will always "
 						"be true on", line, col, ctr->currPath);
@@ -155,6 +151,59 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		// In some cases may be a duplicate label
 		ba_AddIM(ctr, 2, BA_IM_LABEL, endLblId);
 
+		return 1;
+	}
+	// "assert" exp ";"
+	else if (ba_PAccept(BA_TK_KW_ASSERT, ctr)) {
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->col;
+		
+		if (!ba_PExp(ctr)) {
+			return 0;
+		}
+		struct ba_PTkStkItem* stkItem = ba_StkPop(ctr->pTkStk);
+		if (!stkItem) {
+			return ba_ExitMsg(BA_EXIT_ERR, "syntax error on", line, col,
+				ctr->currPath);
+		}
+		ba_PExpect(';', ctr);
+
+		u64 lblId = ctr->labelCnt++;
+		u64 reg = BA_IM_RAX;
+
+		!ba_IsTypeNum(stkItem->typeInfo) &&
+			ba_ErrorNonNumCondition(line, col, ctr->currPath);
+
+		bool isLiteral = ba_IsLexemeLiteral(stkItem->lexemeType);
+		if (!isLiteral) {
+			u64 size = ba_GetSizeOfType(stkItem->typeInfo);
+			if (stkItem->lexemeType == BA_TK_IMREGISTER) {
+				reg = (u64)stkItem->val;
+			}
+			else if (stkItem->lexemeType == BA_TK_IDENTIFIER) {
+				ba_POpMovIdToReg(ctr, stkItem->val, size, BA_IM_RAX, 
+					/* isLea = */ 0);
+			}
+			u64 adjReg = ba_AdjRegSize(reg, size);
+			ba_AddIM(ctr, 3, BA_IM_TEST, adjReg, adjReg);
+			ba_AddIM(ctr, 2, BA_IM_LABELJNZ, lblId);
+		}
+		else if (stkItem->val) {
+			ba_AddIM(ctr, 2, BA_IM_LABELJMP, lblId);
+		}
+		
+		char msg[BA_PATH_BUF_SIZE*2];
+		if (!isLiteral || !stkItem->val) {
+			u64 len = snprintf(msg, BA_PATH_BUF_SIZE*2, "Assertion failed on "
+				"line %llu:%llu in %s\n", line, col, ctr->currPath);
+			WriteStr(ctr, len, msg, 2);
+		}
+
+		ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_DIL, BA_IM_IMM, 1);
+		ba_AddIM(ctr, 4, BA_IM_MOV, BA_IM_RAX, BA_IM_IMM, 60);
+		ba_AddIM(ctr, 1, BA_IM_SYSCALL);
+		ba_AddIM(ctr, 2, BA_IM_LABEL, lblId);
+		
 		return 1;
 	}
 	// "while" ...
@@ -614,7 +663,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		while (fstr) {
 			if (!fstr->formatType) {
 				if (fstr->len) {
-					PrintStr(ctr, fstr->len, fstr->val);
+					WriteStr(ctr, fstr->len, fstr->val, 1);
 				}
 			}
 			else {
@@ -779,7 +828,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 				if (isFormatNum) {
 					if (isLiteral) {
-						PrintStr(ctr, len, str);
+						WriteStr(ctr, len, str, 1);
 						free(str);
 					}
 					else {
@@ -807,7 +856,7 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		// String literals by themselves in statements are written to standard output
 		if (expItem->lexemeType == BA_TK_LITSTR) {
 			char* str = ((struct ba_Str*)expItem->val)->str;
-			PrintStr(ctr, ((struct ba_Str*)expItem->val)->len, str);
+			WriteStr(ctr, ((struct ba_Str*)expItem->val)->len, str, 1);
 			free(str);
 			free(expItem);
 		}

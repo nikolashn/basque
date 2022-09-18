@@ -69,6 +69,11 @@ u8 ba_ErrorFString(u64 line, u64 col, char* path, char* endMsg) {
 		line, col, path, endMsg);
 }
 
+u8 ba_ErrorNonNumCondition(u64 line, u64 col, char* path) {
+	return ba_ExitMsg(BA_EXIT_ERR, "cannot use data of non-numeric "
+		"type as condition on", line, col, path);
+}
+
 u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, char* path, u64 max) {
 	fprintf(stderr, "Error: encountered %s at %llu:%llu in %s greater than "
 		"maximum allowed length (%llu characters)\n", type, line, col, path, max);

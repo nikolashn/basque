@@ -56,6 +56,7 @@ enum {
 	BA_TK_KW_LENGTHOF = 0x30f,
 	BA_TK_KW_ITER     = 0x310,
 	BA_TK_KW_BOOL     = 0x311,
+	BA_TK_KW_ASSERT   = 0x312,
 
 	// Used to change ctr->currPath
 	BA_TK_FILECHANGE = 0xfff,

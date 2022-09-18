@@ -24,6 +24,7 @@ u8 ba_ErrorIntLitChar(u64 line, u64 col, char* path);
 u8 ba_ErrorIntLitTooLong(u64 line, u64 col, char* path);
 u8 ba_ErrorTknOverflow(char* type, u64 line, u64 col, char* path, u64 max);
 u8 ba_ErrorFString(u64 line, u64 col, char* path, char* endMsg);
+u8 ba_ErrorNonNumCondition(u64 line, u64 col, char* path);
 u8 ba_ErrorIdUndef(char* var, u64 line, u64 col, char* path);
 u8 ba_ErrorVarRedef(char* var, u64 line, u64 col, char* path);
 u8 ba_ErrorVarVoid(u64 line, u64 col, char* path);
