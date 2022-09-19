@@ -115,7 +115,6 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_KW_I8:       return "keyword 'i8'";
 		case BA_TK_KW_GARBAGE:  return "keyword 'garbage'";
 		case BA_TK_KW_LENGTHOF: return "keyword 'lengthof'";
-		case BA_TK_KW_ITER:     return "keyword 'iter'";
 		case BA_TK_KW_BOOL:     return "keyword 'bool'";
 		case BA_TK_KW_ASSERT:   return "keyword 'assert'";
 	}

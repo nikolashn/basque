@@ -699,7 +699,6 @@ bool TokenizeWithState(struct ba_Ctr* ctr, FILE* srcFile, char* f, u64* jPtr,
 				TryKeyword(buf, "elif", BA_TK_KW_ELIF, lex) || 
 				TryKeyword(buf, "else", BA_TK_KW_ELSE, lex) || 
 				TryKeyword(buf, "exit", BA_TK_KW_EXIT, lex) || 
-				TryKeyword(buf, "iter", BA_TK_KW_ITER, lex) || 
 				TryKeyword(buf, "goto", BA_TK_KW_GOTO, lex) || 
 				TryKeyword(buf, "void", BA_TK_KW_VOID, lex) ||
 				TryKeyword(buf, "while", BA_TK_KW_WHILE, lex) || 

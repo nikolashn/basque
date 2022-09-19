@@ -3,7 +3,7 @@ u64[0x1000] y = garbage;
 MemCopy(&y, &x, $x);
 
 u64 i = 0;
-while (i < lengthof x) iter ++i {
+while i < lengthof x; ++i {
 	f"%u{[y,i]}\n";
 }
 

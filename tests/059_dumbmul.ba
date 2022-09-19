@@ -4,11 +4,11 @@
 #}
 
 u64 DumbMul(u64 a, u64 b) {
-	u64 SmartAdd(u64 a, u64 b) {
-		return a + b;
+	u64 SmartAdd(u64 x, u64 y) {
+		return x + y;
 	}
 	u64 product = 0;
-	while b iter --b {
+	while b; --b {
 		product += a;
 	}
 	return product;

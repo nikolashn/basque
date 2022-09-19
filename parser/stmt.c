@@ -51,7 +51,7 @@ void WriteStr(struct ba_Ctr* ctr, u64 len, char* str, i64 fd) {
 /* stmt = "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
  *        [ "else" ( commaStmt | scope ) ]
  *      | "assert" exp ";"
- *      | "while" exp [ "iter" exp ] ( commaStmt | scope )
+ *      | "while" exp [ ";" exp ] ( commaStmt | scope )
  *      | "break" ";"
  *      | "return" [ exp ] ";"
  *      | "exit" exp ";"
@@ -267,8 +267,8 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 		struct ba_IM* imIterBegin = 0;
 		struct ba_IM* imIterEnd = 0;
-		// ... "iter" ...
-		if (ba_PAccept(BA_TK_KW_ITER, ctr)) {
+		// ... ";" ...
+		if (ba_PAccept(';', ctr)) {
 			struct ba_IM* oldIM = ctr->im;
 			imIterBegin = ba_NewIM();
 			ctr->im = imIterBegin;

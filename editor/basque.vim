@@ -27,7 +27,7 @@ syn region baCharacter start='\'' end='\'' skip='\\\'' contains=baEscape
 syn match baEscape contained '\\\(["ntvfrb0\n\\]\|\'\|\(x\o\x\)\)'
 
 syn keyword baConditional if elif else
-syn keyword baRepeat while iter
+syn keyword baRepeat while
 syn keyword baStatement fwrite swrite break goto return include exit assert
 syn keyword baType u64 i64 u8 i8 bool void
 syn keyword baOperator lengthof

@@ -290,7 +290,7 @@ Will throw an error if the condition (the expression provided) is false. Non-num
 i64 Pow(i64 a, i64 b) {
 	assert b >= 0;
 	i64 result = 1;
-	while b iter --b {
+	while b; --b {
 		result *= a;
 	}
 	return result;
@@ -302,9 +302,9 @@ Pow(2, -5); # Exits with an assertion error
 ```
 
 #### While loops
-Syntax: `while <expression>` \[ `iter <expression>` \] ( `"," <statement>` | `{` { `<statement>` } `}` )
+Syntax: `while <expression>` \[ `; <expression>` \] ( `"," <statement>` | `{` { `<statement>` } `}` )
 
-Executes code while the condition expressed after the keyword `while` is true. If the keyword `iter` is also used, the expression after the keyword `iter` will be executed at the end of each iteration of the loop. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop are in a local scope.
+Executes code while the condition expressed after the keyword `while` is true. If a semicolon `;` is also used, the expression after the semicolon will be executed at the end of each iteration of the loop. Supports `break;` statements, but in Basque there is no `continue;`. Statements in a while loop are in a local scope.
 
 Examples:
 ```
@@ -319,7 +319,7 @@ while c {
 ```
 ```
 i64 i = 0;
-while i < 10 iter ++i {
+while i < 10; ++i {
 	if i != 0, ",";
 	f"%i{i}";
 }

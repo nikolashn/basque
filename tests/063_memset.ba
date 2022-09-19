@@ -6,7 +6,7 @@ MemSet(&arr, 9, $arr);
 "--- arr ---\n";
 
 u64 i = 0;
-while i < lengthof arr iter ++i {
+while i < lengthof arr; ++i {
 	f"%u{[arr,i]}\n"; # 651061555542690057
 }
 
