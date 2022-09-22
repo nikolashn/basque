@@ -8,7 +8,7 @@
 /* syscall read
  * Params: buf (0x8), count (0x8), fd (0x8)
  * Returns: (rax) no. of bytes read */
-void ba_BltinSysRead(struct ba_Ctr* ctr) {
+void SysRead(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysRead);
 	ba_BltinLblSet(BA_BLTIN_SysRead, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -27,7 +27,7 @@ void ba_BltinSysRead(struct ba_Ctr* ctr) {
 /* syscall write
  * Params: buf (0x8), count (0x8), fd (0x8)
  * Returns: (rax) no. of bytes written */
-void ba_BltinSysWrite(struct ba_Ctr* ctr) {
+void SysWrite(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysWrite);
 	ba_BltinLblSet(BA_BLTIN_SysWrite, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -46,7 +46,7 @@ void ba_BltinSysWrite(struct ba_Ctr* ctr) {
 /* syscall open
  * Params: filename (0x8), flags (0x8), mode (0x8)
  * Returns: (rax) file descriptor */
-void ba_BltinSysOpen(struct ba_Ctr* ctr) {
+void SysOpen(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysOpen);
 	ba_BltinLblSet(BA_BLTIN_SysOpen, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -65,7 +65,7 @@ void ba_BltinSysOpen(struct ba_Ctr* ctr) {
 /* syscall close
  * Params: filename (0x8)
  * Returns: (rax) 0 on success, -1 on error */
-void ba_BltinSysClose(struct ba_Ctr* ctr) {
+void SysClose(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysClose);
 	ba_BltinLblSet(BA_BLTIN_SysClose, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -84,7 +84,7 @@ void ba_BltinSysClose(struct ba_Ctr* ctr) {
 /* syscall lseek
  * Params: fd (0x8), offset (0x8), whence (0x8)
  * Returns: (rax) offset location */
-void ba_BltinSysLSeek(struct ba_Ctr* ctr) {
+void SysLSeek(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysLSeek);
 	ba_BltinLblSet(BA_BLTIN_SysLSeek, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -103,7 +103,7 @@ void ba_BltinSysLSeek(struct ba_Ctr* ctr) {
 /* syscall mmap
  * Params: addr (0x8), size (0x8), prot (0x8), flags (0x8), fd (0x8), off (0x8)
  * Returns: (rax) pointer to mapped area */
-void ba_BltinSysMMap(struct ba_Ctr* ctr) {
+void SysMMap(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysMMap);
 	ba_BltinLblSet(BA_BLTIN_SysMMap, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -131,7 +131,7 @@ void ba_BltinSysMMap(struct ba_Ctr* ctr) {
 /* syscall mprotect
  * Params: addr (0x8), size (0x8), prot (0x8)
  * Returns: (rax) offset location */
-void ba_BltinSysMProtect(struct ba_Ctr* ctr) {
+void SysMProtect(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysMProtect);
 	ba_BltinLblSet(BA_BLTIN_SysMProtect, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -150,7 +150,7 @@ void ba_BltinSysMProtect(struct ba_Ctr* ctr) {
 /* syscall munmap
  * Params: start (0x8), size (0x8)
  * Returns: (rax) 0 on success, -1 on failure */
-void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
+void SysMUnmap(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysMUnmap);
 	ba_BltinLblSet(BA_BLTIN_SysMUnmap, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -168,7 +168,7 @@ void ba_BltinSysMUnmap(struct ba_Ctr* ctr) {
 /* syscall brk
  * Params: start (0x8), size (0x8)
  * Returns: (rax) program break */
-void ba_BltinSysBrk(struct ba_Ctr* ctr) {
+void SysBrk(struct ba_Ctr* ctr) {
 	ba_BltinFlagsSet(BA_BLTIN_SysBrk);
 	ba_BltinLblSet(BA_BLTIN_SysBrk, ctr->labelCnt);
 	++ctr->labelCnt;
@@ -196,7 +196,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Read");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysRead(ctr);
+		SysRead(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -227,7 +227,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Write");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysWrite(ctr);
+		SysWrite(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -258,7 +258,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Open");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysOpen(ctr);
+		SysOpen(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -289,7 +289,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Close");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysClose(ctr);
+		SysClose(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -306,7 +306,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "LSeek");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysLSeek(ctr);
+		SysLSeek(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -335,7 +335,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MMap");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysMMap(ctr);
+		SysMMap(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -383,7 +383,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MProtect");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysMProtect(ctr);
+		SysMProtect(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -412,7 +412,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "MUnmap");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysMUnmap(ctr);
+		SysMUnmap(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
@@ -437,7 +437,7 @@ void ba_IncludeSys(struct ba_Ctr* ctr, u64 line, u64 col) {
 		struct ba_Func* func = ba_IncludeAddFunc(ctr, line, col, "Brk");
 		struct ba_IM* oldIM = ctr->im;
 		ctr->im = func->imBegin;
-		ba_BltinSysBrk(ctr);
+		SysBrk(ctr);
 		func->imEnd = ctr->im;
 		ctr->im = oldIM;
 
