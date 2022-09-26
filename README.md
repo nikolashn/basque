@@ -13,7 +13,7 @@ To install the vim syntax, put the following in your .vimrc:
 ```
 au BufRead,BufNewFile *.ba set filetype=basque
 ```
-Then run the `make vim` or `make nvim` (not as root!).
+Then run `make vim` or `make nvim` (not as root!).
 
 ## Command-line options
 Run `basque -h` for a list of command-line options. The makefile will also install a man page with further details about these options.
