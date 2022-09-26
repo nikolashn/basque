@@ -1067,7 +1067,6 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 
 		u64 line = ctr->lex->line;
 		u64 col = ctr->lex->col;
-		
 		u64 idNameLen = ctr->lex->valLen;
 		char* idName = 0;
 		if (ctr->lex->val) {
@@ -1088,12 +1087,50 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
+		struct ba_StructExtraInfo* structInfo = ba_MAlloc(sizeof(*structInfo));
+		*structInfo = (struct ba_StructExtraInfo){
+			.firstMember = ba_MAlloc(sizeof(struct ba_TypeLL)),
+			.size = 0,
+		};
+		struct ba_TypeLL dummyStructMember = 
+			{ .type = {0}, .next = structInfo->firstMember };
+		struct ba_TypeLL* structMember = &dummyStructMember;
+
 		// ... { base_type identifier ";" } ...
 		while (ba_PBaseType(ctr, /* isInclVoid = */ 0, /* isInclIndefArr = */ 0)) {
+			structMember = structMember->next;
+
+			struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
+			idNameLen = ctr->lex->valLen;
+			if (ctr->lex->val) {
+				idName = ba_MAlloc(idNameLen+1);
+				strcpy(idName, ctr->lex->val);
+			}
+			
 			ba_PExpect(BA_TK_IDENTIFIER, ctr);
 			ba_PExpect(';', ctr);
-			// TODO: add to symbol table
+			
+			*structMember = (struct ba_TypeLL){
+				.type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo),
+				.next = ba_MAlloc(sizeof(struct ba_TypeLL)),
+			};
+			structInfo->size += ba_GetSizeOfType(structMember->type);
 		}
+
+		free(structMember->next);
+		structMember->next = 0;
+
+		struct ba_Type* extraInfo = ba_MAlloc(sizeof(*extraInfo));
+		*extraInfo = (struct ba_Type){
+			.type = BA_TYPE_STRUCT, .extraInfo = structInfo,
+		};
+
+		*idVal = (struct ba_STVal){
+			.type = (struct ba_Type){ .type = BA_TYPE_TYPE, .extraInfo = extraInfo },
+			.scope = ctr->currScope,
+			.address = 0,
+			.isInited = 1,
+		};
 
 		// ... "}"
 		return ba_PExpect('}', ctr);

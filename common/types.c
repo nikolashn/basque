@@ -41,6 +41,8 @@ u64 ba_GetSizeOfType(struct ba_Type type) {
 				*(struct ba_ArrExtraInfo*)type.extraInfo;
 			return ba_GetSizeOfType(info.type) * info.cnt;
 		}
+		case BA_TYPE_STRUCT:
+			return ((struct ba_StructExtraInfo*)type.extraInfo)->size;
 	}
 	return 0;
 }
