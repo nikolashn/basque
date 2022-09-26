@@ -89,8 +89,8 @@ u8 ba_ErrorIdUndef(char* var, u64 line, u64 col, char* path) {
 }
 
 u8 ba_ErrorVarRedef(char* var, u64 line, u64 col, char* path) {
-	fprintf(stderr, "Error: redefinition of '%s' on line %llu:%llu in %s\n", 
-		var, line, col, path);
+	fprintf(stderr, "Error: redefinition of identifier '%s' on "
+		"line %llu:%llu in %s\n", var, line, col, path);
 	exit(1);
 	return 0;
 }
@@ -149,7 +149,7 @@ u8 ba_ErrorGoto(u64 line, u64 col, char* path) {
 }
 
 u8 ba_ErrorShadow(char* idName, u64 line, u64 col, char* path) {
-	fprintf(stderr, "Error: shadowing variable '%s' on line %llu:%llu in %s\n",
+	fprintf(stderr, "Error: shadowing identifier '%s' on line %llu:%llu in %s\n",
 		idName, line, col, path);
 	exit(1);
 	return 0;

@@ -705,6 +705,7 @@ bool TokenizeWithState(struct ba_Ctr* ctr, FILE* srcFile, char* f, u64* jPtr,
 				TryKeyword(buf, "break", BA_TK_KW_BREAK, lex) || 
 				TryKeyword(buf, "return", BA_TK_KW_RETURN, lex) || 
 				TryKeyword(buf, "assert", BA_TK_KW_ASSERT, lex) || 
+				TryKeyword(buf, "struct", BA_TK_KW_STRUCT, lex) ||
 				TryKeyword(buf, "include", BA_TK_KW_INCLUDE, lex) || 
 				TryKeyword(buf, "garbage", BA_TK_KW_GARBAGE, lex) || 
 				TryKeyword(buf, "lengthof", BA_TK_KW_LENGTHOF, lex);

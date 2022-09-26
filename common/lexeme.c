@@ -117,6 +117,7 @@ char* ba_GetLexemeStr(u64 lex) {
 		case BA_TK_KW_LENGTHOF: return "keyword 'lengthof'";
 		case BA_TK_KW_BOOL:     return "keyword 'bool'";
 		case BA_TK_KW_ASSERT:   return "keyword 'assert'";
+		case BA_TK_KW_STRUCT:   return "keyword 'struct'";
 	}
 	return 0;
 }
