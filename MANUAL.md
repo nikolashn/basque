@@ -21,13 +21,34 @@ Arrays in Basque are composed of a dimension on another type. This can be writte
 - For the above reason, arrays are passed by value to functions and are value copied in assignments.
 - Arrays can be casted and assigned to other array types of the same size, e.g. `u64[3]` can be casted to `i8[24]`.
 
+### Structures
+Structure types in Basque combine several pieces of data, which may be of different types, grouped into a single contiguous block of data. The syntax for declaring a structure type is to begin with the keyword `struct`, followed by an identifier (the struct name), a curly brace `{` and a list of member declarations (a type followed by an identifier and a semicolon), finally enclosed by a curly brace `}` and terminated with a semicolon `;`. When using the name of a struct as a type for a variable, unlike in C, the keyword `struct` is not used. For example, the following are all valid declarations of structure types:
+```
+struct String {
+	u8* chars;
+	u64 length;
+};
+
+struct DoublyLinkedList {
+	i64 value;
+	DoublyLinkedList* prev;
+	DoublyLinkedList* next;
+};
+
+struct Person {
+	String name;
+	u64 age;
+	DoublyLinkedList* items;
+};
+```
+
 ### Functions
 Func (function) is a type that represents procedures. The return type of a func can be any type assignable to a variable, or `void` (representing no return value). Funcs may have optional parameters, similar to as in C++, and they may be defined in any scope.
 
 A set of functions are available for use by default in a Basque program. These are called the core functions; more information about them is in a later section.
 
 ### Other future types
-In the future there will be support for many other types: floating point numbers, structures, enumerations, and more.
+In the future there will be support for many other types: floating point numbers, enumerations, and more.
 
 ## Syntax
 ### Comments
