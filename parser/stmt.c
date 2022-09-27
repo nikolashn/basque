@@ -159,9 +159,9 @@ u8 FuncDef(struct ba_Ctr* ctr, char* funcName, u64 line, u64 col,
 
 			case ST_COMMA:
 			{
-				// ... base_type ...
-				if (!ba_PBaseType(ctr, /* isInclVoid = */ 0, 
-					/* isInclIndefArr = */ 0)) 
+				// ... type ...
+				if (!ba_PPlainType(ctr, /* isInclVoid = */ 0, 
+						/* isInclIndefArr = */ 0))
 				{
 					return 0;
 				}
@@ -513,6 +513,7 @@ u8 VarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
 	return 1;
 }
 
+/* type = base_type | id_type */
 /* stmt = "if" exp ( commaStmt | scope ) { "elif" exp ( commaStmt | scope ) }
  *        [ "else" ( commaStmt | scope ) ]
  *      | "assert" exp ";"
@@ -522,15 +523,15 @@ u8 VarDef(struct ba_Ctr* ctr, char* idName, u64 line, u64 col,
  *      | "exit" exp ";"
  *      | "goto" identifier ";"
  *      | "include" lit_str { lit_str } ";"
- *      | "struct" identifier "{" { base_type identifier ";" } "}"
- *      | scope
- *      | base_type identifier "(" [ { base_type [ identifier ] "," } 
- *        base_type [ identifier ] ] ")" ";"
- *      | base_type identifier "(" [ { base_type identifier [ "=" exp ] "," } 
- *        base_type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
- *      | base_type identifier "=" exp ";"
- *      | identifier ":"
+ *      | "struct" identifier "{" { type identifier ";" } "}"
  *      | fstring { fstring } ";"
+ *      | scope
+ *      | type identifier "(" [ { type [ identifier ] "," } 
+ *        type [ identifier ] ] ")" ";"
+ *      | type identifier "(" [ { type identifier [ "=" exp ] "," } 
+ *        type identifier [ "=" exp ] ] ")" ( commaStmt | scope ) 
+ *      | type identifier "=" exp ";"
+ *      | identifier ":"
  *      | exp ";"
  *      | ";" 
  */
@@ -1087,18 +1088,33 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 		}
 		ba_HTSet(ctr->currScope->ht, idName, (void*)idVal);
 
+		struct ba_Type* extraInfo = ba_MAlloc(sizeof(*extraInfo));
+		*idVal = (struct ba_STVal){
+			.type = (struct ba_Type){ .type = BA_TYPE_TYPE, .extraInfo = extraInfo },
+			.scope = ctr->currScope,
+			.address = 0,
+			.isInited = 1,
+		};
+
 		struct ba_StructExtraInfo* structInfo = ba_MAlloc(sizeof(*structInfo));
 		*structInfo = (struct ba_StructExtraInfo){
 			.firstMember = ba_MAlloc(sizeof(struct ba_TypeLL)),
+			.stVal = idVal,
 			.size = 0,
 		};
-		struct ba_TypeLL dummyStructMember = 
-			{ .type = {0}, .next = structInfo->firstMember };
+
+		*extraInfo = (struct ba_Type){
+			.type = BA_TYPE_STRUCT, .extraInfo = structInfo,
+		};
+
+		struct ba_TypeLL dummyStructMember = { .next = structInfo->firstMember };
 		struct ba_TypeLL* structMember = &dummyStructMember;
 
-		// ... { base_type identifier ";" } ...
-		while (ba_PBaseType(ctr, /* isInclVoid = */ 0, /* isInclIndefArr = */ 0)) {
+		// ... { type identifier ";" } ...
+		while (ba_PPlainType(ctr, /* isInclVoid = */ 0, /* isInclIndefArr = */ 0)) {
 			structMember = structMember->next;
+			line = ctr->lex->line;
+			col = ctr->lex->col;
 
 			struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
 			idNameLen = ctr->lex->valLen;
@@ -1112,94 +1128,27 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			
 			*structMember = (struct ba_TypeLL){
 				.type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo),
+				.name = idName,
+				.nameLen = idNameLen,
 				.next = ba_MAlloc(sizeof(struct ba_TypeLL)),
 			};
+			
+			if (structMember->type.type == BA_TYPE_STRUCT &&
+				((struct ba_StructExtraInfo*)structMember->type.extraInfo)->
+					stVal == idVal)
+			{
+				return ba_ExitMsg(BA_EXIT_ERR, "struct type contains an instance "
+					"of itself as a member on", line, col, ctr->currPath);
+			}
+
 			structInfo->size += ba_GetSizeOfType(structMember->type);
 		}
 
 		free(structMember->next);
 		structMember->next = 0;
 
-		struct ba_Type* extraInfo = ba_MAlloc(sizeof(*extraInfo));
-		*extraInfo = (struct ba_Type){
-			.type = BA_TYPE_STRUCT, .extraInfo = structInfo,
-		};
-
-		*idVal = (struct ba_STVal){
-			.type = (struct ba_Type){ .type = BA_TYPE_TYPE, .extraInfo = extraInfo },
-			.scope = ctr->currScope,
-			.address = 0,
-			.isInited = 1,
-		};
-
 		// ... "}"
 		return ba_PExpect('}', ctr);
-	}
-	// scope
-	else if (ba_PScope(ctr, 0)) {
-		return 1;
-	}
-	// ( base_type | "void" ) identifier ...
-	else if (ba_PBaseType(ctr, /* isInclVoid = */ 1, /* isInclIndefArr = */ 1)) {
-		struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
-		struct ba_Type type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo);
-
-		if (!ctr->lex) {
-			return 0;
-		}
-		
-		u64 idNameLen = ctr->lex->valLen;
-		char* idName = 0;
-		if (ctr->lex->val) {
-			idName = ba_MAlloc(idNameLen+1);
-			strcpy(idName, ctr->lex->val);
-		}
-
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->col;
-
-		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
-			return 0;
-		}
-
-		// Function:
-		// ... "(" ...
-		if (ba_PAccept('(', ctr)) {
-			return FuncDef(ctr, idName, line, col, type);
-		}
-
-		// Variable:
-		// ... "=" exp ";"
-		return VarDef(ctr, idName, line, col, type);
-	}
-	// identifier ":"
-	else if (ctr->lex && ctr->lex->type == BA_TK_IDENTIFIER && 
-		ctr->lex->next && ctr->lex->next->type == ':')
-	{
-		u64 lblNameLen = ctr->lex->valLen;
-		char* lblName = 0;
-		if (ctr->lex->val) {
-			lblName = ba_MAlloc(lblNameLen+1);
-			strcpy(lblName, ctr->lex->val);
-		}
-
-		u64 line = ctr->lex->line;
-		u64 col = ctr->lex->col;
-
-		ba_PExpect(BA_TK_IDENTIFIER, ctr);
-		ba_PExpect(':', ctr);
-
-		if (ba_HTGet(ctr->labelTable, lblName)) {
-			return ba_ErrorVarRedef(lblName, line, col, ctr->currPath);
-		}
-
-		struct ba_PLabel* label = ba_MAlloc(sizeof(*label));
-		label->id = ctr->labelCnt++;
-		label->scope = ctr->currScope;
-		ba_AddIM(ctr, 2, BA_IM_LABEL, label->id);
-		ba_HTSet(ctr->labelTable, lblName, label);
-
-		return 1;
 	}
 	// fstring { fstring } ";"
 	else if (ba_PFStr(ctr)) {
@@ -1394,6 +1343,72 @@ u8 ba_PStmt(struct ba_Ctr* ctr) {
 			free(fstrOriginal);
 		}
 		return ba_PExpect(';', ctr);
+	}
+	// scope
+	else if (ba_PScope(ctr, 0)) {
+		return 1;
+	}
+	// ( type | "void" ) identifier ...
+	else if (ba_PPlainType(ctr, /* isInclVoid = */ 1, /* isInclIndefArr = */ 1)) {
+		struct ba_PTkStkItem* typeTk = ba_StkPop(ctr->pTkStk);
+		struct ba_Type type = *(struct ba_Type*)(typeTk->typeInfo.extraInfo);
+
+		if (!ctr->lex) {
+			return 0;
+		}
+		
+		u64 idNameLen = ctr->lex->valLen;
+		char* idName = 0;
+		if (ctr->lex->val) {
+			idName = ba_MAlloc(idNameLen+1);
+			strcpy(idName, ctr->lex->val);
+		}
+
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->col;
+
+		if (!ba_PExpect(BA_TK_IDENTIFIER, ctr)) {
+			return 0;
+		}
+
+		// Function:
+		// ... "(" ...
+		if (ba_PAccept('(', ctr)) {
+			return FuncDef(ctr, idName, line, col, type);
+		}
+
+		// Variable:
+		// ... "=" exp ";"
+		return VarDef(ctr, idName, line, col, type);
+	}
+	// identifier ":"
+	else if (ba_PLookAhead(0, BA_TK_IDENTIFIER, ctr) && 
+		ba_PLookAhead(1, ':', ctr))
+	{
+		u64 lblNameLen = ctr->lex->valLen;
+		char* lblName = 0;
+		if (ctr->lex->val) {
+			lblName = ba_MAlloc(lblNameLen+1);
+			strcpy(lblName, ctr->lex->val);
+		}
+
+		u64 line = ctr->lex->line;
+		u64 col = ctr->lex->col;
+
+		ctr->lex = ba_DelLexeme(ctr->lex);
+		ctr->lex = ba_DelLexeme(ctr->lex);
+
+		if (ba_HTGet(ctr->labelTable, lblName)) {
+			return ba_ErrorVarRedef(lblName, line, col, ctr->currPath);
+		}
+
+		struct ba_PLabel* label = ba_MAlloc(sizeof(*label));
+		label->id = ctr->labelCnt++;
+		label->scope = ctr->currScope;
+		ba_AddIM(ctr, 2, BA_IM_LABEL, label->id);
+		ba_HTSet(ctr->labelTable, lblName, label);
+
+		return 1;
 	}
 	// exp ";"
 	else if (ba_PExp(ctr)) {

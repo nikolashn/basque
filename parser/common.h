@@ -18,6 +18,9 @@
 
 u8 ba_PAccept(u64 type, struct ba_Ctr* ctr);
 u8 ba_PExpect(u64 type, struct ba_Ctr* ctr);
+struct ba_Lexeme* ba_PLookAhead(u64 k, u64 type, struct ba_Ctr* ctr);
 u8 ba_PBaseType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr);
+u8 ba_PIdType(struct ba_Ctr* ctr, bool isInclIndefArr);
+u8 ba_PPlainType(struct ba_Ctr* ctr, bool isInclVoid, bool isInclIndefArr);
 
 #endif

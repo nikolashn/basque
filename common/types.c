@@ -79,6 +79,10 @@ bool ba_AreTypesEqual(struct ba_Type a, struct ba_Type b) {
 		}
 		return 1;
 	}
+	if (a.type == BA_TYPE_STRUCT && b.type == BA_TYPE_STRUCT) {
+		// TODO
+		return 0;
+	}
 	return a.type == b.type;
 }
 
@@ -101,24 +105,15 @@ bool ba_IsPermitConvertPtr(struct ba_Type a, struct ba_Type b) {
 
 char* ba_GetTypeStr(struct ba_Type type) {
 	switch (type.type) {
-		case BA_TYPE_VOID:
-			return "void";
-		case BA_TYPE_U64:
-			return "u64";
-		case BA_TYPE_I64:
-			return "i64";
-		case BA_TYPE_U8:
-			return "u8";
-		case BA_TYPE_I8:
-			return "i8";
-		case BA_TYPE_BOOL:
-			return "bool";
-		case BA_TYPE_F64:
-			return "f64";
-		case BA_TYPE_F32:
-			return "f32";
-		case BA_TYPE_TYPE:
-			return "type";
+		case BA_TYPE_VOID: return "void";
+		case BA_TYPE_U64:  return "u64";
+		case BA_TYPE_I64:  return "i64";
+		case BA_TYPE_U8:   return "u8";
+		case BA_TYPE_I8:   return "i8";
+		case BA_TYPE_BOOL: return "bool";
+		case BA_TYPE_F64:  return "f64";
+		case BA_TYPE_F32:  return "f32";
+		case BA_TYPE_TYPE: return "type";
 		case BA_TYPE_PTR: {
 			char* pntdStr = ba_GetTypeStr(*(struct ba_Type*)type.extraInfo);
 			u64 pntdStrLen = strlen(pntdStr);
@@ -176,6 +171,10 @@ char* ba_GetTypeStr(struct ba_Type type) {
 			char* typeStr = ba_MAlloc(bufSize);
 			snprintf(typeStr, bufSize, "func %s(%s)", retTypeStr, paramsStr);
 			return typeStr;
+		}
+		case BA_TYPE_STRUCT: {
+			// TODO
+			return "struct";
 		}
 	}
 	return 0;
